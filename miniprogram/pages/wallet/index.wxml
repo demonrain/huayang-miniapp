@@ -37,7 +37,7 @@
       bindtap="selectPackage"
     >
       <view wx:if="{{item.badge}}" class="package-badge">{{item.badge}}</view>
-      <view class="package-credits">{{item.credits}}<text> 积分</text></view>
+      <view class="package-credits">{{item.totalCredits}}<text> 积分</text></view>
       <view class="package-price"><text>¥</text>{{item.priceYuan}}</view>
       <view wx:if="{{item.bonus}}" class="package-bonus">含赠送 {{item.bonus}} 积分</view>
     </button>

@@ -99,15 +99,22 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(adminLogin.response.status, 200)
     const adminToken = adminLogin.body.token
 
+    const overview = await api('/api/admin/overview', { token: adminToken })
+    assert.equal(overview.response.status, 200)
+    assert.equal(overview.body.banners.length, 1)
+    assert.deepEqual(overview.body.templates[0].tags, ['人气', '热门'])
+
     const settings = await api('/api/admin/settings', {
       method: 'PATCH', token: adminToken, json: { welcomeCredits: 25, checkinCredits: 7, shareTitle: '测试分享标题' }
     })
     assert.equal(settings.body.settings.checkinCredits, 7)
 
     const templateUpdate = await api('/api/admin/templates/film-diary', {
-      method: 'PATCH', token: adminToken, json: { cost: 3 }
+      method: 'PATCH', token: adminToken, json: { cost: 3, popularity: 12000, tags: ['热门', '推荐'] }
     })
     assert.equal(templateUpdate.body.template.cost, 3)
+    assert.equal(templateUpdate.body.template.popularity, 12000)
+    assert.deepEqual(templateUpdate.body.template.tags, ['热门', '推荐'])
 
     const coverForm = new FormData()
     coverForm.append('image', new Blob([tinyPng], { type: 'image/png' }), 'cover.png')
@@ -115,6 +122,46 @@ test('complete login, generation, idempotency and recharge flow', async () => {
       method: 'POST', token: adminToken, body: coverForm
     })
     assert.match(cover.body.template.coverUrl, /\/media\/covers\//)
+
+    const users = await api('/api/admin/users?query=微信用户&status=enabled', { token: adminToken })
+    assert.equal(users.body.users.length, 1)
+    assert.equal(users.body.users[0].completedJobs, 1)
+
+    const adjusted = await api(`/api/admin/users/${login.body.user.id}/credits`, {
+      method: 'POST', token: adminToken, json: { amount: 5, reason: '测试补发' }
+    })
+    assert.equal(adjusted.body.user.credits, 23)
+
+    const disabled = await api(`/api/admin/users/${login.body.user.id}`, {
+      method: 'PATCH', token: adminToken, json: { enabled: false }
+    })
+    assert.equal(disabled.body.user.enabled, false)
+    assert.equal((await api('/api/me', { token })).response.status, 403)
+    await api(`/api/admin/users/${login.body.user.id}`, {
+      method: 'PATCH', token: adminToken, json: { enabled: true }
+    })
+
+    const transactions = await api('/api/admin/transactions?type=job_charge', { token: adminToken })
+    assert.equal(transactions.body.transactions.length, 1)
+    assert.equal(transactions.body.transactions[0].amount, -2)
+
+    const jobs = await api('/api/admin/jobs?status=succeeded', { token: adminToken })
+    assert.equal(jobs.body.jobs.length, 1)
+    assert.equal(jobs.body.jobs[0].userNickname, '微信用户')
+
+    const banner = await api('/api/admin/banners', {
+      method: 'POST', token: adminToken,
+      json: { title: '春日上新', subtitle: '测试 Banner', badge: '上新', palette: '#dff3ec', targetPath: '', sortOrder: 20, enabled: true }
+    })
+    assert.equal(banner.response.status, 201)
+    const bannerForm = new FormData()
+    bannerForm.append('image', new Blob([tinyPng], { type: 'image/png' }), 'banner.png')
+    const bannerImage = await api(`/api/admin/banners/${banner.body.banner.id}/image`, {
+      method: 'POST', token: adminToken, body: bannerForm
+    })
+    assert.match(bannerImage.body.banner.imageUrl, /\/media\/banners\//)
+    const publicBanners = await api('/api/banners')
+    assert.equal(publicBanners.body.banners.length, 2)
 
     const packageUpdate = await api('/api/admin/packages/starter', {
       method: 'PATCH', token: adminToken, json: { credits: 35 }
@@ -124,11 +171,11 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     const checkin = await api('/api/checkins', { method: 'POST', token, json: {} })
     assert.equal(checkin.body.claimed, true)
     assert.equal(checkin.body.reward, 7)
-    assert.equal(checkin.body.user.credits, 25)
+    assert.equal(checkin.body.user.credits, 30)
 
     const repeatedCheckin = await api('/api/checkins', { method: 'POST', token, json: {} })
     assert.equal(repeatedCheckin.body.claimed, false)
-    assert.equal(repeatedCheckin.body.user.credits, 25)
+    assert.equal(repeatedCheckin.body.user.credits, 30)
 
     const createdShare = await api(`/api/jobs/${created.body.job.id}/share`, {
       method: 'POST', token, json: {}
@@ -147,15 +194,17 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(qrCode.body.code, 'WECHAT_SHARE_NOT_CONFIGURED')
 
     const recharge = await api('/api/payments/orders', {
-      method: 'POST', token, json: { packageId: 'starter' }
+      method: 'POST', token, json: { packageId: 'popular' }
     })
     assert.equal(recharge.response.status, 201)
     assert.equal(recharge.body.payment.mode, 'mock')
-    assert.equal(recharge.body.user.credits, 60)
+    assert.equal(recharge.body.order.credits, 90)
+    assert.equal(recharge.body.user.credits, 120)
 
     const wallet = await api('/api/wallet', { token })
     assert.equal(wallet.body.checkin.claimedToday, true)
-    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [35, 7, -2, 20])
+    assert.equal(wallet.body.packages.find(item => item.id === 'popular').totalCredits, 90)
+    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [90, 7, 5, -2, 20])
   } finally {
     await new Promise(resolve => application.server.close(resolve))
     config.dataDir = original.dataDir

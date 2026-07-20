@@ -12,7 +12,7 @@
       <div class="brand-mark">画</div>
       <div>
         <h1>画漾管理后台</h1>
-        <p>模板、积分与充值配置</p>
+        <p>用户、作品、积分与内容运营</p>
       </div>
       <label>
         管理员密码
@@ -31,6 +31,10 @@
       </div>
       <nav class="nav-list" aria-label="后台导航">
         <button class="nav-item is-active" data-view="overview"><span class="nav-icon">⌂</span>概览与规则</button>
+        <button class="nav-item" data-view="users"><span class="nav-icon">人</span>用户管理</button>
+        <button class="nav-item" data-view="transactions"><span class="nav-icon">账</span>积分流水</button>
+        <button class="nav-item" data-view="jobs"><span class="nav-icon">作</span>作品任务</button>
+        <button class="nav-item" data-view="banners"><span class="nav-icon">图</span>首页 Banner</button>
         <button class="nav-item" data-view="templates"><span class="nav-icon">▦</span>模板管理</button>
         <button class="nav-item" data-view="packages"><span class="nav-icon">¥</span>充值套餐</button>
       </nav>
@@ -61,12 +65,56 @@
         </form>
       </section>
 
+      <section id="usersView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div><h3>用户管理</h3><p>查看用户活跃与积分情况，并执行启停或积分调整。</p></div>
+          <form id="userFilterForm" class="filter-bar">
+            <input name="query" placeholder="昵称、用户 ID 或 OpenID">
+            <select name="status"><option value="all">全部状态</option><option value="enabled">正常</option><option value="disabled">已停用</option></select>
+            <button class="button button--quiet" type="submit">查询</button>
+          </form>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>用户</th><th>积分</th><th>作品</th><th>累计充值</th><th>累计消费</th><th>注册/登录</th><th>状态</th><th>操作</th></tr></thead><tbody id="userRows"></tbody></table></div>
+      </section>
+
+      <section id="transactionsView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div><h3>充值与消费记录</h3><p>包含充值、作品消费、签到、赠送、退款和后台调整。</p></div>
+          <form id="transactionFilterForm" class="filter-bar">
+            <input name="query" placeholder="昵称、用户 ID 或摘要">
+            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="admin_adjust">后台调整</option></select>
+            <button class="button button--quiet" type="submit">查询</button>
+          </form>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>时间</th><th>用户</th><th>类型</th><th>摘要</th><th>变动</th><th>余额</th><th>支付金额</th><th>关联单号</th></tr></thead><tbody id="transactionRows"></tbody></table></div>
+      </section>
+
+      <section id="jobsView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div><h3>作品生成记录</h3><p>查看任务创建、处理、完成时间和失败原因。</p></div>
+          <form id="jobFilterForm" class="filter-bar">
+            <input name="query" placeholder="昵称、任务 ID 或模板">
+            <select name="status"><option value="all">全部状态</option><option value="queued">排队中</option><option value="processing">生成中</option><option value="succeeded">已完成</option><option value="failed">失败</option></select>
+            <button class="button button--quiet" type="submit">查询</button>
+          </form>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>作品</th><th>用户</th><th>模板</th><th>状态</th><th>数量/积分</th><th>生成时间</th><th>完成时间</th><th>耗时</th><th>异常</th></tr></thead><tbody id="jobRows"></tbody></table></div>
+      </section>
+
+      <section id="bannersView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div><h3>首页 Banner</h3><p>建议上传 16:9 或 2:1 图片；无图片时使用设置的背景配色。</p></div>
+          <button id="addBannerButton" class="button button--primary" type="button"><span>＋</span>新增 Banner</button>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>Banner</th><th>文案</th><th>跳转路径</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="bannerRows"></tbody></table></div>
+      </section>
+
       <section id="templatesView" class="view-panel" hidden>
         <div class="toolbar">
           <div><h3>风格模板</h3><p>封面建议使用 1:1 或 4:5 图片。</p></div>
           <button id="addTemplateButton" class="button button--primary" type="button"><span>＋</span>新增模板</button>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>模板</th><th>分类</th><th>积分/张</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="templateRows"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>模板</th><th>分类</th><th>标签</th><th>人气</th><th>积分/张</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="templateRows"></tbody></table></div>
       </section>
 
       <section id="packagesView" class="view-panel" hidden>
@@ -88,14 +136,43 @@
         <label>模板简称<input name="shortName" maxlength="8" required></label>
         <label>分类<input name="category" maxlength="20" placeholder="portrait" required></label>
         <label>每张积分<input name="cost" type="number" min="0" max="10000" required></label>
+        <label>人气值<input name="popularity" type="number" min="0" max="100000000" required></label>
         <label>排序值<input name="sortOrder" type="number" min="0" max="100000" required></label>
         <label>角标<input name="badge" maxlength="12"></label>
+        <label class="field-wide">标签<input name="tags" maxlength="100" placeholder="人气，热门，新上架（逗号分隔）"></label>
         <label>预览配色<input name="palette" maxlength="240" required></label>
         <label class="field-wide">描述<input name="description" maxlength="80" required></label>
         <label class="field-wide">生图提示词<textarea name="prompt" maxlength="3000" rows="5" required></textarea></label>
         <label class="toggle-field"><input name="enabled" type="checkbox" checked><span>启用模板</span></label>
       </div>
       <div class="dialog-actions"><button class="button button--quiet" type="button" data-close="templateDialog">取消</button><button class="button button--primary" type="submit">保存模板</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="bannerDialog" class="dialog dialog--small">
+    <form id="bannerForm" method="dialog">
+      <div class="dialog-heading"><div><h3 id="bannerDialogTitle">新增 Banner</h3><p>跳转路径可留空，例如 /pages/create/index?templateId=film-diary。</p></div><button class="icon-button" type="button" data-close="bannerDialog" aria-label="关闭">×</button></div>
+      <div class="form-grid form-grid--dialog">
+        <label>标题<input name="title" maxlength="40" required></label>
+        <label>角标<input name="badge" maxlength="12"></label>
+        <label class="field-wide">副标题<input name="subtitle" maxlength="80"></label>
+        <label class="field-wide">背景配色<input name="palette" maxlength="240" required></label>
+        <label class="field-wide">点击跳转路径<input name="targetPath" maxlength="200"></label>
+        <label>排序值<input name="sortOrder" type="number" min="0" max="100000" required></label>
+        <label class="toggle-field"><input name="enabled" type="checkbox" checked><span>启用 Banner</span></label>
+      </div>
+      <div class="dialog-actions"><button class="button button--quiet" type="button" data-close="bannerDialog">取消</button><button class="button button--primary" type="submit">保存 Banner</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="creditDialog" class="dialog dialog--small">
+    <form id="creditForm" method="dialog">
+      <div class="dialog-heading"><div><h3>调整用户积分</h3><p id="creditUserLabel"></p></div><button class="icon-button" type="button" data-close="creditDialog" aria-label="关闭">×</button></div>
+      <div class="form-grid form-grid--dialog">
+        <label>调整数量<input name="amount" type="number" min="-1000000" max="1000000" placeholder="增加填正数，扣减填负数" required></label>
+        <label class="field-wide">调整原因<input name="reason" maxlength="40" placeholder="例如：活动补发" required></label>
+      </div>
+      <div class="dialog-actions"><button class="button button--quiet" type="button" data-close="creditDialog">取消</button><button class="button button--primary" type="submit">确认调整</button></div>
     </form>
   </dialog>
 
@@ -115,6 +192,7 @@
   </dialog>
 
   <input id="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+  <input id="bannerImageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="/admin/app.js"></script>
 </body>

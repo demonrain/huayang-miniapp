@@ -1,8 +1,14 @@
 const state = {
   token: sessionStorage.getItem('huayang_admin_token') || '',
   data: null,
+  users: [],
+  transactions: [],
+  jobs: [],
   editingTemplateId: '',
-  coverTemplateId: ''
+  coverTemplateId: '',
+  editingBannerId: '',
+  bannerImageId: '',
+  creditUserId: ''
 }
 
 const elements = {
@@ -14,14 +20,28 @@ const elements = {
   pageTitle: document.querySelector('#pageTitle'),
   statsGrid: document.querySelector('#statsGrid'),
   settingsForm: document.querySelector('#settingsForm'),
+  userRows: document.querySelector('#userRows'),
+  userFilterForm: document.querySelector('#userFilterForm'),
+  transactionRows: document.querySelector('#transactionRows'),
+  transactionFilterForm: document.querySelector('#transactionFilterForm'),
+  jobRows: document.querySelector('#jobRows'),
+  jobFilterForm: document.querySelector('#jobFilterForm'),
+  bannerRows: document.querySelector('#bannerRows'),
   templateRows: document.querySelector('#templateRows'),
   packageList: document.querySelector('#packageList'),
   templateDialog: document.querySelector('#templateDialog'),
   templateDialogTitle: document.querySelector('#templateDialogTitle'),
   templateForm: document.querySelector('#templateForm'),
+  bannerDialog: document.querySelector('#bannerDialog'),
+  bannerDialogTitle: document.querySelector('#bannerDialogTitle'),
+  bannerForm: document.querySelector('#bannerForm'),
+  creditDialog: document.querySelector('#creditDialog'),
+  creditForm: document.querySelector('#creditForm'),
+  creditUserLabel: document.querySelector('#creditUserLabel'),
   packageDialog: document.querySelector('#packageDialog'),
   packageForm: document.querySelector('#packageForm'),
   coverInput: document.querySelector('#coverInput'),
+  bannerImageInput: document.querySelector('#bannerImageInput'),
   toast: document.querySelector('#toast')
 }
 
@@ -32,6 +52,22 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;')
+}
+
+function shortId(value, length = 8) {
+  const text = String(value || '')
+  return text.length > length ? `${text.slice(0, length)}...` : text
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString('zh-CN', { hour12: false })
+}
+
+function emptyRow(columns, message) {
+  return `<tr><td class="empty-cell" colspan="${columns}">${escapeHtml(message)}</td></tr>`
 }
 
 function showToast(message, error = false) {
@@ -69,16 +105,21 @@ function logout() {
 
 async function loadOverview() {
   state.data = await api('/api/admin/overview')
-  renderAll()
+  renderOverview()
+  renderTemplates()
+  renderBanners()
+  renderPackages()
 }
 
-function renderAll() {
-  const { settings, templates, packages, stats } = state.data
+function renderOverview() {
+  const { settings, stats } = state.data
   const statItems = [
     ['用户总数', stats.users],
     ['生成任务', stats.jobs],
     ['完成作品', stats.completedJobs],
-    ['支付订单', stats.paidOrders]
+    ['支付订单', stats.paidOrders],
+    ['累计充值积分', stats.rechargedCredits],
+    ['累计消费积分', stats.consumedCredits]
   ]
   elements.statsGrid.innerHTML = statItems.map(([label, value]) => `
     <div class="stat-card"><span>${escapeHtml(label)}</span><strong>${Number(value)}</strong></div>
@@ -87,14 +128,18 @@ function renderAll() {
   elements.settingsForm.elements.welcomeCredits.value = settings.welcomeCredits
   elements.settingsForm.elements.checkinCredits.value = settings.checkinCredits
   elements.settingsForm.elements.shareTitle.value = settings.shareTitle
+}
 
-  elements.templateRows.innerHTML = templates.map(template => `
+function renderTemplates() {
+  elements.templateRows.innerHTML = state.data.templates.map(template => `
     <tr>
       <td><div class="template-cell">
         <div class="cover-thumb" style="background:${escapeHtml(template.palette)}">${template.coverUrl ? `<img src="${escapeHtml(template.coverUrl)}" alt="">` : escapeHtml(template.shortName)}</div>
         <div><strong>${escapeHtml(template.name)}</strong><span>${escapeHtml(template.id)}</span></div>
       </div></td>
       <td>${escapeHtml(template.category)}</td>
+      <td><div class="tag-list">${template.tags.length ? template.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('') : '<span class="muted">未设置</span>'}</div></td>
+      <td>${Number(template.popularity).toLocaleString('zh-CN')}</td>
       <td>${Number(template.cost)}</td>
       <td>${Number(template.sortOrder)}</td>
       <td><span class="status-pill${template.enabled ? ' is-active' : ''}">${template.enabled ? '已启用' : '已停用'}</span></td>
@@ -104,9 +149,31 @@ function renderAll() {
         <button class="row-button" data-template-action="toggle" data-id="${escapeHtml(template.id)}">${template.enabled ? '停用' : '启用'}</button>
       </div></td>
     </tr>
-  `).join('')
+  `).join('') || emptyRow(8, '暂无模板')
+}
 
-  elements.packageList.innerHTML = packages.map(item => `
+function renderBanners() {
+  elements.bannerRows.innerHTML = state.data.banners.map(banner => `
+    <tr>
+      <td><div class="template-cell">
+        <div class="banner-thumb" style="background:${escapeHtml(banner.palette)}">${banner.imageUrl ? `<img src="${escapeHtml(banner.imageUrl)}" alt="">` : '<span>Banner</span>'}</div>
+        <div><strong>${escapeHtml(banner.badge || '首页推荐')}</strong><span>${shortId(banner.id, 12)}</span></div>
+      </div></td>
+      <td><strong>${escapeHtml(banner.title)}</strong><span class="cell-subtitle">${escapeHtml(banner.subtitle || '-')}</span></td>
+      <td><span class="path-cell" title="${escapeHtml(banner.targetPath)}">${escapeHtml(banner.targetPath || '无跳转')}</span></td>
+      <td>${Number(banner.sortOrder)}</td>
+      <td><span class="status-pill${banner.enabled ? ' is-active' : ''}">${banner.enabled ? '已启用' : '已停用'}</span></td>
+      <td><div class="row-actions">
+        <button class="row-button" data-banner-action="edit" data-id="${escapeHtml(banner.id)}">编辑</button>
+        <button class="row-button" data-banner-action="image" data-id="${escapeHtml(banner.id)}">上传图片</button>
+        <button class="row-button" data-banner-action="toggle" data-id="${escapeHtml(banner.id)}">${banner.enabled ? '停用' : '启用'}</button>
+      </div></td>
+    </tr>
+  `).join('') || emptyRow(6, '暂无 Banner')
+}
+
+function renderPackages() {
+  elements.packageList.innerHTML = state.data.packages.map(item => `
     <form class="package-row" data-package-id="${escapeHtml(item.id)}">
       <div class="package-id"><strong>${escapeHtml(item.id)}</strong><span>${item.enabled ? '用户端可见' : '用户端隐藏'}</span></div>
       <label>到账积分<input name="credits" type="number" min="1" value="${Number(item.credits)}" required></label>
@@ -118,11 +185,85 @@ function renderAll() {
   `).join('')
 }
 
-function switchView(name) {
-  const titles = { overview: '概览与规则', templates: '模板管理', packages: '充值套餐' }
+async function loadUsers() {
+  elements.userRows.innerHTML = emptyRow(8, '加载中...')
+  const values = new FormData(elements.userFilterForm)
+  const params = new URLSearchParams({ query: String(values.get('query') || ''), status: String(values.get('status') || 'all') })
+  const result = await api(`/api/admin/users?${params}`)
+  state.users = result.users
+  elements.userRows.innerHTML = state.users.map(user => `
+    <tr>
+      <td><strong>${escapeHtml(user.nickname)}</strong><span class="cell-subtitle">${escapeHtml(shortId(user.id))} · ${escapeHtml(user.maskedOpenid)}</span></td>
+      <td><strong>${Number(user.credits).toLocaleString('zh-CN')}</strong></td>
+      <td>${Number(user.completedJobs)} / ${Number(user.jobCount)}</td>
+      <td class="amount-positive">+${Number(user.rechargedCredits)}</td>
+      <td class="amount-negative">-${Number(user.consumedCredits)}</td>
+      <td>${formatDate(user.createdAt)}<span class="cell-subtitle">登录 ${formatDate(user.lastLoginAt)}</span></td>
+      <td><span class="status-pill${user.enabled ? ' is-active' : ''}">${user.enabled ? '正常' : '已停用'}</span></td>
+      <td><div class="row-actions">
+        <button class="row-button" data-user-action="credits" data-id="${escapeHtml(user.id)}">调积分</button>
+        <button class="row-button" data-user-action="toggle" data-id="${escapeHtml(user.id)}">${user.enabled ? '停用' : '启用'}</button>
+      </div></td>
+    </tr>
+  `).join('') || emptyRow(8, '没有符合条件的用户')
+}
+
+async function loadTransactions() {
+  elements.transactionRows.innerHTML = emptyRow(8, '加载中...')
+  const values = new FormData(elements.transactionFilterForm)
+  const params = new URLSearchParams({ query: String(values.get('query') || ''), type: String(values.get('type') || 'all') })
+  const result = await api(`/api/admin/transactions?${params}`)
+  state.transactions = result.transactions
+  elements.transactionRows.innerHTML = state.transactions.map(item => `
+    <tr>
+      <td>${escapeHtml(item.displayTime)}</td>
+      <td><strong>${escapeHtml(item.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.userMaskedId)}</span></td>
+      <td><span class="ledger-type ledger-type--${escapeHtml(item.type)}">${escapeHtml(item.typeLabel)}</span></td>
+      <td>${escapeHtml(item.title)}</td>
+      <td class="${item.amount >= 0 ? 'amount-positive' : 'amount-negative'}">${item.amount >= 0 ? '+' : ''}${Number(item.amount)}</td>
+      <td>${Number(item.balanceAfter)}</td>
+      <td>${item.orderAmountYuan ? `¥${escapeHtml(item.orderAmountYuan)}` : '-'}</td>
+      <td title="${escapeHtml(item.externalRef)}">${escapeHtml(shortId(item.externalRef, 12) || '-')}</td>
+    </tr>
+  `).join('') || emptyRow(8, '没有符合条件的流水')
+}
+
+async function loadJobs() {
+  elements.jobRows.innerHTML = emptyRow(9, '加载中...')
+  const values = new FormData(elements.jobFilterForm)
+  const params = new URLSearchParams({ query: String(values.get('query') || ''), status: String(values.get('status') || 'all') })
+  const result = await api(`/api/admin/jobs?${params}`)
+  state.jobs = result.jobs
+  elements.jobRows.innerHTML = state.jobs.map(job => `
+    <tr>
+      <td>${job.coverUrl ? `<a class="work-thumb" href="${escapeHtml(job.coverUrl)}" target="_blank" rel="noreferrer"><img src="${escapeHtml(job.coverUrl)}" alt="查看作品"></a>` : `<span class="work-placeholder">${escapeHtml(job.templateShortName)}</span>`}<span class="cell-subtitle">${escapeHtml(shortId(job.id, 10))}</span></td>
+      <td><strong>${escapeHtml(job.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(job.userMaskedId)}</span></td>
+      <td>${escapeHtml(job.templateName)}</td>
+      <td><span class="job-status job-status--${escapeHtml(job.status)}">${escapeHtml(job.statusLabel)}</span></td>
+      <td>${job.assetIds.length} 张 / ${Number(job.cost)} 积分</td>
+      <td>${escapeHtml(job.createdTime)}</td>
+      <td>${escapeHtml(job.completedTime || '-')}</td>
+      <td>${job.durationSeconds === null ? '-' : `${Number(job.durationSeconds)} 秒`}</td>
+      <td class="error-cell" title="${escapeHtml(job.error)}">${escapeHtml(job.error || '-')}</td>
+    </tr>
+  `).join('') || emptyRow(9, '没有符合条件的作品任务')
+}
+
+async function switchView(name) {
+  const titles = {
+    overview: '概览与规则', users: '用户管理', transactions: '积分流水', jobs: '作品任务',
+    banners: '首页 Banner', templates: '模板管理', packages: '充值套餐'
+  }
   document.querySelectorAll('.view-panel').forEach(view => { view.hidden = view.id !== `${name}View` })
   document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('is-active', item.dataset.view === name))
   elements.pageTitle.textContent = titles[name]
+  try {
+    if (name === 'users') await loadUsers()
+    if (name === 'transactions') await loadTransactions()
+    if (name === 'jobs') await loadJobs()
+  } catch (error) {
+    showToast(error.message, true)
+  }
 }
 
 function templateById(id) {
@@ -136,13 +277,15 @@ function openTemplateDialog(template = null) {
   const form = elements.templateForm.elements
   form.id.disabled = Boolean(template)
   if (template) {
-    for (const key of ['id', 'name', 'shortName', 'category', 'cost', 'sortOrder', 'badge', 'palette', 'description', 'prompt']) {
+    for (const key of ['id', 'name', 'shortName', 'category', 'cost', 'popularity', 'sortOrder', 'badge', 'palette', 'description', 'prompt']) {
       form[key].value = template[key] ?? ''
     }
+    form.tags.value = template.tags.join('，')
     form.enabled.checked = template.enabled
   } else {
     form.enabled.checked = true
     form.cost.value = 2
+    form.popularity.value = 0
     form.sortOrder.value = (state.data.templates.length + 1) * 10
     form.palette.value = 'linear-gradient(145deg, #f7b6c2, #f8dda0, #a8daca)'
   }
@@ -157,11 +300,43 @@ function templatePayload(form) {
     shortName: String(values.get('shortName') || ''),
     category: String(values.get('category') || ''),
     cost: Number(values.get('cost')),
+    popularity: Number(values.get('popularity')),
     sortOrder: Number(values.get('sortOrder')),
     badge: String(values.get('badge') || ''),
+    tags: String(values.get('tags') || '').split(/[,，]/).map(item => item.trim()).filter(Boolean),
     palette: String(values.get('palette') || ''),
     description: String(values.get('description') || ''),
     prompt: String(values.get('prompt') || ''),
+    enabled: form.elements.enabled.checked
+  }
+}
+
+function bannerById(id) {
+  return state.data.banners.find(item => item.id === id)
+}
+
+function openBannerDialog(banner = null) {
+  state.editingBannerId = banner?.id || ''
+  elements.bannerDialogTitle.textContent = banner ? '编辑 Banner' : '新增 Banner'
+  elements.bannerForm.reset()
+  const form = elements.bannerForm.elements
+  if (banner) {
+    for (const key of ['title', 'subtitle', 'badge', 'palette', 'targetPath', 'sortOrder']) form[key].value = banner[key] ?? ''
+    form.enabled.checked = banner.enabled
+  } else {
+    form.enabled.checked = true
+    form.sortOrder.value = (state.data.banners.length + 1) * 10
+    form.palette.value = 'linear-gradient(135deg, #dff3ec, #fff0f3)'
+  }
+  elements.bannerDialog.showModal()
+}
+
+function bannerPayload(form) {
+  const values = new FormData(form)
+  return {
+    title: String(values.get('title') || ''), subtitle: String(values.get('subtitle') || ''),
+    badge: String(values.get('badge') || ''), palette: String(values.get('palette') || ''),
+    targetPath: String(values.get('targetPath') || ''), sortOrder: Number(values.get('sortOrder')),
     enabled: form.elements.enabled.checked
   }
 }
@@ -199,6 +374,90 @@ elements.settingsForm.addEventListener('submit', async event => {
     state.data.settings = result.settings
     showToast('规则已保存')
   } catch (error) { showToast(error.message, true) }
+})
+
+elements.userFilterForm.addEventListener('submit', event => { event.preventDefault(); loadUsers().catch(error => showToast(error.message, true)) })
+elements.transactionFilterForm.addEventListener('submit', event => { event.preventDefault(); loadTransactions().catch(error => showToast(error.message, true)) })
+elements.jobFilterForm.addEventListener('submit', event => { event.preventDefault(); loadJobs().catch(error => showToast(error.message, true)) })
+
+elements.userRows.addEventListener('click', async event => {
+  const button = event.target.closest('[data-user-action]')
+  if (!button) return
+  const user = state.users.find(item => item.id === button.dataset.id)
+  if (!user) return
+  if (button.dataset.userAction === 'credits') {
+    state.creditUserId = user.id
+    elements.creditForm.reset()
+    elements.creditUserLabel.textContent = `${user.nickname} · 当前 ${user.credits} 积分`
+    elements.creditDialog.showModal()
+    return
+  }
+  if (button.dataset.userAction === 'toggle') {
+    if (!window.confirm(`确认${user.enabled ? '停用' : '启用'}用户“${user.nickname}”？`)) return
+    try {
+      await api(`/api/admin/users/${encodeURIComponent(user.id)}`, { method: 'PATCH', json: { enabled: !user.enabled } })
+      await loadUsers()
+      showToast(user.enabled ? '用户已停用' : '用户已启用')
+    } catch (error) { showToast(error.message, true) }
+  }
+})
+
+elements.creditForm.addEventListener('submit', async event => {
+  event.preventDefault()
+  const values = new FormData(elements.creditForm)
+  try {
+    await api(`/api/admin/users/${encodeURIComponent(state.creditUserId)}/credits`, {
+      method: 'POST', json: { amount: Number(values.get('amount')), reason: String(values.get('reason') || '') }
+    })
+    elements.creditDialog.close()
+    await Promise.all([loadUsers(), loadOverview()])
+    showToast('用户积分已调整并记录流水')
+  } catch (error) { showToast(error.message, true) }
+})
+
+document.querySelector('#addBannerButton').addEventListener('click', () => openBannerDialog())
+elements.bannerRows.addEventListener('click', async event => {
+  const button = event.target.closest('[data-banner-action]')
+  if (!button) return
+  const banner = bannerById(button.dataset.id)
+  if (!banner) return
+  if (button.dataset.bannerAction === 'edit') openBannerDialog(banner)
+  if (button.dataset.bannerAction === 'image') {
+    state.bannerImageId = banner.id
+    elements.bannerImageInput.click()
+  }
+  if (button.dataset.bannerAction === 'toggle') {
+    try {
+      await api(`/api/admin/banners/${encodeURIComponent(banner.id)}`, { method: 'PATCH', json: { enabled: !banner.enabled } })
+      await loadOverview()
+      showToast(banner.enabled ? 'Banner 已停用' : 'Banner 已启用')
+    } catch (error) { showToast(error.message, true) }
+  }
+})
+
+elements.bannerForm.addEventListener('submit', async event => {
+  event.preventDefault()
+  const payload = bannerPayload(elements.bannerForm)
+  try {
+    if (state.editingBannerId) await api(`/api/admin/banners/${encodeURIComponent(state.editingBannerId)}`, { method: 'PATCH', json: payload })
+    else await api('/api/admin/banners', { method: 'POST', json: payload })
+    elements.bannerDialog.close()
+    await loadOverview()
+    showToast('Banner 已保存')
+  } catch (error) { showToast(error.message, true) }
+})
+
+elements.bannerImageInput.addEventListener('change', async () => {
+  const file = elements.bannerImageInput.files[0]
+  if (!file || !state.bannerImageId) return
+  const form = new FormData()
+  form.append('image', file)
+  try {
+    await api(`/api/admin/banners/${encodeURIComponent(state.bannerImageId)}/image`, { method: 'POST', body: form })
+    await loadOverview()
+    showToast('Banner 图片已更新')
+  } catch (error) { showToast(error.message, true) }
+  elements.bannerImageInput.value = ''
 })
 
 document.querySelector('#addTemplateButton').addEventListener('click', () => openTemplateDialog())
@@ -263,13 +522,9 @@ elements.packageForm.addEventListener('submit', async event => {
     await api('/api/admin/packages', {
       method: 'POST',
       json: {
-        id: String(values.get('id')),
-        credits: Number(values.get('credits')),
-        bonus: Number(values.get('bonus')),
-        priceFen: Math.round(Number(values.get('priceYuan')) * 100),
-        badge: String(values.get('badge') || ''),
-        sortOrder: Number(values.get('sortOrder')),
-        enabled: true
+        id: String(values.get('id')), credits: Number(values.get('credits')), bonus: Number(values.get('bonus')),
+        priceFen: Math.round(Number(values.get('priceYuan')) * 100), badge: String(values.get('badge') || ''),
+        sortOrder: Number(values.get('sortOrder')), enabled: true
       }
     })
     elements.packageDialog.close()
@@ -287,10 +542,8 @@ elements.packageList.addEventListener('submit', async event => {
     await api(`/api/admin/packages/${encodeURIComponent(form.dataset.packageId)}`, {
       method: 'PATCH',
       json: {
-        credits: Number(values.get('credits')),
-        bonus: Number(values.get('bonus')),
-        priceFen: Math.round(Number(values.get('priceYuan')) * 100),
-        badge: String(values.get('badge') || ''),
+        credits: Number(values.get('credits')), bonus: Number(values.get('bonus')),
+        priceFen: Math.round(Number(values.get('priceYuan')) * 100), badge: String(values.get('badge') || ''),
         enabled: form.elements.enabled.checked
       }
     })

@@ -15,11 +15,34 @@
     </view>
     <button class="credit-pill" bindtap="openWallet">
       <text class="credit-mark">积</text>
-      <text>{{user ? user.credits : '--'}}</text>
+      <text class="credit-value">{{user ? user.credits : '--'}}</text>
     </button>
   </view>
 
-  <view class="welcome-card">
+  <swiper
+    wx:if="{{banners.length}}"
+    class="banner-swiper"
+    indicator-dots="{{banners.length > 1}}"
+    indicator-color="rgba(255,255,255,.55)"
+    indicator-active-color="#ffffff"
+    autoplay="{{banners.length > 1}}"
+    interval="4500"
+    circular="{{banners.length > 1}}"
+  >
+    <swiper-item wx:for="{{banners}}" wx:key="id">
+      <view class="welcome-card banner-card" style="background: {{item.palette}}" data-path="{{item.targetPath}}" bindtap="openBanner">
+        <image wx:if="{{item.imageUrl}}" class="banner-image" src="{{item.imageUrl}}" mode="aspectFill"></image>
+        <view wx:if="{{item.imageUrl}}" class="banner-shade"></view>
+        <view class="welcome-copy banner-copy {{item.imageUrl ? 'banner-copy--image' : ''}}">
+          <view class="welcome-kicker">{{item.badge || '今日灵感'}}</view>
+          <view class="welcome-title">{{item.title}}</view>
+          <view class="banner-subtitle">{{item.subtitle}}</view>
+        </view>
+      </view>
+    </swiper-item>
+  </swiper>
+
+  <view wx:else class="welcome-card">
     <view class="welcome-copy">
       <view class="welcome-kicker">今日灵感</view>
       <view class="welcome-title">
@@ -28,7 +51,7 @@
       </view>
       <view class="welcome-gift">
         <text>新用户礼遇</text>
-        <text class="welcome-gift__value">20 积分</text>
+        <text class="welcome-gift__value">{{welcomeCredits}} 积分</text>
       </view>
     </view>
     <view class="welcome-collage">
@@ -98,9 +121,13 @@
         <view class="template-copy">
           <view class="template-name">{{item.name}}</view>
           <view class="template-desc">{{item.description}}</view>
+          <view class="template-tags" wx:if="{{item.tags.length}}">
+            <text wx:for="{{item.tags}}" wx:key="*this">{{item}}</text>
+          </view>
         </view>
         <view class="template-side">
           <view class="template-cost">{{item.cost}} 积分</view>
+          <view class="template-popularity">人气 {{item.popularityText}}</view>
           <view class="template-arrow">›</view>
         </view>
       </view>

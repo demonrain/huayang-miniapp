@@ -38,7 +38,7 @@ for (const page of appConfig.pages) {
   }
 }
 
-const allowedTags = new Set(['view', 'text', 'image', 'button', 'input', 'scroll-view'])
+const allowedTags = new Set(['view', 'text', 'image', 'button', 'input', 'scroll-view', 'swiper', 'swiper-item'])
 const voidTags = new Set(['image', 'input'])
 for (const filename of files.filter(item => item.endsWith('.wxml'))) {
   const source = readFileSync(filename, 'utf8')

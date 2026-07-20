@@ -14,6 +14,7 @@ import {
   assetUrl,
   findTemplate,
   mediaUrl,
+  publicBanners,
   publicJob,
   publicPackages,
   publicShare,
@@ -40,6 +41,7 @@ function publicUser(user, state) {
     avatarUrl: avatar ? assetUrl(avatar) : '',
     credits: user.credits,
     isNew: Boolean(user.isNew),
+    enabled: user.enabled !== false,
     createdAt: user.createdAt
   }
 }
@@ -59,6 +61,7 @@ function getAuthenticatedUser(request, store) {
   if (!payload) throw new HttpError(401, 'UNAUTHORIZED', '登录状态已失效，请重新进入小程序')
   const user = store.read(state => state.users.find(item => item.id === payload.sub))
   if (!user) throw new HttpError(401, 'UNAUTHORIZED', '用户不存在')
+  if (user.enabled === false) throw new HttpError(403, 'USER_DISABLED', '账号已被停用，请联系管理员')
   return user
 }
 
@@ -94,6 +97,16 @@ function cleanText(value, label, maxLength, required = true) {
   return text
 }
 
+function cleanTags(value) {
+  const tags = (Array.isArray(value) ? value : String(value || '').split(/[,，]/))
+    .map(item => String(item).trim())
+    .filter(Boolean)
+  if (tags.length > 6 || tags.some(item => item.length > 12)) {
+    throw new HttpError(400, 'INVALID_FIELD', '模板标签最多 6 个，每个不能超过 12 个字符')
+  }
+  return [...new Set(tags)]
+}
+
 function applyTemplateFields(target, body, creating = false) {
   const textFields = [
     ['name', '模板名称', 30, true],
@@ -108,8 +121,52 @@ function applyTemplateFields(target, body, creating = false) {
     if (creating || key in body) target[key] = cleanText(body[key], label, maxLength, required)
   }
   if (creating || 'cost' in body) target.cost = boundedInteger(body.cost, '模板积分', 0, 10000)
+  if (creating || 'popularity' in body) target.popularity = boundedInteger(body.popularity ?? 0, '人气值', 0, 100000000)
+  if (creating || 'tags' in body) target.tags = cleanTags(body.tags)
   if (creating || 'sortOrder' in body) target.sortOrder = boundedInteger(body.sortOrder ?? 0, '排序值', 0, 100000)
   if ('enabled' in body) target.enabled = Boolean(body.enabled)
+}
+
+function applyBannerFields(target, body, creating = false) {
+  const textFields = [
+    ['title', 'Banner 标题', 40, true],
+    ['subtitle', 'Banner 副标题', 80, false],
+    ['badge', 'Banner 角标', 12, false],
+    ['palette', 'Banner 配色', 240, true],
+    ['targetPath', '跳转路径', 200, false]
+  ]
+  for (const [key, label, maxLength, required] of textFields) {
+    if (creating || key in body) target[key] = cleanText(body[key], label, maxLength, required)
+  }
+  if (creating || 'sortOrder' in body) target.sortOrder = boundedInteger(body.sortOrder ?? 0, '排序值', 0, 100000)
+  if ('enabled' in body) target.enabled = Boolean(body.enabled)
+}
+
+function adminUser(user, state) {
+  const transactions = state.transactions.filter(item => item.userId === user.id)
+  const jobs = state.jobs.filter(item => item.userId === user.id)
+  return {
+    id: user.id,
+    nickname: user.nickname,
+    maskedOpenid: user.openid ? `${user.openid.slice(0, 4)}...${user.openid.slice(-4)}` : '',
+    credits: Number(user.credits || 0),
+    enabled: user.enabled !== false,
+    createdAt: user.createdAt,
+    lastLoginAt: user.lastLoginAt || '',
+    jobCount: jobs.length,
+    completedJobs: jobs.filter(item => item.status === 'succeeded').length,
+    rechargedCredits: transactions.filter(item => item.type === 'recharge').reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    consumedCredits: Math.abs(transactions.filter(item => item.type === 'job_charge').reduce((sum, item) => sum + Number(item.amount || 0), 0))
+  }
+}
+
+const transactionLabels = {
+  welcome: '新用户赠送',
+  checkin: '每日签到',
+  recharge: '充值到账',
+  job_charge: '作品生成',
+  job_refund: '失败退回',
+  admin_adjust: '后台调整'
 }
 
 function applyPackageFields(target, body, creating = false) {
@@ -148,7 +205,7 @@ export async function createApplication() {
   ])
   const store = new JsonStore(config.dataDir)
   await store.init()
-  if (store.read(state => !state.settings || !state.templates.length || !state.packages.length)) {
+  if (store.read(state => !state.settings || !state.templates.length || !state.banners.length || !state.packages.length || state.templates.some(item => !Array.isArray(item.tags) || !Number.isFinite(Number(item.popularity))))) {
     await store.transaction(draft => seedConfig(draft))
   }
   const adminAttempts = new Map()
@@ -271,6 +328,12 @@ export async function createApplication() {
         return
       }
 
+      if (request.method === 'GET' && pathname === '/api/banners') {
+        const state = store.read()
+        json(response, 200, { banners: publicBanners(state) })
+        return
+      }
+
       if (request.method === 'GET' && pathname.startsWith('/api/shares/')) {
         const token = pathname.slice('/api/shares/'.length)
         if (!token || token.includes('/')) throw new HttpError(404, 'SHARE_NOT_FOUND', '分享不存在')
@@ -307,6 +370,7 @@ export async function createApplication() {
         const user = await store.transaction(draft => {
           let found = draft.users.find(item => item.openid === identity.openid)
           if (found) {
+            if (found.enabled === false) throw new HttpError(403, 'USER_DISABLED', '账号已被停用，请联系管理员')
             found.lastLoginAt = now()
             found.isNew = false
             return found
@@ -351,12 +415,15 @@ export async function createApplication() {
           json(response, 200, {
             settings: state.settings,
             templates: publicTemplates(state, true),
+            banners: publicBanners(state, true),
             packages: publicPackages(state, true),
             stats: {
               users: state.users.length,
               jobs: state.jobs.length,
               completedJobs: state.jobs.filter(item => item.status === 'succeeded').length,
-              paidOrders: state.orders.filter(item => item.status === 'paid').length
+              paidOrders: state.orders.filter(item => item.status === 'paid').length,
+              rechargedCredits: state.transactions.filter(item => item.type === 'recharge').reduce((sum, item) => sum + Number(item.amount || 0), 0),
+              consumedCredits: Math.abs(state.transactions.filter(item => item.type === 'job_charge').reduce((sum, item) => sum + Number(item.amount || 0), 0))
             }
           })
           return
@@ -371,6 +438,173 @@ export async function createApplication() {
             return draft.settings
           })
           json(response, 200, { settings })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/users') {
+          const state = store.read()
+          const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
+          const status = String(url.searchParams.get('status') || 'all')
+          const users = state.users
+            .filter(item => status === 'all' || (status === 'enabled' ? item.enabled !== false : item.enabled === false))
+            .filter(item => !query || item.id.toLowerCase().includes(query) || String(item.nickname || '').toLowerCase().includes(query) || String(item.openid || '').toLowerCase().includes(query))
+            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+            .slice(0, 500)
+            .map(item => adminUser(item, state))
+          json(response, 200, { users, total: users.length })
+          return
+        }
+
+        const adminUserMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)$/)
+        if (request.method === 'PATCH' && adminUserMatch) {
+          const body = await readJson(request)
+          const userId = adminUserMatch[1]
+          const updated = await store.transaction(draft => {
+            const target = draft.users.find(item => item.id === userId)
+            if (!target) throw new HttpError(404, 'USER_NOT_FOUND', '用户不存在')
+            if ('enabled' in body) target.enabled = Boolean(body.enabled)
+            target.updatedAt = now()
+            return target
+          })
+          json(response, 200, { user: adminUser(updated, store.read()) })
+          return
+        }
+
+        const adminCreditsMatch = pathname.match(/^\/api\/admin\/users\/([^/]+)\/credits$/)
+        if (request.method === 'POST' && adminCreditsMatch) {
+          const body = await readJson(request)
+          const userId = adminCreditsMatch[1]
+          const amount = boundedInteger(body.amount, '调整积分', -1000000, 1000000)
+          if (amount === 0) throw new HttpError(400, 'INVALID_FIELD', '调整积分不能为 0')
+          const reason = cleanText(body.reason, '调整原因', 40, true)
+          await store.transaction(draft => {
+            const target = draft.users.find(item => item.id === userId)
+            if (!target) throw new HttpError(404, 'USER_NOT_FOUND', '用户不存在')
+            if (target.credits + amount < 0) throw new HttpError(409, 'INSUFFICIENT_CREDITS', '扣减后积分不能小于 0')
+            target.credits += amount
+            target.updatedAt = now()
+            draft.transactions.push({
+              id: randomUUID(), userId, type: 'admin_adjust', title: reason, amount,
+              balanceAfter: target.credits, externalRef: 'admin', createdAt: now()
+            })
+          })
+          const state = store.read()
+          json(response, 200, { user: adminUser(state.users.find(item => item.id === userId), state) })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/transactions') {
+          const state = store.read()
+          const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
+          const type = String(url.searchParams.get('type') || 'all')
+          const transactions = state.transactions
+            .filter(item => type === 'all' || item.type === type)
+            .filter(item => {
+              if (!query) return true
+              const owner = state.users.find(user => user.id === item.userId)
+              return item.userId.toLowerCase().includes(query) || String(owner?.nickname || '').toLowerCase().includes(query) || String(item.title || '').toLowerCase().includes(query)
+            })
+            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+            .slice(0, 1000)
+            .map(item => {
+              const owner = state.users.find(user => user.id === item.userId)
+              const order = item.type === 'recharge' ? state.orders.find(entry => entry.id === item.externalRef) : null
+              return {
+                ...publicTransaction(item),
+                typeLabel: transactionLabels[item.type] || item.type,
+                userNickname: owner?.nickname || '未知用户',
+                userMaskedId: item.userId.slice(0, 8),
+                orderAmountYuan: order ? (Number(order.amountFen || 0) / 100).toFixed(2) : '',
+                orderStatus: order?.status || ''
+              }
+            })
+          json(response, 200, { transactions, total: transactions.length })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/jobs') {
+          const state = store.read()
+          const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
+          const status = String(url.searchParams.get('status') || 'all')
+          const jobs = state.jobs
+            .filter(item => status === 'all' || item.status === status)
+            .filter(item => {
+              if (!query) return true
+              const owner = state.users.find(user => user.id === item.userId)
+              const template = findTemplate(state, item.templateId, true)
+              return item.id.toLowerCase().includes(query) || String(owner?.nickname || '').toLowerCase().includes(query) || String(template?.name || '').toLowerCase().includes(query)
+            })
+            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+            .slice(0, 1000)
+            .map(item => {
+              const owner = state.users.find(user => user.id === item.userId)
+              const job = publicJob(item, state)
+              const endTime = item.completedAt || item.updatedAt
+              return {
+                ...job,
+                userNickname: owner?.nickname || '未知用户',
+                userMaskedId: item.userId.slice(0, 8),
+                createdTime: displayTime(item.createdAt),
+                completedTime: item.completedAt ? displayTime(item.completedAt) : '',
+                durationSeconds: item.startedAt && endTime ? Math.max(0, Math.round((new Date(endTime) - new Date(item.startedAt)) / 1000)) : null
+              }
+            })
+          json(response, 200, { jobs, total: jobs.length })
+          return
+        }
+
+        if (request.method === 'POST' && pathname === '/api/admin/banners') {
+          const body = await readJson(request)
+          const id = randomUUID()
+          await store.transaction(draft => {
+            const item = { id, imageAssetId: '', enabled: body.enabled !== false }
+            applyBannerFields(item, body, true)
+            draft.banners.push(item)
+          })
+          const state = store.read()
+          json(response, 201, { banner: publicBanners(state, true).find(item => item.id === id) })
+          return
+        }
+
+        const adminBannerMatch = pathname.match(/^\/api\/admin\/banners\/([^/]+)$/)
+        if (request.method === 'PATCH' && adminBannerMatch) {
+          const body = await readJson(request)
+          const bannerId = adminBannerMatch[1]
+          await store.transaction(draft => {
+            const item = draft.banners.find(entry => entry.id === bannerId)
+            if (!item) throw new HttpError(404, 'BANNER_NOT_FOUND', 'Banner 不存在')
+            applyBannerFields(item, body)
+          })
+          const state = store.read()
+          json(response, 200, { banner: publicBanners(state, true).find(item => item.id === bannerId) })
+          return
+        }
+
+        const bannerImageMatch = pathname.match(/^\/api\/admin\/banners\/([^/]+)\/image$/)
+        if (request.method === 'POST' && bannerImageMatch) {
+          const bannerId = bannerImageMatch[1]
+          if (!store.read(state => state.banners.some(item => item.id === bannerId))) {
+            throw new HttpError(404, 'BANNER_NOT_FOUND', 'Banner 不存在')
+          }
+          const upload = await readImageUpload(request, config.maxUploadBytes)
+          const detected = detectImage(upload.data)
+          if (!detected) throw new HttpError(415, 'UNSUPPORTED_IMAGE', '仅支持 JPG、PNG 或 WebP 图片')
+          const assetId = randomUUID()
+          const relativePath = path.join('banners', `${bannerId}-${assetId}${detected.extension}`).replaceAll('\\', '/')
+          const filename = path.join(config.mediaDir, relativePath)
+          await mkdir(path.dirname(filename), { recursive: true })
+          await writeFile(filename, upload.data)
+          await store.transaction(draft => {
+            const banner = draft.banners.find(item => item.id === bannerId)
+            if (!banner) throw new HttpError(404, 'BANNER_NOT_FOUND', 'Banner 不存在')
+            draft.assets.push({
+              id: assetId, userId: 'admin', originalName: path.basename(upload.filename).slice(0, 120),
+              mime: detected.mime, size: upload.data.length, storagePath: relativePath, createdAt: now()
+            })
+            banner.imageAssetId = assetId
+          })
+          const state = store.read()
+          json(response, 201, { banner: publicBanners(state, true).find(item => item.id === bannerId) })
           return
         }
 
@@ -686,7 +920,9 @@ export async function createApplication() {
         if (!creditPackage) throw new HttpError(400, 'PACKAGE_NOT_FOUND', '充值套餐不存在')
         const order = await store.transaction(draft => {
           const item = {
-            id: randomUUID(), userId: user.id, packageId: creditPackage.id, credits: creditPackage.credits,
+            id: randomUUID(), userId: user.id, packageId: creditPackage.id,
+            baseCredits: Number(creditPackage.credits), bonusCredits: Number(creditPackage.bonus || 0),
+            credits: Number(creditPackage.credits) + Number(creditPackage.bonus || 0),
             amountFen: creditPackage.priceFen, status: 'pending', providerTransactionId: '', createdAt: now()
           }
           draft.orders.push(item)

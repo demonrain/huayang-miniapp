@@ -12,6 +12,18 @@ export function seedConfig(draft) {
       shareTitle: '来看看我用画漾制作的作品'
     }
     changed = true
+  } else {
+    const defaults = {
+      welcomeCredits: config.newUserCredits,
+      checkinCredits: 3,
+      shareTitle: '来看看我用画漾制作的作品'
+    }
+    for (const [key, value] of Object.entries(defaults)) {
+      if (draft.settings[key] === undefined) {
+        draft.settings[key] = value
+        changed = true
+      }
+    }
   }
   if (!draft.templates.length) {
     draft.templates = defaultTemplates.map((item, index) => ({
@@ -20,6 +32,33 @@ export function seedConfig(draft) {
       coverAssetId: '',
       sortOrder: (index + 1) * 10
     }))
+    changed = true
+  }
+  for (const template of draft.templates) {
+    const catalogTemplate = defaultTemplates.find(item => item.id === template.id)
+    if (!Array.isArray(template.tags)) {
+      template.tags = catalogTemplate?.tags || (template.badge ? [template.badge] : [])
+      changed = true
+    }
+    if (!Number.isFinite(Number(template.popularity))) {
+      template.popularity = Number(catalogTemplate?.popularity || 0)
+      changed = true
+    }
+  }
+  if (!draft.banners.length) {
+    draft.banners = [
+      {
+        id: 'daily-inspiration',
+        title: '把喜欢的瞬间，做成专属画报',
+        subtitle: '上传照片，一键收藏今天的心动',
+        badge: '今日灵感',
+        palette: 'linear-gradient(135deg, #dff3ec, #fff0f3)',
+        targetPath: '',
+        imageAssetId: '',
+        enabled: true,
+        sortOrder: 10
+      }
+    ]
     changed = true
   }
   if (!draft.packages.length) {
@@ -56,6 +95,8 @@ export function publicTemplate(template, state, admin = false) {
     description: template.description,
     cost: template.cost,
     badge: template.badge || '',
+    tags: Array.isArray(template.tags) ? template.tags : [],
+    popularity: Number(template.popularity || 0),
     palette: template.palette,
     coverUrl: assetUrl(cover),
     enabled: template.enabled !== false,
@@ -66,6 +107,30 @@ export function publicTemplate(template, state, admin = false) {
     value.coverAssetId = template.coverAssetId || ''
   }
   return value
+}
+
+export function publicBanner(item, state, admin = false) {
+  const image = item.imageAssetId ? state.assets.find(asset => asset.id === item.imageAssetId) : null
+  const value = {
+    id: item.id,
+    title: item.title,
+    subtitle: item.subtitle || '',
+    badge: item.badge || '',
+    palette: item.palette || '#e9f7f2',
+    targetPath: item.targetPath || '',
+    imageUrl: assetUrl(image),
+    enabled: item.enabled !== false,
+    sortOrder: Number(item.sortOrder || 0)
+  }
+  if (admin) value.imageAssetId = item.imageAssetId || ''
+  return value
+}
+
+export function publicBanners(state, admin = false) {
+  return state.banners
+    .filter(item => admin || item.enabled !== false)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
+    .map(item => publicBanner(item, state, admin))
 }
 
 export function publicTemplates(state, admin = false) {
@@ -80,6 +145,7 @@ export function publicPackage(item) {
     id: item.id,
     credits: Number(item.credits),
     bonus: Number(item.bonus || 0),
+    totalCredits: Number(item.credits) + Number(item.bonus || 0),
     priceFen: Number(item.priceFen),
     priceYuan: (Number(item.priceFen) / 100).toFixed(2),
     badge: item.badge || '',
@@ -110,6 +176,7 @@ export function publicJob(job, state) {
     status: job.status,
     error: job.error,
     createdAt: job.createdAt,
+    startedAt: job.startedAt || '',
     updatedAt: job.updatedAt,
     completedAt: job.completedAt || '',
     templateName: template?.name || '已下架模板',

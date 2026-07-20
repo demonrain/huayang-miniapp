@@ -61,24 +61,26 @@
 }
 
 .credit-pill {
-  height: 58rpx;
+  width: 116rpx;
+  height: 52rpx;
   flex: none;
   margin: 0;
-  padding: 0 16rpx 0 8rpx;
+  padding: 0 8rpx;
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: 6rpx;
   background: #fff;
   border: 2rpx solid #f2e3e6;
   box-shadow: 0 8rpx 20rpx rgba(123, 94, 105, 0.07);
   color: var(--ink);
-  font-size: 22rpx;
-  line-height: 58rpx;
+  font-size: 20rpx;
+  line-height: 52rpx;
+  border-radius: 26rpx;
 }
 
 .credit-mark {
-  width: 38rpx;
-  height: 38rpx;
+  width: 34rpx;
+  height: 34rpx;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -86,6 +88,52 @@
   background: var(--yellow);
   color: #7d6641;
   font-size: 18rpx;
+}
+
+.credit-value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.banner-swiper {
+  height: 292rpx;
+  margin-top: 32rpx;
+}
+
+.banner-swiper .welcome-card {
+  height: 100%;
+  margin-top: 0;
+}
+
+.banner-image,
+.banner-shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.banner-shade {
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(42, 47, 45, .62), rgba(42, 47, 45, .08));
+}
+
+.banner-copy { width: 68%; }
+.banner-copy--image { color: #fff; }
+.banner-copy--image .welcome-kicker,
+.banner-copy--image .welcome-title,
+.banner-copy--image .banner-subtitle { color: #fff; }
+
+.banner-subtitle {
+  margin-top: 16rpx;
+  color: #71857f;
+  font-size: 20rpx;
+  line-height: 1.5;
 }
 
 .welcome-card {
@@ -274,7 +322,7 @@
 
 .template-card {
   min-width: 0;
-  height: 414rpx;
+  height: 454rpx;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -415,7 +463,7 @@
 }
 
 .template-meta {
-  height: 146rpx;
+  height: 186rpx;
   padding: 18rpx;
   display: flex;
   align-items: flex-start;
@@ -445,6 +493,24 @@
   white-space: nowrap;
 }
 
+.template-tags {
+  height: 32rpx;
+  margin-top: 9rpx;
+  display: flex;
+  gap: 6rpx;
+  overflow: hidden;
+}
+
+.template-tags text {
+  padding: 3rpx 8rpx;
+  flex: none;
+  background: var(--pink-soft);
+  border-radius: 6rpx;
+  color: var(--coral);
+  font-size: 16rpx;
+  line-height: 26rpx;
+}
+
 .template-side {
   flex: none;
   display: flex;
@@ -456,6 +522,12 @@
 .template-cost {
   color: var(--coral);
   font-size: 18rpx;
+  white-space: nowrap;
+}
+
+.template-popularity {
+  color: var(--muted);
+  font-size: 16rpx;
   white-space: nowrap;
 }
 
@@ -474,7 +546,7 @@
 }
 
 .skeleton {
-  min-height: 414rpx;
+  min-height: 454rpx;
 }
 
 @keyframes card-in {

@@ -11,6 +11,6 @@
     "postcss": true,
     "minified": true,
     "urlCheck": false
-  }
+  },
+  "simulatorPluginLibVersion": {}
 }
-

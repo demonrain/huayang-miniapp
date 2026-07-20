@@ -4,6 +4,8 @@ Page({
   data: {
     loading: true,
     user: null,
+    banners: [],
+    welcomeCredits: 20,
     templates: [],
     filteredTemplates: [],
     categories: [
@@ -38,11 +40,23 @@ Page({
     try {
       const app = getApp()
       const user = await app.ensureSession()
-      const { templates } = await api.get('/api/templates')
+      const [{ templates }, { banners }, config] = await Promise.all([
+        api.get('/api/templates'),
+        api.get('/api/banners'),
+        api.get('/api/config')
+      ])
+      const displayTemplates = templates.map(item => ({
+        ...item,
+        popularityText: item.popularity >= 10000
+          ? `${(item.popularity / 10000).toFixed(1)}万`
+          : String(item.popularity || 0)
+      }))
       this.setData({
         user,
-        templates,
-        filteredTemplates: templates,
+        banners,
+        welcomeCredits: config.newUserCredits,
+        templates: displayTemplates,
+        filteredTemplates: displayTemplates,
         loading: false
       })
     } catch (error) {
@@ -70,6 +84,14 @@ Page({
   startCreate(event) {
     const id = event.currentTarget.dataset.id
     wx.navigateTo({ url: `/pages/create/index?templateId=${id}` })
+  },
+
+  openBanner(event) {
+    const path = event.currentTarget.dataset.path
+    if (!path) return
+    const tabPages = ['/pages/home/index', '/pages/history/index', '/pages/wallet/index', '/pages/profile/index']
+    if (tabPages.includes(path)) wx.switchTab({ url: path })
+    else wx.navigateTo({ url: path })
   },
 
   openWallet() {

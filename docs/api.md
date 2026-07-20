@@ -1,6 +1,6 @@
 # HTTP API
 
-除登录、模板、配置、支付通知和媒体文件外，接口都需要 `Authorization: Bearer <token>`。
+除登录、模板、Banner、配置、公开分享、支付通知和媒体文件外，接口都需要 `Authorization: Bearer <token>`。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -10,6 +10,7 @@
 | `GET/PATCH` | `/api/me` | 获取或修改昵称头像 |
 | `GET` | `/api/profile` | 用户和作品统计 |
 | `GET` | `/api/templates` | 模板列表 |
+| `GET` | `/api/banners` | 已启用的首页 Banner 列表 |
 | `POST` | `/api/assets` | multipart 上传图片，字段名 `image` |
 | `POST` | `/api/jobs` | 创建生成任务 |
 | `GET` | `/api/jobs` | 当前用户任务列表 |
@@ -28,8 +29,14 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `POST` | `/api/admin/login` | 管理员密码登录 |
-| `GET` | `/api/admin/overview` | 统计、设置、模板和套餐 |
+| `GET` | `/api/admin/overview` | 统计、设置、Banner、模板和套餐 |
 | `PATCH` | `/api/admin/settings` | 修改签到、新用户积分和分享标题 |
+| `GET/PATCH` | `/api/admin/users[/:id]` | 查询用户或修改启用状态 |
+| `POST` | `/api/admin/users/:id/credits` | 调整用户积分并写入流水 |
+| `GET` | `/api/admin/transactions` | 查询充值、消费及其他积分流水 |
+| `GET` | `/api/admin/jobs` | 查询作品任务、状态和生成时间 |
+| `POST/PATCH` | `/api/admin/banners[/:id]` | 新增或修改首页 Banner |
+| `POST` | `/api/admin/banners/:id/image` | 上传 Banner 图片 |
 | `POST/PATCH` | `/api/admin/templates[/:id]` | 新增或修改模板 |
 | `POST` | `/api/admin/templates/:id/cover` | 上传模板封面 |
 | `POST/PATCH` | `/api/admin/packages[/:id]` | 新增或修改充值套餐 |
