@@ -5,11 +5,28 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Blob } from 'node:buffer'
 import { config } from '../src/config.mjs'
+import { seedConfig } from '../src/domain.mjs'
 
 const tinyPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
   'base64'
 )
+
+test('migrates the legacy default share title without overwriting custom settings', () => {
+  const base = {
+    settings: { welcomeCredits: 20, checkinCredits: 3, shareTitle: '来看看我用画漾制作的作品' },
+    templates: [{ id: 'custom', tags: [], popularity: 0 }],
+    banners: [{ id: 'banner' }],
+    packages: [{ id: 'package' }]
+  }
+  assert.equal(seedConfig(base), true)
+  assert.equal(base.settings.shareTitle, '来看看我用花漾相绘制作的作品')
+
+  const custom = structuredClone(base)
+  custom.settings.shareTitle = '我的自定义分享标题'
+  assert.equal(seedConfig(custom), false)
+  assert.equal(custom.settings.shareTitle, '我的自定义分享标题')
+})
 
 test('complete login, generation, idempotency and recharge flow', async () => {
   const sandbox = await mkdtemp(path.join(tmpdir(), 'huayang-test-'))

@@ -205,7 +205,7 @@ export async function createApplication() {
   ])
   const store = new JsonStore(config.dataDir)
   await store.init()
-  if (store.read(state => !state.settings || !state.templates.length || !state.banners.length || !state.packages.length || state.templates.some(item => !Array.isArray(item.tags) || !Number.isFinite(Number(item.popularity))))) {
+  if (store.read(state => !state.settings || state.settings.shareTitle === '来看看我用画漾制作的作品' || !state.templates.length || !state.banners.length || !state.packages.length || state.templates.some(item => !Array.isArray(item.tags) || !Number.isFinite(Number(item.popularity))))) {
     await store.transaction(draft => seedConfig(draft))
   }
   const adminAttempts = new Map()
