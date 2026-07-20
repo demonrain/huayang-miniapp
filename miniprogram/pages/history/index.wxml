@@ -1,0 +1,35 @@
+<view class="page history-page">
+  <view class="history-heading">
+    <view class="section-title__main">作品集</view>
+    <view class="section-title__sub">每一次灵感，都在这里</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="history-list">
+    <view wx:for="{{[1,2,3]}}" wx:key="*this" class="history-card skeleton"></view>
+  </view>
+
+  <view wx:elif="{{jobs.length}}" class="history-list">
+    <button wx:for="{{jobs}}" wx:key="id" class="history-card" data-id="{{item.id}}" bindtap="openJob">
+      <view class="history-cover" style="background: {{item.templatePalette}}">
+        <image wx:if="{{item.coverUrl}}" src="{{item.coverUrl}}" mode="aspectFill"></image>
+        <text wx:else>{{item.templateShortName}}</text>
+      </view>
+      <view class="history-copy">
+        <view class="history-row">
+          <view class="history-name">{{item.templateName}}</view>
+          <view class="status status--{{item.status}}">{{item.statusLabel}}</view>
+        </view>
+        <view class="history-time">{{item.relativeTime}} · {{item.assetIds.length}} 张 · {{item.cost}} 积分</view>
+      </view>
+      <view class="chevron">›</view>
+    </button>
+  </view>
+
+  <view wx:else class="empty empty-work">
+    <view class="empty-mark">画</view>
+    <view class="empty-title">还没有作品</view>
+    <view class="empty-sub">选一个喜欢的风格，制作第一组照片</view>
+    <button class="primary-button" bindtap="goCreate">去创作</button>
+  </view>
+</view>
+

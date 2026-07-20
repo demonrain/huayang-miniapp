@@ -1,0 +1,33 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/history/index",
+    "pages/wallet/index",
+    "pages/profile/index",
+    "pages/create/index",
+    "pages/job/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "画漾",
+    "navigationBarBackgroundColor": "#F7F5F0",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F7F5F0",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#8A8882",
+    "selectedColor": "#1E4D45",
+    "backgroundColor": "#FFFEFB",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "创作" },
+      { "pagePath": "pages/history/index", "text": "作品" },
+      { "pagePath": "pages/wallet/index", "text": "积分" },
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}
+

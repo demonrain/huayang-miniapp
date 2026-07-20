@@ -1,0 +1,28 @@
+<view class="page profile-page" wx:if="{{user}}">
+  <view class="profile-head">
+    <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar">
+      <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill"></image>
+      <text wx:else>{{avatarInitial}}</text>
+    </button>
+    <view class="profile-copy">
+      <input class="nickname-input" type="nickname" value="{{nickname}}" placeholder="设置昵称" bindinput="nicknameInput" bindblur="nicknameBlur" />
+      <view class="profile-id">画漾用户 · {{user.maskedId}}</view>
+    </view>
+  </view>
+
+  <view class="stats-grid">
+    <view><text class="stats-value">{{user.credits}}</text><text>可用积分</text></view>
+    <view><text class="stats-value">{{stats.completedJobs}}</text><text>完成创作</text></view>
+    <view><text class="stats-value">{{stats.generatedImages}}</text><text>生成作品</text></view>
+  </view>
+
+  <view class="menu-list">
+    <button bindtap="openHelp"><text>使用帮助</text><text class="menu-arrow">›</text></button>
+    <button bindtap="openPrivacy"><text>隐私说明</text><text class="menu-arrow">›</text></button>
+  </view>
+
+  <view class="account-note">
+    <view class="account-note__title">微信快捷登录已开启</view>
+    <view>你的作品与积分会跟随当前微信账号保存</view>
+  </view>
+</view>

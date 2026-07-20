@@ -1,0 +1,5 @@
+{
+  "desc": "画漾页面索引",
+  "rules": [{ "action": "allow", "page": "*" }]
+}
+

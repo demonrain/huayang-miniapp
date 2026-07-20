@@ -1,0 +1,16 @@
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "8787:8787"
+    volumes:
+      - huayang-data:/app/server/data
+      - huayang-media:/app/server/media
+
+volumes:
+  huayang-data:
+  huayang-media:

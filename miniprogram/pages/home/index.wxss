@@ -1,0 +1,210 @@
+.home-page {
+  padding-top: calc(env(safe-area-inset-top) + 30rpx);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  font-family: "Songti SC", serif;
+  font-size: 54rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.brand-sub {
+  margin-top: 10rpx;
+  color: var(--muted);
+  font-size: 23rpx;
+}
+
+.credit-pill {
+  height: 64rpx;
+  margin: 0;
+  padding: 0 20rpx 0 10rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  background: var(--surface);
+  border: 2rpx solid var(--line);
+  font-size: 24rpx;
+  line-height: 64rpx;
+}
+
+.credit-mark {
+  width: 42rpx;
+  height: 42rpx;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--yellow);
+  color: var(--ink);
+  font-size: 20rpx;
+}
+
+.intro-band {
+  height: 126rpx;
+  margin-top: 38rpx;
+  padding: 24rpx 28rpx;
+  display: flex;
+  align-items: center;
+  background: var(--green);
+  color: #fff;
+  border-radius: 8rpx;
+}
+
+.intro-step {
+  min-width: 118rpx;
+  font-size: 24rpx;
+}
+
+.intro-step text {
+  color: #a8c7bb;
+  font-family: Georgia, serif;
+  font-size: 20rpx;
+}
+
+.intro-line {
+  height: 2rpx;
+  flex: 1;
+  margin: 0 12rpx;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.category-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.category-row {
+  display: flex;
+  gap: 14rpx;
+  padding-bottom: 8rpx;
+}
+
+.category {
+  min-width: 112rpx;
+  height: 62rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 2rpx solid var(--line);
+  color: var(--muted);
+  font-size: 24rpx;
+  line-height: 62rpx;
+}
+
+.category--active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20rpx;
+  margin-top: 22rpx;
+}
+
+.template-card {
+  min-width: 0;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 2rpx solid var(--line);
+  text-align: left;
+  line-height: 1.35;
+}
+
+.template-art {
+  position: relative;
+  height: 276rpx;
+  padding: 20rpx;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  color: #fff;
+}
+
+.template-art::after {
+  content: '';
+  position: absolute;
+  inset: 36rpx 30rpx 28rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.52);
+  transform: rotate(-4deg);
+}
+
+.art-index {
+  position: absolute;
+  top: 18rpx;
+  left: 18rpx;
+  font-family: Georgia, serif;
+  font-size: 20rpx;
+}
+
+.art-title {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  font-family: "Songti SC", serif;
+  font-size: 42rpx;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.art-badge {
+  position: absolute;
+  top: 14rpx;
+  right: 14rpx;
+  z-index: 2;
+  padding: 8rpx 12rpx;
+  background: #fff;
+  color: var(--ink);
+  font-size: 18rpx;
+}
+
+.template-meta {
+  min-height: 128rpx;
+  padding: 18rpx;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10rpx;
+}
+
+.template-name {
+  font-size: 27rpx;
+  font-weight: 700;
+}
+
+.template-desc {
+  max-width: 190rpx;
+  margin-top: 8rpx;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 20rpx;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-cost {
+  flex: none;
+  color: var(--coral);
+  font-size: 20rpx;
+}
+
+.skeleton {
+  min-height: 400rpx;
+}
+

@@ -1,0 +1,111 @@
+.job-page {
+  padding-bottom: 80rpx;
+}
+
+.status-block {
+  min-height: 172rpx;
+  padding: 26rpx;
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  background: var(--green);
+  color: #fff;
+  border-radius: 8rpx;
+}
+
+.status-block--failed {
+  background: #7c3e35;
+}
+
+.status-index {
+  width: 74rpx;
+  height: 74rpx;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--yellow);
+  color: var(--ink);
+  font-family: Georgia, serif;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.status-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.status-title {
+  font-family: "Songti SC", serif;
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.status-sub {
+  margin-top: 10rpx;
+  color: rgba(255,255,255,0.7);
+  font-size: 21rpx;
+}
+
+.spinner {
+  width: 40rpx;
+  height: 40rpx;
+  border: 4rpx solid rgba(255,255,255,0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.job-meta {
+  margin-top: 20rpx;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--surface);
+  border: 2rpx solid var(--line);
+}
+
+.job-meta view {
+  min-width: 0;
+  padding: 22rpx 12rpx;
+  text-align: center;
+  border-right: 2rpx solid var(--line);
+}
+
+.job-meta view:last-child { border-right: 0; }
+.job-meta text { display: block; color: var(--muted); font-size: 19rpx; }
+.job-meta__value { display: block; margin-top: 6rpx; font-size: 23rpx; font-weight: 700; }
+
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.result-item {
+  position: relative;
+  overflow: hidden;
+  background: #e5e3de;
+  border-radius: 8rpx;
+}
+
+.result-item image {
+  width: 100%;
+  display: block;
+}
+
+.result-number {
+  position: absolute;
+  right: 16rpx;
+  bottom: 16rpx;
+  padding: 8rpx 14rpx;
+  background: rgba(22, 25, 23, 0.76);
+  color: #fff;
+  font-size: 19rpx;
+}
+
+.save-button { margin: 28rpx 0 16rpx; }
+.job-actions { margin-top: 42rpx; }
+.job-actions .ghost-button { margin-top: 16rpx; }

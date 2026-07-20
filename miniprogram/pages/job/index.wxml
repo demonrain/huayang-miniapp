@@ -1,0 +1,38 @@
+<view class="page job-page" wx:if="{{job}}">
+  <view class="status-block status-block--{{job.status}}">
+    <view class="status-index">{{job.status === 'succeeded' ? '完成' : 'AI'}}</view>
+    <view class="status-main">
+      <view class="status-title">{{statusText}}</view>
+      <view class="status-sub" wx:if="{{job.status === 'queued' || job.status === 'processing'}}">通常需要 10 秒至 2 分钟，可以先离开此页</view>
+      <view class="status-sub" wx:if="{{job.status === 'succeeded'}}">{{job.results.length}} 张作品已经准备好</view>
+      <view class="status-sub" wx:if="{{job.status === 'failed'}}">{{job.error || '本次积分已自动退回'}}</view>
+    </view>
+    <view wx:if="{{job.status === 'queued' || job.status === 'processing'}}" class="spinner"></view>
+  </view>
+
+  <view class="job-meta">
+    <view><text>风格</text><text class="job-meta__value">{{job.templateName}}</text></view>
+    <view><text>数量</text><text class="job-meta__value">{{job.assetIds.length}} 张</text></view>
+    <view><text>消耗</text><text class="job-meta__value">{{job.cost}} 积分</text></view>
+  </view>
+
+  <view wx:if="{{job.status === 'succeeded'}}">
+    <view class="section-title">
+      <view class="section-title__main">你的作品</view>
+      <view class="section-title__sub">点击查看大图</view>
+    </view>
+    <view class="result-list">
+      <view wx:for="{{job.results}}" wx:key="id" class="result-item">
+        <image src="{{item.url}}" mode="widthFix" data-url="{{item.url}}" bindtap="preview"></image>
+        <view class="result-number">{{index + 1}} / {{job.results.length}}</view>
+      </view>
+    </view>
+    <button class="primary-button save-button" loading="{{saving}}" bindtap="saveAll">保存到相册</button>
+    <button class="ghost-button" bindtap="createAgain">用这个风格再做一组</button>
+  </view>
+
+  <view wx:if="{{job.status === 'failed'}}" class="job-actions">
+    <button class="primary-button" bindtap="createAgain">重新创作</button>
+    <button class="ghost-button" bindtap="goHome">换个风格</button>
+  </view>
+</view>

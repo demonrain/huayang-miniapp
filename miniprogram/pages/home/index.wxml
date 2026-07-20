@@ -1,0 +1,67 @@
+<view class="page home-page">
+  <view class="topbar">
+    <view>
+      <view class="brand">画漾</view>
+      <view class="brand-sub">把日常，变成作品</view>
+    </view>
+    <button class="credit-pill" bindtap="openWallet">
+      <text class="credit-mark">积</text>
+      <text>{{user ? user.credits : '--'}} 积分</text>
+    </button>
+  </view>
+
+  <view class="intro-band">
+    <view class="intro-step"><text>01</text><view>选风格</view></view>
+    <view class="intro-line"></view>
+    <view class="intro-step"><text>02</text><view>传照片</view></view>
+    <view class="intro-line"></view>
+    <view class="intro-step"><text>03</text><view>收作品</view></view>
+  </view>
+
+  <view class="section-title">
+    <view class="section-title__main">今天想做什么？</view>
+    <view class="section-title__sub">每张低至 2 积分</view>
+  </view>
+
+  <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="false">
+    <view class="category-row">
+      <button
+        wx:for="{{categories}}"
+        wx:key="id"
+        class="category {{activeCategory === item.id ? 'category--active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectCategory"
+      >{{item.name}}</button>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{loading}}" class="template-grid">
+    <view wx:for="{{[1,2,3,4]}}" wx:key="*this" class="template-card skeleton"></view>
+  </view>
+
+  <view wx:else class="template-grid">
+    <button
+      wx:for="{{filteredTemplates}}"
+      wx:key="id"
+      class="template-card"
+      data-id="{{item.id}}"
+      bindtap="startCreate"
+    >
+      <view class="template-art" style="background: {{item.palette}}">
+        <view class="art-index">{{index < 9 ? '0' + (index + 1) : index + 1}}</view>
+        <view class="art-title">{{item.shortName}}</view>
+        <view wx:if="{{item.badge}}" class="art-badge">{{item.badge}}</view>
+      </view>
+      <view class="template-meta">
+        <view>
+          <view class="template-name">{{item.name}}</view>
+          <view class="template-desc">{{item.description}}</view>
+        </view>
+        <view class="template-cost">{{item.cost}} 积分</view>
+      </view>
+    </button>
+  </view>
+
+  <view wx:if="{{!loading && !filteredTemplates.length}}" class="empty">这个分类的模板还在准备中</view>
+</view>
+

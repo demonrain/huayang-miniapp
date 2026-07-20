@@ -1,0 +1,50 @@
+<view class="page create-page" wx:if="{{template}}">
+  <view class="selected-style">
+    <view class="style-swatch" style="background: {{template.palette}}">
+      <text>{{template.shortName}}</text>
+    </view>
+    <view class="style-copy">
+      <view class="eyebrow">已选风格</view>
+      <view class="style-name">{{template.name}}</view>
+      <view class="style-desc">{{template.description}}</view>
+    </view>
+    <view class="unit-cost">{{template.cost}} 积分/张</view>
+  </view>
+
+  <view class="section-title">
+    <view class="section-title__main">添加照片</view>
+    <view class="section-title__sub">{{files.length}} / {{maxFiles}}</view>
+  </view>
+
+  <view class="photo-grid">
+    <view wx:for="{{files}}" wx:key="path" class="photo-item">
+      <image src="{{item.path}}" mode="aspectFill" data-path="{{item.path}}" bindtap="previewImage"></image>
+      <button class="remove-button" data-index="{{index}}" bindtap="removeImage" aria-label="删除照片">×</button>
+      <view class="photo-number">{{index + 1}}</view>
+    </view>
+    <button wx:if="{{files.length < maxFiles}}" class="add-photo" bindtap="chooseImages">
+      <view class="add-icon">＋</view>
+      <view>选择照片</view>
+      <text>支持相册或拍摄</text>
+    </button>
+  </view>
+
+  <view class="photo-note">
+    <view class="note-mark">提示</view>
+    <view>选择清晰、主体完整的照片效果更好。多张照片会分别生成作品。</view>
+  </view>
+
+  <view class="bottom-bar">
+    <view>
+      <view class="cost-label">本次消耗</view>
+      <view class="cost-value">{{totalCost}} <text>积分</text></view>
+    </view>
+    <button
+      class="generate-button"
+      disabled="{{!files.length || busy}}"
+      loading="{{busy}}"
+      bindtap="generate"
+    >{{busy ? '正在提交' : '开始生成'}}</button>
+  </view>
+</view>
+

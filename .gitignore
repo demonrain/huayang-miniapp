@@ -1,0 +1,8 @@
+node_modules/
+.env
+server/data/
+server/media/
+project.private.config.json
+*deploy.private.json
+secrets/
+*.log
