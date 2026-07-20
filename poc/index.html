@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff9f8">
+  <title>花漾相绘 · 产品界面 POC</title>
+  <link rel="icon" href="assets/brand-avatar.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="prototype-shell">
+    <aside class="view-rail" aria-label="原型页面">
+      <div class="rail-brand">
+        <img src="assets/brand-avatar.png" alt="">
+        <div><strong>花漾相绘</strong><span>POC · 01</span></div>
+      </div>
+      <nav>
+        <button class="is-active" data-route="home"><img src="assets/icons/home.svg" alt=""><span>发现花园</span></button>
+        <button data-route="detail"><img src="assets/icons/flower-2.svg" alt=""><span>风格详情</span></button>
+        <button data-route="upload"><img src="assets/icons/image-plus.svg" alt=""><span>上传照片</span></button>
+        <button data-route="result"><img src="assets/icons/sparkles.svg" alt=""><span>生成结果</span></button>
+        <button data-route="works"><img src="assets/icons/images.svg" alt=""><span>我的作品</span></button>
+        <button data-route="wallet"><img src="assets/icons/wallet-cards.svg" alt=""><span>灵感积分</span></button>
+        <button data-route="profile"><img src="assets/icons/user-round.svg" alt=""><span>个人中心</span></button>
+      </nav>
+      <div class="rail-account"><span>当前灵感</span><strong>128 积分</strong></div>
+    </aside>
+
+    <main class="app-frame" aria-live="polite">
+      <div id="screen" class="screen"></div>
+      <nav id="tabbar" class="tabbar" aria-label="主导航">
+        <button class="is-active" data-route="home"><img src="assets/icons/home.svg" alt=""><span>花园</span></button>
+        <button data-route="works"><img src="assets/icons/images.svg" alt=""><span>作品</span></button>
+        <button data-route="wallet"><img src="assets/icons/wallet-cards.svg" alt=""><span>积分</span></button>
+        <button data-route="profile"><img src="assets/icons/user-round.svg" alt=""><span>我的</span></button>
+      </nav>
+    </main>
+
+    <aside class="mood-rail">
+      <p class="rail-kicker">TODAY'S BLOOM</p>
+      <h2>夏日花信</h2>
+      <img src="assets/flowers.jpg" alt="粉色与白色花束">
+      <div class="mood-meta"><span>今日创作</span><strong>12,680</strong></div>
+      <div class="mood-meta"><span>本周新风格</span><strong>06</strong></div>
+      <blockquote>“照片留住样子，风格留下心情。”</blockquote>
+    </aside>
+  </div>
+
+  <input id="photoInput" type="file" accept="image/*" multiple hidden>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

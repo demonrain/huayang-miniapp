@@ -28,7 +28,7 @@ Page({
   onShareAppMessage() {
     const share = this.data.share
     return {
-      title: share?.title || '来看看这组画漾作品',
+      title: share?.title || '来看看这组花漾相绘作品',
       path: `/pages/share/index?token=${encodeURIComponent(this.data.token)}`,
       imageUrl: share?.results?.[0]?.url || ''
     }
@@ -37,7 +37,7 @@ Page({
   onShareTimeline() {
     const share = this.data.share
     return {
-      title: share?.title || '来看看这组画漾作品',
+      title: share?.title || '来看看这组花漾相绘作品',
       query: `token=${encodeURIComponent(this.data.token)}`,
       imageUrl: share?.results?.[0]?.url || ''
     }

@@ -9,20 +9,24 @@ export function seedConfig(draft) {
     draft.settings = {
       welcomeCredits: config.newUserCredits,
       checkinCredits: 3,
-      shareTitle: '来看看我用画漾制作的作品'
+      shareTitle: '来看看我用花漾相绘制作的作品'
     }
     changed = true
   } else {
     const defaults = {
       welcomeCredits: config.newUserCredits,
       checkinCredits: 3,
-      shareTitle: '来看看我用画漾制作的作品'
+      shareTitle: '来看看我用花漾相绘制作的作品'
     }
     for (const [key, value] of Object.entries(defaults)) {
       if (draft.settings[key] === undefined) {
         draft.settings[key] = value
         changed = true
       }
+    }
+    if (draft.settings.shareTitle === '来看看我用画漾制作的作品') {
+      draft.settings.shareTitle = '来看看我用花漾相绘制作的作品'
+      changed = true
     }
   }
   if (!draft.templates.length) {
@@ -199,7 +203,7 @@ export function publicShare(share, state) {
     path: `/pages/share/index?token=${encodeURIComponent(share.token)}`,
     urlLink: share.urlLink || '',
     qrcodeUrl: mediaUrl(share.qrcodeStoragePath),
-    templateName: template?.name || '画漾作品',
+    templateName: template?.name || '花漾相绘作品',
     templatePalette: template?.palette || '#f2c5cc',
     results: (job.results || []).map(result => ({ id: result.id, mime: result.mime, url: mediaUrl(result.storagePath) }))
   }

@@ -103,6 +103,7 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(overview.response.status, 200)
     assert.equal(overview.body.banners.length, 1)
     assert.deepEqual(overview.body.templates[0].tags, ['人气', '热门'])
+    assert.equal(overview.body.settings.shareTitle, '来看看我用花漾相绘制作的作品')
 
     const settings = await api('/api/admin/settings', {
       method: 'PATCH', token: adminToken, json: { welcomeCredits: 25, checkinCredits: 7, shareTitle: '测试分享标题' }

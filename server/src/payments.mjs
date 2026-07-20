@@ -23,7 +23,7 @@ export async function createWechatPrepay(order, openid) {
   const body = JSON.stringify({
     appid: config.wechat.appId,
     mchid: config.payment.mchId,
-    description: `画漾积分充值 ${order.credits} 积分`,
+    description: `花漾相绘积分充值 ${order.credits} 积分`,
     out_trade_no: order.id.replaceAll('-', ''),
     notify_url: config.payment.notifyUrl,
     amount: { total: order.amountFen, currency: 'CNY' },
@@ -83,4 +83,3 @@ export function decryptWechatResource(resource) {
   const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()])
   return JSON.parse(plaintext.toString('utf8'))
 }
-

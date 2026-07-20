@@ -50,7 +50,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: this.data.share?.title || '来看看我用画漾制作的作品',
+      title: this.data.share?.title || '来看看我用花漾相绘制作的作品',
       path: this.data.share?.path || '/pages/home/index',
       imageUrl: this.data.job?.results?.[0]?.url || ''
     }
@@ -58,7 +58,7 @@ Page({
 
   onShareTimeline() {
     return {
-      title: this.data.share?.title || '来看看我用画漾制作的作品',
+      title: this.data.share?.title || '来看看我用花漾相绘制作的作品',
       query: this.data.share ? `token=${encodeURIComponent(this.data.share.token)}` : '',
       imageUrl: this.data.job?.results?.[0]?.url || ''
     }

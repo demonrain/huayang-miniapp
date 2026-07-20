@@ -12,7 +12,7 @@
       <view class="balance-petal balance-petal--four"></view>
       <view class="balance-flower-dot"></view>
     </view>
-    <view class="balance-stamp">HUAYANG</view>
+    <view class="balance-stamp">XIANGHUI</view>
   </view>
 
   <view wx:if="{{checkin}}" class="checkin-panel">

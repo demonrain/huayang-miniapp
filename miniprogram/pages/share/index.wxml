@@ -6,9 +6,9 @@
 
   <view wx:elif="{{share}}">
     <view class="share-heading">
-      <view class="share-kicker">HUAYANG MOMENT</view>
+      <view class="share-kicker">XIANGHUI MOMENT</view>
       <view class="share-title">一组值得收藏的照片</view>
-      <view class="share-meta">{{share.templateName}} · 来自画漾</view>
+      <view class="share-meta">{{share.templateName}} · 来自花漾相绘</view>
     </view>
 
     <view class="shared-results">
@@ -22,7 +22,7 @@
     </view>
 
     <view class="share-footer">
-      <view><view class="share-footer__title">也来制作你的专属作品</view><view class="share-footer__sub">更多清新风格正在画漾</view></view>
+      <view><view class="share-footer__title">也来制作你的专属作品</view><view class="share-footer__sub">更多清新风格尽在花漾相绘</view></view>
       <button class="share-create-button" bindtap="goCreate">去创作</button>
     </view>
   </view>
