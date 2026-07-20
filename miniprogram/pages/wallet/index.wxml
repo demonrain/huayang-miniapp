@@ -1,14 +1,31 @@
-<view class="page wallet-page">
+<view class="page wallet-page page-enter">
   <view class="balance-panel">
-    <view class="balance-label">可用积分</view>
-    <view class="balance-value">{{user ? user.credits : '--'}}</view>
-    <view class="balance-foot">1 张作品约消耗 2–5 积分</view>
-    <view class="balance-stamp">画漾积分</view>
+    <view class="balance-copy">
+      <view class="balance-label">我的灵感积分</view>
+      <view class="balance-row"><text class="balance-value">{{user ? user.credits : '--'}}</text><text class="balance-unit">积分</text></view>
+      <view class="balance-foot">每张作品约需 2–5 积分</view>
+    </view>
+    <view class="balance-flower">
+      <view class="balance-petal balance-petal--one"></view>
+      <view class="balance-petal balance-petal--two"></view>
+      <view class="balance-petal balance-petal--three"></view>
+      <view class="balance-petal balance-petal--four"></view>
+      <view class="balance-flower-dot"></view>
+    </view>
+    <view class="balance-stamp">HUAYANG</view>
+  </view>
+
+  <view wx:if="{{checkin}}" class="checkin-panel">
+    <view>
+      <view class="checkin-title">每日签到</view>
+      <view class="checkin-sub">今天可领取 {{checkin.reward}} 积分</view>
+    </view>
+    <button class="checkin-button {{checkin.claimedToday ? 'checkin-button--done' : ''}}" loading="{{checking}}" disabled="{{checkin.claimedToday || checking}}" bindtap="checkin">{{checkin.claimedToday ? '今日已签到' : '领取积分'}}</button>
   </view>
 
   <view class="section-title">
-    <view class="section-title__main">充值积分</view>
-    <view class="section-title__sub">即时到账</view>
+    <view class="section-title__main">补充灵感积分</view>
+    <view class="section-title__sub">支付后即时到账</view>
   </view>
 
   <view class="package-grid">
@@ -43,4 +60,3 @@
     <view wx:if="{{!transactions.length}}" class="empty">暂无积分记录</view>
   </view>
 </view>
-

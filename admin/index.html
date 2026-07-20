@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>画漾管理后台</title>
+  <link rel="stylesheet" href="/admin/styles.css">
+</head>
+<body>
+  <section id="loginView" class="login-shell">
+    <form id="loginForm" class="login-panel">
+      <div class="brand-mark">画</div>
+      <div>
+        <h1>画漾管理后台</h1>
+        <p>模板、积分与充值配置</p>
+      </div>
+      <label>
+        管理员密码
+        <input id="password" type="password" autocomplete="current-password" required autofocus>
+      </label>
+      <button class="button button--primary" type="submit">登录</button>
+      <p id="loginError" class="form-error" role="alert"></p>
+    </form>
+  </section>
+
+  <div id="appView" class="app-shell" hidden>
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark brand-mark--small">画</div>
+        <div><strong>画漾</strong><span>运营工作台</span></div>
+      </div>
+      <nav class="nav-list" aria-label="后台导航">
+        <button class="nav-item is-active" data-view="overview"><span class="nav-icon">⌂</span>概览与规则</button>
+        <button class="nav-item" data-view="templates"><span class="nav-icon">▦</span>模板管理</button>
+        <button class="nav-item" data-view="packages"><span class="nav-icon">¥</span>充值套餐</button>
+      </nav>
+      <button id="logoutButton" class="logout-button">退出登录</button>
+    </aside>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">HUAYANG ADMIN</p>
+          <h2 id="pageTitle">概览与规则</h2>
+        </div>
+        <div class="server-state"><span></span>服务正常</div>
+      </header>
+
+      <section id="overviewView" class="view-panel">
+        <div id="statsGrid" class="stats-grid"></div>
+        <form id="settingsForm" class="settings-form content-panel">
+          <div class="panel-heading">
+            <div><h3>积分与分享规则</h3><p>保存后立即影响新请求，不改动历史账单。</p></div>
+          </div>
+          <div class="form-grid">
+            <label>新用户赠送积分<input name="welcomeCredits" type="number" min="0" max="100000" required></label>
+            <label>每日签到积分<input name="checkinCredits" type="number" min="0" max="100000" required></label>
+            <label class="field-wide">默认分享标题<input name="shareTitle" maxlength="60" required></label>
+          </div>
+          <div class="form-actions"><button class="button button--primary" type="submit">保存规则</button></div>
+        </form>
+      </section>
+
+      <section id="templatesView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div><h3>风格模板</h3><p>封面建议使用 1:1 或 4:5 图片。</p></div>
+          <button id="addTemplateButton" class="button button--primary" type="button"><span>＋</span>新增模板</button>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>模板</th><th>分类</th><th>积分/张</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="templateRows"></tbody></table></div>
+      </section>
+
+      <section id="packagesView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div><h3>充值套餐</h3><p>价格单位在界面显示为人民币元。</p></div>
+          <button id="addPackageButton" class="button button--primary" type="button"><span>＋</span>新增套餐</button>
+        </div>
+        <div id="packageList" class="package-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="templateDialog" class="dialog">
+    <form id="templateForm" method="dialog">
+      <div class="dialog-heading"><div><h3 id="templateDialogTitle">新增模板</h3><p>模板 ID 创建后不可修改。</p></div><button class="icon-button" type="button" data-close="templateDialog" aria-label="关闭">×</button></div>
+      <div class="form-grid form-grid--dialog">
+        <label>模板 ID<input name="id" pattern="[a-z0-9][a-z0-9-]+" maxlength="40" required></label>
+        <label>模板名称<input name="name" maxlength="30" required></label>
+        <label>模板简称<input name="shortName" maxlength="8" required></label>
+        <label>分类<input name="category" maxlength="20" placeholder="portrait" required></label>
+        <label>每张积分<input name="cost" type="number" min="0" max="10000" required></label>
+        <label>排序值<input name="sortOrder" type="number" min="0" max="100000" required></label>
+        <label>角标<input name="badge" maxlength="12"></label>
+        <label>预览配色<input name="palette" maxlength="240" required></label>
+        <label class="field-wide">描述<input name="description" maxlength="80" required></label>
+        <label class="field-wide">生图提示词<textarea name="prompt" maxlength="3000" rows="5" required></textarea></label>
+        <label class="toggle-field"><input name="enabled" type="checkbox" checked><span>启用模板</span></label>
+      </div>
+      <div class="dialog-actions"><button class="button button--quiet" type="button" data-close="templateDialog">取消</button><button class="button button--primary" type="submit">保存模板</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="packageDialog" class="dialog dialog--small">
+    <form id="packageForm" method="dialog">
+      <div class="dialog-heading"><div><h3>新增充值套餐</h3><p>价格填写人民币元。</p></div><button class="icon-button" type="button" data-close="packageDialog" aria-label="关闭">×</button></div>
+      <div class="form-grid form-grid--dialog">
+        <label>套餐 ID<input name="id" pattern="[a-z0-9][a-z0-9-]+" maxlength="40" required></label>
+        <label>到账积分<input name="credits" type="number" min="1" required></label>
+        <label>赠送积分<input name="bonus" type="number" min="0" value="0" required></label>
+        <label>价格（元）<input name="priceYuan" type="number" min="0.01" step="0.01" required></label>
+        <label>角标<input name="badge" maxlength="12"></label>
+        <label>排序值<input name="sortOrder" type="number" min="0" value="10" required></label>
+      </div>
+      <div class="dialog-actions"><button class="button button--quiet" type="button" data-close="packageDialog">取消</button><button class="button button--primary" type="submit">保存套餐</button></div>
+    </form>
+  </dialog>
+
+  <input id="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/admin/app.js"></script>
+</body>
+</html>

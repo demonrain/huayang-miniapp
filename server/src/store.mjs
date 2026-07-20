@@ -2,12 +2,16 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const initialState = {
-  version: 1,
+  version: 2,
   users: [],
   transactions: [],
   assets: [],
   jobs: [],
-  orders: []
+  orders: [],
+  templates: [],
+  packages: [],
+  shares: [],
+  settings: null
 }
 
 export class JsonStore {
@@ -21,7 +25,11 @@ export class JsonStore {
   async init() {
     await mkdir(this.dataDir, { recursive: true })
     try {
-      this.state = JSON.parse(await readFile(this.filename, 'utf8'))
+      const saved = JSON.parse(await readFile(this.filename, 'utf8'))
+      this.state = { ...structuredClone(initialState), ...saved, version: initialState.version }
+      for (const key of ['users', 'transactions', 'assets', 'jobs', 'orders', 'templates', 'packages', 'shares']) {
+        if (!Array.isArray(this.state[key])) this.state[key] = []
+      }
     } catch (error) {
       if (error.code !== 'ENOENT') throw error
       await this.flush(this.state)
@@ -50,4 +58,3 @@ export class JsonStore {
     await rename(temp, this.filename)
   }
 }
-

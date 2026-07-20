@@ -20,7 +20,8 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     mockLogin: config.wechat.mockLogin,
     imageProvider: config.image.provider,
     imageDelay: config.image.mockDelayMs,
-    paymentMode: config.payment.mode
+    paymentMode: config.payment.mode,
+    adminPassword: config.admin.password
   }
 
   config.dataDir = path.join(sandbox, 'data')
@@ -30,6 +31,7 @@ test('complete login, generation, idempotency and recharge flow', async () => {
   config.image.provider = 'mock'
   config.image.mockDelayMs = 10
   config.payment.mode = 'mock'
+  config.admin.password = 'test-admin-password'
 
   const { createApplication } = await import('../src/index.mjs')
   const application = await createApplication()
@@ -91,15 +93,69 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(completed.body.job.status, 'succeeded')
     assert.equal(completed.body.job.results.length, 1)
 
+    const adminLogin = await api('/api/admin/login', {
+      method: 'POST', json: { password: 'test-admin-password' }
+    })
+    assert.equal(adminLogin.response.status, 200)
+    const adminToken = adminLogin.body.token
+
+    const settings = await api('/api/admin/settings', {
+      method: 'PATCH', token: adminToken, json: { welcomeCredits: 25, checkinCredits: 7, shareTitle: '测试分享标题' }
+    })
+    assert.equal(settings.body.settings.checkinCredits, 7)
+
+    const templateUpdate = await api('/api/admin/templates/film-diary', {
+      method: 'PATCH', token: adminToken, json: { cost: 3 }
+    })
+    assert.equal(templateUpdate.body.template.cost, 3)
+
+    const coverForm = new FormData()
+    coverForm.append('image', new Blob([tinyPng], { type: 'image/png' }), 'cover.png')
+    const cover = await api('/api/admin/templates/film-diary/cover', {
+      method: 'POST', token: adminToken, body: coverForm
+    })
+    assert.match(cover.body.template.coverUrl, /\/media\/covers\//)
+
+    const packageUpdate = await api('/api/admin/packages/starter', {
+      method: 'PATCH', token: adminToken, json: { credits: 35 }
+    })
+    assert.equal(packageUpdate.body.package.credits, 35)
+
+    const checkin = await api('/api/checkins', { method: 'POST', token, json: {} })
+    assert.equal(checkin.body.claimed, true)
+    assert.equal(checkin.body.reward, 7)
+    assert.equal(checkin.body.user.credits, 25)
+
+    const repeatedCheckin = await api('/api/checkins', { method: 'POST', token, json: {} })
+    assert.equal(repeatedCheckin.body.claimed, false)
+    assert.equal(repeatedCheckin.body.user.credits, 25)
+
+    const createdShare = await api(`/api/jobs/${created.body.job.id}/share`, {
+      method: 'POST', token, json: {}
+    })
+    assert.equal(createdShare.response.status, 200)
+    assert.equal(createdShare.body.share.title, '测试分享标题')
+
+    const publicShare = await api(`/api/shares/${createdShare.body.share.token}`)
+    assert.equal(publicShare.response.status, 200)
+    assert.equal(publicShare.body.share.results.length, 1)
+
+    const qrCode = await api(`/api/jobs/${created.body.job.id}/share/qrcode`, {
+      method: 'POST', token, json: {}
+    })
+    assert.equal(qrCode.response.status, 409)
+    assert.equal(qrCode.body.code, 'WECHAT_SHARE_NOT_CONFIGURED')
+
     const recharge = await api('/api/payments/orders', {
       method: 'POST', token, json: { packageId: 'starter' }
     })
     assert.equal(recharge.response.status, 201)
     assert.equal(recharge.body.payment.mode, 'mock')
-    assert.equal(recharge.body.user.credits, 48)
+    assert.equal(recharge.body.user.credits, 60)
 
     const wallet = await api('/api/wallet', { token })
-    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [30, -2, 20])
+    assert.equal(wallet.body.checkin.claimedToday, true)
+    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [35, 7, -2, 20])
   } finally {
     await new Promise(resolve => application.server.close(resolve))
     config.dataDir = original.dataDir
@@ -109,7 +165,7 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     config.image.provider = original.imageProvider
     config.image.mockDelayMs = original.imageDelay
     config.payment.mode = original.paymentMode
+    config.admin.password = original.adminPassword
     await rm(sandbox, { recursive: true, force: true })
   }
 })
-

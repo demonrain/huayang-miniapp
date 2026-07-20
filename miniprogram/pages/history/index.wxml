@@ -1,7 +1,11 @@
-<view class="page history-page">
+<view class="page history-page page-enter">
   <view class="history-heading">
-    <view class="section-title__main">作品集</view>
-    <view class="section-title__sub">每一次灵感，都在这里</view>
+    <view>
+      <view class="history-kicker">MY ALBUM</view>
+      <view class="section-title__main">我的小画册</view>
+      <view class="section-title__sub">每一次心动，都好好收藏</view>
+    </view>
+    <view class="album-count">{{jobs.length}} 组</view>
   </view>
 
   <view wx:if="{{loading}}" class="history-list">
@@ -26,10 +30,12 @@
   </view>
 
   <view wx:else class="empty empty-work">
-    <view class="empty-mark">画</view>
+    <view class="empty-mark">
+      <view class="empty-flower-dot"></view>
+      <text>画</text>
+    </view>
     <view class="empty-title">还没有作品</view>
     <view class="empty-sub">选一个喜欢的风格，制作第一组照片</view>
     <button class="primary-button" bindtap="goCreate">去创作</button>
   </view>
 </view>
-

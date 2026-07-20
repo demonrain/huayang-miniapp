@@ -1,26 +1,54 @@
-<view class="page home-page">
+<view class="page home-page page-enter" style="padding-top: {{navSpacer}}rpx">
   <view class="topbar">
-    <view>
-      <view class="brand">画漾</view>
-      <view class="brand-sub">把日常，变成作品</view>
+    <view class="brand-wrap">
+      <view class="brand-flower">
+        <view class="petal petal--one"></view>
+        <view class="petal petal--two"></view>
+        <view class="petal petal--three"></view>
+        <view class="petal petal--four"></view>
+        <view class="flower-dot"></view>
+      </view>
+      <view>
+        <view class="brand">画漾</view>
+        <view class="brand-sub">收藏每一种心动</view>
+      </view>
     </view>
     <button class="credit-pill" bindtap="openWallet">
       <text class="credit-mark">积</text>
-      <text>{{user ? user.credits : '--'}} 积分</text>
+      <text>{{user ? user.credits : '--'}}</text>
     </button>
   </view>
 
-  <view class="intro-band">
-    <view class="intro-step"><text>01</text><view>选风格</view></view>
-    <view class="intro-line"></view>
-    <view class="intro-step"><text>02</text><view>传照片</view></view>
-    <view class="intro-line"></view>
-    <view class="intro-step"><text>03</text><view>收作品</view></view>
+  <view class="welcome-card">
+    <view class="welcome-copy">
+      <view class="welcome-kicker">今日灵感</view>
+      <view class="welcome-title">
+        <view>把喜欢的瞬间，</view>
+        <view>做成专属画报</view>
+      </view>
+      <view class="welcome-gift">
+        <text>新用户礼遇</text>
+        <text class="welcome-gift__value">20 积分</text>
+      </view>
+    </view>
+    <view class="welcome-collage">
+      <view class="collage-paper collage-paper--back"></view>
+      <view class="collage-paper collage-paper--front">
+        <view class="collage-sky"></view>
+        <view class="collage-hill"></view>
+        <view class="collage-sun"></view>
+      </view>
+      <view class="collage-tape"></view>
+      <view class="collage-spark">＋</view>
+    </view>
   </view>
 
   <view class="section-title">
-    <view class="section-title__main">今天想做什么？</view>
-    <view class="section-title__sub">每张低至 2 积分</view>
+    <view>
+      <view class="section-title__main">挑一款心动风格</view>
+      <view class="section-kicker">让照片拥有新的小情绪</view>
+    </view>
+    <view class="section-title__sub">2 积分起</view>
   </view>
 
   <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="false">
@@ -48,20 +76,36 @@
       bindtap="startCreate"
     >
       <view class="template-art" style="background: {{item.palette}}">
-        <view class="art-index">{{index < 9 ? '0' + (index + 1) : index + 1}}</view>
+        <image wx:if="{{item.coverUrl}}" class="template-cover" src="{{item.coverUrl}}" mode="aspectFill"></image>
+        <view wx:else class="art-paper">
+          <view class="art-window">
+            <view class="art-land"></view>
+            <view class="art-light"></view>
+          </view>
+        </view>
+        <view class="art-tape"></view>
+        <view class="art-flower">
+          <view class="art-petal art-petal--one"></view>
+          <view class="art-petal art-petal--two"></view>
+          <view class="art-petal art-petal--three"></view>
+          <view class="art-petal art-petal--four"></view>
+          <view class="art-flower-dot"></view>
+        </view>
         <view class="art-title">{{item.shortName}}</view>
         <view wx:if="{{item.badge}}" class="art-badge">{{item.badge}}</view>
       </view>
       <view class="template-meta">
-        <view>
+        <view class="template-copy">
           <view class="template-name">{{item.name}}</view>
           <view class="template-desc">{{item.description}}</view>
         </view>
-        <view class="template-cost">{{item.cost}} 积分</view>
+        <view class="template-side">
+          <view class="template-cost">{{item.cost}} 积分</view>
+          <view class="template-arrow">›</view>
+        </view>
       </view>
     </button>
   </view>
 
   <view wx:if="{{!loading && !filteredTemplates.length}}" class="empty">这个分类的模板还在准备中</view>
 </view>
-

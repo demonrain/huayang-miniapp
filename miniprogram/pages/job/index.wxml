@@ -1,4 +1,4 @@
-<view class="page job-page" wx:if="{{job}}">
+<view class="page job-page page-enter" wx:if="{{job}}">
   <view class="status-block status-block--{{job.status}}">
     <view class="status-index">{{job.status === 'succeeded' ? '完成' : 'AI'}}</view>
     <view class="status-main">
@@ -25,14 +25,33 @@
       <view wx:for="{{job.results}}" wx:key="id" class="result-item">
         <image src="{{item.url}}" mode="widthFix" data-url="{{item.url}}" bindtap="preview"></image>
         <view class="result-number">{{index + 1}} / {{job.results.length}}</view>
+        <view class="result-actions">
+          <button data-url="{{item.url}}" bindtap="saveOne"><image src="/assets/icons/download.png"></image><text>保存</text></button>
+          <button data-url="{{item.url}}" bindtap="shareImage"><image src="/assets/icons/image-share.png"></image><text>分享图片</text></button>
+        </view>
       </view>
     </view>
-    <button class="primary-button save-button" loading="{{saving}}" bindtap="saveAll">保存到相册</button>
-    <button class="ghost-button" bindtap="createAgain">用这个风格再做一组</button>
+    <button class="primary-button save-button" loading="{{saving}}" bindtap="saveAll">保存全部作品</button>
+    <view class="share-actions">
+      <button open-type="share" disabled="{{!share}}"><image src="/assets/icons/share.png"></image><text>微信好友</text></button>
+      <button data-url="{{job.results[0].url}}" bindtap="shareImage"><image src="/assets/icons/moments.png"></image><text>微信/朋友圈</text></button>
+      <button bindtap="showQrCode"><image src="/assets/icons/qr-code.png"></image><text>小程序码</text></button>
+      <button bindtap="copyUrlLink"><image src="/assets/icons/link.png"></image><text>复制链接</text></button>
+    </view>
+    <button class="ghost-button create-again-button" bindtap="createAgain">用这个风格继续创作</button>
   </view>
 
   <view wx:if="{{job.status === 'failed'}}" class="job-actions">
     <button class="primary-button" bindtap="createAgain">重新创作</button>
     <button class="ghost-button" bindtap="goHome">换个风格</button>
+  </view>
+
+  <view wx:if="{{showQr}}" class="qr-mask" bindtap="hideQrCode">
+    <view class="qr-dialog" catchtap="noop">
+      <view class="qr-title">扫码打开这组作品</view>
+      <image class="qr-image" src="{{share.qrcodeUrl}}" mode="aspectFit"></image>
+      <view class="qr-subtitle">长按小程序码即可分享</view>
+      <button class="ghost-button" bindtap="hideQrCode">关闭</button>
+    </view>
   </view>
 </view>

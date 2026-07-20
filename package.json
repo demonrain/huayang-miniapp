@@ -7,9 +7,14 @@
     "dev": "node --watch server/src/index.mjs",
     "start": "node server/src/index.mjs",
     "test": "node --test server/test/*.test.mjs",
-    "check": "node scripts/validate.mjs"
+    "check": "node scripts/validate.mjs",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "lucide-static": "^1.25.0",
+    "sharp": "^0.34.5"
   }
 }

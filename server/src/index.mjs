@@ -1,29 +1,34 @@
 import { createServer } from 'node:http'
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import { config, assertProductionConfig } from './config.mjs'
 import { JsonStore } from './store.mjs'
-import { templates, creditPackages, publicTemplates, publicPackages } from './catalog.mjs'
-import { bearerToken, createToken, verifyToken } from './auth.mjs'
+import { bearerToken, createAdminToken, createToken, isAdminToken, verifyToken } from './auth.mjs'
 import { exchangeWechatCode } from './wechat.mjs'
 import { generateImages } from './generator.mjs'
 import { createWechatPrepay, decryptWechatResource, verifyWechatNotification } from './payments.mjs'
 import { HttpError, json, readBody, readImageUpload, readJson, serveFile, setCors } from './http.mjs'
+import {
+  assetUrl,
+  findTemplate,
+  mediaUrl,
+  publicJob,
+  publicPackages,
+  publicShare,
+  publicTemplates,
+  seedConfig
+} from './domain.mjs'
+import { createMiniProgramCode, createMiniProgramUrlLink, isWechatShareConfigured } from './wechat-share.mjs'
 
 const now = () => new Date().toISOString()
-const statusLabels = { queued: '排队中', processing: '生成中', succeeded: '已完成', failed: '失败' }
 
 function detectImage(buffer) {
   if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return { mime: 'image/jpeg', extension: '.jpg' }
   if (buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return { mime: 'image/png', extension: '.png' }
   if (buffer.length >= 12 && buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP') return { mime: 'image/webp', extension: '.webp' }
   return null
-}
-
-function assetUrl(asset) {
-  return asset ? `${config.publicBaseUrl}/media/${asset.storagePath.split('/').map(encodeURIComponent).join('/')}` : ''
 }
 
 function publicUser(user, state) {
@@ -36,32 +41,6 @@ function publicUser(user, state) {
     credits: user.credits,
     isNew: Boolean(user.isNew),
     createdAt: user.createdAt
-  }
-}
-
-function publicJob(job) {
-  const template = templates.find(item => item.id === job.templateId)
-  const results = (job.results || []).map(result => ({
-    id: result.id,
-    mime: result.mime,
-    url: `${config.publicBaseUrl}/media/${result.storagePath.split('/').map(encodeURIComponent).join('/')}`
-  }))
-  return {
-    id: job.id,
-    templateId: job.templateId,
-    assetIds: job.assetIds,
-    cost: job.cost,
-    status: job.status,
-    error: job.error,
-    createdAt: job.createdAt,
-    updatedAt: job.updatedAt,
-    completedAt: job.completedAt || '',
-    templateName: template?.name || '已下架模板',
-    templateShortName: template?.shortName || '作品',
-    templatePalette: template?.palette || '#54615b',
-    statusLabel: statusLabels[job.status] || job.status,
-    results,
-    coverUrl: results[0]?.url || ''
   }
 }
 
@@ -81,6 +60,65 @@ function getAuthenticatedUser(request, store) {
   const user = store.read(state => state.users.find(item => item.id === payload.sub))
   if (!user) throw new HttpError(401, 'UNAUTHORIZED', '用户不存在')
   return user
+}
+
+function requireAdmin(request) {
+  if (!isAdminToken(bearerToken(request))) throw new HttpError(401, 'ADMIN_UNAUTHORIZED', '管理员登录已失效')
+}
+
+function safePasswordEqual(actual, expected) {
+  const left = Buffer.from(String(actual || ''))
+  const right = Buffer.from(String(expected || ''))
+  return left.length === right.length && timingSafeEqual(left, right)
+}
+
+function chinaDateKey(value = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(value)
+}
+
+function boundedInteger(value, label, min, max) {
+  const number = Number(value)
+  if (!Number.isInteger(number) || number < min || number > max) {
+    throw new HttpError(400, 'INVALID_FIELD', `${label}需为 ${min}–${max} 的整数`)
+  }
+  return number
+}
+
+function cleanText(value, label, maxLength, required = true) {
+  const text = String(value ?? '').trim()
+  if ((required && !text) || text.length > maxLength) {
+    throw new HttpError(400, 'INVALID_FIELD', `${label}${required ? '不能为空且' : ''}不能超过 ${maxLength} 个字符`)
+  }
+  return text
+}
+
+function applyTemplateFields(target, body, creating = false) {
+  const textFields = [
+    ['name', '模板名称', 30, true],
+    ['shortName', '模板简称', 8, true],
+    ['category', '模板分类', 20, true],
+    ['description', '模板描述', 80, true],
+    ['badge', '模板角标', 12, false],
+    ['palette', '模板配色', 240, true],
+    ['prompt', '生图提示词', 3000, true]
+  ]
+  for (const [key, label, maxLength, required] of textFields) {
+    if (creating || key in body) target[key] = cleanText(body[key], label, maxLength, required)
+  }
+  if (creating || 'cost' in body) target.cost = boundedInteger(body.cost, '模板积分', 0, 10000)
+  if (creating || 'sortOrder' in body) target.sortOrder = boundedInteger(body.sortOrder ?? 0, '排序值', 0, 100000)
+  if ('enabled' in body) target.enabled = Boolean(body.enabled)
+}
+
+function applyPackageFields(target, body, creating = false) {
+  if (creating || 'credits' in body) target.credits = boundedInteger(body.credits, '到账积分', 1, 1000000)
+  if (creating || 'bonus' in body) target.bonus = boundedInteger(body.bonus ?? 0, '赠送积分', 0, 1000000)
+  if (creating || 'priceFen' in body) target.priceFen = boundedInteger(body.priceFen, '价格', 1, 100000000)
+  if (creating || 'sortOrder' in body) target.sortOrder = boundedInteger(body.sortOrder ?? 0, '排序值', 0, 100000)
+  if (creating || 'badge' in body) target.badge = cleanText(body.badge, '套餐角标', 12, false)
+  if ('enabled' in body) target.enabled = Boolean(body.enabled)
 }
 
 function settleOrder(draft, orderId, providerTransactionId = '') {
@@ -110,6 +148,10 @@ export async function createApplication() {
   ])
   const store = new JsonStore(config.dataDir)
   await store.init()
+  if (store.read(state => !state.settings || !state.templates.length || !state.packages.length)) {
+    await store.transaction(draft => seedConfig(draft))
+  }
+  const adminAttempts = new Map()
 
   async function processJob(jobId) {
     const claimed = await store.transaction(draft => {
@@ -123,9 +165,10 @@ export async function createApplication() {
     if (!claimed) return
 
     try {
-      const template = templates.find(item => item.id === claimed.templateId)
+      const state = store.read()
+      const template = findTemplate(state, claimed.templateId, true)
       if (!template) throw new Error('模板已下架')
-      const assets = store.read(state => claimed.assetIds.map(id => state.assets.find(item => item.id === id)))
+      const assets = claimed.assetIds.map(id => state.assets.find(item => item.id === id))
       if (assets.some(item => !item)) throw new Error('原始图片不存在')
       const results = await generateImages(claimed, template, assets)
       await store.transaction(draft => {
@@ -178,6 +221,27 @@ export async function createApplication() {
         return
       }
 
+      if (request.method === 'GET' && pathname === '/favicon.ico') {
+        response.writeHead(204)
+        response.end()
+        return
+      }
+
+      if (request.method === 'GET' && (pathname === '/admin' || pathname === '/admin/')) {
+        await serveFile(response, path.join(config.rootDir, 'admin', 'index.html'), false)
+        return
+      }
+
+      if (request.method === 'GET' && pathname.startsWith('/admin/')) {
+        const relative = pathname.slice('/admin/'.length)
+        const adminRoot = path.resolve(config.rootDir, 'admin')
+        const filename = path.resolve(adminRoot, relative)
+        if (!filename.startsWith(`${adminRoot}${path.sep}`) || !(await serveFile(response, filename, false))) {
+          throw new HttpError(404, 'ADMIN_ASSET_NOT_FOUND', '后台资源不存在')
+        }
+        return
+      }
+
       if (request.method === 'GET' && pathname.startsWith('/media/')) {
         const relative = pathname.slice('/media/'.length)
         const filename = path.resolve(config.mediaDir, relative)
@@ -189,17 +253,51 @@ export async function createApplication() {
       }
 
       if (request.method === 'GET' && pathname === '/api/config') {
+        const state = store.read()
         json(response, 200, {
-          newUserCredits: config.newUserCredits,
+          newUserCredits: state.settings.welcomeCredits,
+          checkinCredits: state.settings.checkinCredits,
           maxUploadMb: config.maxUploadBytes / 1024 / 1024,
           imageProvider: config.image.provider,
-          paymentMode: config.payment.mode
+          paymentMode: config.payment.mode,
+          wechatShareReady: isWechatShareConfigured()
         })
         return
       }
 
       if (request.method === 'GET' && pathname === '/api/templates') {
-        json(response, 200, { templates: publicTemplates() })
+        const state = store.read()
+        json(response, 200, { templates: publicTemplates(state) })
+        return
+      }
+
+      if (request.method === 'GET' && pathname.startsWith('/api/shares/')) {
+        const token = pathname.slice('/api/shares/'.length)
+        if (!token || token.includes('/')) throw new HttpError(404, 'SHARE_NOT_FOUND', '分享不存在')
+        const state = store.read()
+        const share = state.shares.find(item => item.token === token)
+        const result = share ? publicShare(share, state) : null
+        if (!result) throw new HttpError(404, 'SHARE_NOT_FOUND', '分享不存在或作品已失效')
+        json(response, 200, { share: result })
+        return
+      }
+
+      if (request.method === 'POST' && pathname === '/api/admin/login') {
+        const address = request.socket.remoteAddress || 'unknown'
+        const attempt = adminAttempts.get(address) || { count: 0, resetAt: 0 }
+        if (attempt.resetAt > Date.now() && attempt.count >= 5) {
+          throw new HttpError(429, 'TOO_MANY_ATTEMPTS', '登录尝试过多，请稍后再试')
+        }
+        const body = await readJson(request)
+        if (!safePasswordEqual(body.password, config.admin.password)) {
+          adminAttempts.set(address, {
+            count: attempt.resetAt > Date.now() ? attempt.count + 1 : 1,
+            resetAt: Date.now() + 10 * 60 * 1000
+          })
+          throw new HttpError(401, 'INVALID_ADMIN_PASSWORD', '管理员密码不正确')
+        }
+        adminAttempts.delete(address)
+        json(response, 200, { token: createAdminToken() })
         return
       }
 
@@ -215,11 +313,11 @@ export async function createApplication() {
           }
           found = {
             id: randomUUID(), openid: identity.openid, unionid: identity.unionid, nickname: '微信用户', avatarAssetId: '',
-            credits: config.newUserCredits, isNew: true, createdAt: now(), updatedAt: now(), lastLoginAt: now()
+            credits: draft.settings.welcomeCredits, isNew: true, createdAt: now(), updatedAt: now(), lastLoginAt: now()
           }
           draft.users.push(found)
           draft.transactions.push({
-            id: randomUUID(), userId: found.id, type: 'welcome', title: '新用户体验积分', amount: config.newUserCredits,
+            id: randomUUID(), userId: found.id, type: 'welcome', title: '新用户体验积分', amount: draft.settings.welcomeCredits,
             balanceAfter: found.credits, externalRef: '', createdAt: now()
           })
           return found
@@ -243,6 +341,131 @@ export async function createApplication() {
         }
         json(response, 200, { code: 'SUCCESS', message: '成功' })
         return
+      }
+
+      if (pathname.startsWith('/api/admin/')) {
+        requireAdmin(request)
+
+        if (request.method === 'GET' && pathname === '/api/admin/overview') {
+          const state = store.read()
+          json(response, 200, {
+            settings: state.settings,
+            templates: publicTemplates(state, true),
+            packages: publicPackages(state, true),
+            stats: {
+              users: state.users.length,
+              jobs: state.jobs.length,
+              completedJobs: state.jobs.filter(item => item.status === 'succeeded').length,
+              paidOrders: state.orders.filter(item => item.status === 'paid').length
+            }
+          })
+          return
+        }
+
+        if (request.method === 'PATCH' && pathname === '/api/admin/settings') {
+          const body = await readJson(request)
+          const settings = await store.transaction(draft => {
+            if ('welcomeCredits' in body) draft.settings.welcomeCredits = boundedInteger(body.welcomeCredits, '新用户积分', 0, 100000)
+            if ('checkinCredits' in body) draft.settings.checkinCredits = boundedInteger(body.checkinCredits, '签到积分', 0, 100000)
+            if ('shareTitle' in body) draft.settings.shareTitle = cleanText(body.shareTitle, '分享标题', 60, true)
+            return draft.settings
+          })
+          json(response, 200, { settings })
+          return
+        }
+
+        if (request.method === 'POST' && pathname === '/api/admin/templates') {
+          const body = await readJson(request)
+          const id = cleanText(body.id, '模板 ID', 40, true)
+          if (!/^[a-z0-9][a-z0-9-]+$/.test(id)) throw new HttpError(400, 'INVALID_TEMPLATE_ID', '模板 ID 仅支持小写字母、数字和连字符')
+          await store.transaction(draft => {
+            if (draft.templates.some(item => item.id === id)) throw new HttpError(409, 'TEMPLATE_EXISTS', '模板 ID 已存在')
+            const item = { id, enabled: body.enabled !== false, coverAssetId: '' }
+            applyTemplateFields(item, body, true)
+            draft.templates.push(item)
+          })
+          const state = store.read()
+          json(response, 201, { template: publicTemplates(state, true).find(item => item.id === id) })
+          return
+        }
+
+        const adminTemplateMatch = pathname.match(/^\/api\/admin\/templates\/([^/]+)$/)
+        if (request.method === 'PATCH' && adminTemplateMatch) {
+          const body = await readJson(request)
+          const templateId = adminTemplateMatch[1]
+          await store.transaction(draft => {
+            const item = draft.templates.find(template => template.id === templateId)
+            if (!item) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在')
+            applyTemplateFields(item, body)
+          })
+          const state = store.read()
+          json(response, 200, { template: publicTemplates(state, true).find(item => item.id === templateId) })
+          return
+        }
+
+        const coverMatch = pathname.match(/^\/api\/admin\/templates\/([^/]+)\/cover$/)
+        if (request.method === 'POST' && coverMatch) {
+          const templateId = coverMatch[1]
+          if (!store.read(state => state.templates.some(item => item.id === templateId))) {
+            throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在')
+          }
+          const upload = await readImageUpload(request, config.maxUploadBytes)
+          const detected = detectImage(upload.data)
+          if (!detected) throw new HttpError(415, 'UNSUPPORTED_IMAGE', '仅支持 JPG、PNG 或 WebP 图片')
+          const assetId = randomUUID()
+          const relativePath = path.join('covers', `${templateId}-${assetId}${detected.extension}`).replaceAll('\\', '/')
+          const filename = path.join(config.mediaDir, relativePath)
+          await mkdir(path.dirname(filename), { recursive: true })
+          await writeFile(filename, upload.data)
+          await store.transaction(draft => {
+            const template = draft.templates.find(item => item.id === templateId)
+            if (!template) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在')
+            draft.assets.push({
+              id: assetId,
+              userId: 'admin',
+              originalName: path.basename(upload.filename).slice(0, 120),
+              mime: detected.mime,
+              size: upload.data.length,
+              storagePath: relativePath,
+              createdAt: now()
+            })
+            template.coverAssetId = assetId
+          })
+          const state = store.read()
+          json(response, 201, { template: publicTemplates(state, true).find(item => item.id === templateId) })
+          return
+        }
+
+        if (request.method === 'POST' && pathname === '/api/admin/packages') {
+          const body = await readJson(request)
+          const id = cleanText(body.id, '套餐 ID', 40, true)
+          if (!/^[a-z0-9][a-z0-9-]+$/.test(id)) throw new HttpError(400, 'INVALID_PACKAGE_ID', '套餐 ID 仅支持小写字母、数字和连字符')
+          await store.transaction(draft => {
+            if (draft.packages.some(item => item.id === id)) throw new HttpError(409, 'PACKAGE_EXISTS', '套餐 ID 已存在')
+            const item = { id, enabled: body.enabled !== false }
+            applyPackageFields(item, body, true)
+            draft.packages.push(item)
+          })
+          const state = store.read()
+          json(response, 201, { package: publicPackages(state, true).find(item => item.id === id) })
+          return
+        }
+
+        const adminPackageMatch = pathname.match(/^\/api\/admin\/packages\/([^/]+)$/)
+        if (request.method === 'PATCH' && adminPackageMatch) {
+          const body = await readJson(request)
+          const packageId = adminPackageMatch[1]
+          await store.transaction(draft => {
+            const item = draft.packages.find(entry => entry.id === packageId)
+            if (!item) throw new HttpError(404, 'PACKAGE_NOT_FOUND', '充值套餐不存在')
+            applyPackageFields(item, body)
+          })
+          const state = store.read()
+          json(response, 200, { package: publicPackages(state, true).find(item => item.id === packageId) })
+          return
+        }
+
+        throw new HttpError(404, 'ADMIN_API_NOT_FOUND', '后台接口不存在')
       }
 
       const user = getAuthenticatedUser(request, store)
@@ -310,9 +533,11 @@ export async function createApplication() {
           throw new HttpError(400, 'INVALID_ASSET_COUNT', '每次请选择 1–6 张图片')
         }
         if (new Set(body.assetIds).size !== body.assetIds.length) throw new HttpError(400, 'DUPLICATE_ASSET', '不能重复选择同一张图片')
-        const template = templates.find(item => item.id === body.templateId)
+        const template = findTemplate(store.read(), body.templateId)
         if (!template) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在或已下架')
         const created = await store.transaction(draft => {
+          const currentTemplate = findTemplate(draft, body.templateId)
+          if (!currentTemplate) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在或已下架')
           if (body.clientRequestId) {
             const existing = draft.jobs.find(item => item.userId === user.id && item.clientRequestId === body.clientRequestId)
             if (existing) return { job: existing, created: false }
@@ -320,17 +545,17 @@ export async function createApplication() {
           const ownerAssets = body.assetIds.map(id => draft.assets.find(item => item.id === id && item.userId === user.id))
           if (ownerAssets.some(item => !item)) throw new HttpError(400, 'INVALID_ASSET', '部分图片不存在，请重新上传')
           const target = draft.users.find(item => item.id === user.id)
-          const cost = template.cost * body.assetIds.length
+          const cost = currentTemplate.cost * body.assetIds.length
           if (target.credits < cost) throw new HttpError(409, 'INSUFFICIENT_CREDITS', '积分不足，请先充值')
           target.credits -= cost
           target.updatedAt = now()
           const job = {
-            id: randomUUID(), clientRequestId: String(body.clientRequestId || ''), userId: user.id, templateId: template.id,
+            id: randomUUID(), clientRequestId: String(body.clientRequestId || ''), userId: user.id, templateId: currentTemplate.id,
             assetIds: body.assetIds, cost, status: 'queued', results: [], error: '', createdAt: now(), updatedAt: now()
           }
           draft.jobs.push(job)
           draft.transactions.push({
-            id: randomUUID(), userId: user.id, type: 'job_charge', title: `${template.name} · ${body.assetIds.length} 张`,
+            id: randomUUID(), userId: user.id, type: 'job_charge', title: `${currentTemplate.name} · ${body.assetIds.length} 张`,
             amount: -cost, balanceAfter: target.credits, externalRef: job.id, createdAt: now()
           })
           return { job, created: true }
@@ -338,7 +563,7 @@ export async function createApplication() {
         if (created.created) setTimeout(() => processJob(created.job.id), 10)
         const state = store.read()
         json(response, created.created ? 201 : 200, {
-          job: publicJob(created.job),
+          job: publicJob(created.job, state),
           user: publicUser(state.users.find(item => item.id === user.id), state)
         })
         return
@@ -348,16 +573,91 @@ export async function createApplication() {
         const jobs = store.read(state => state.jobs
           .filter(item => item.userId === user.id)
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-          .map(publicJob))
+          .map(item => publicJob(item, state)))
         json(response, 200, { jobs })
         return
       }
 
       const jobMatch = pathname.match(/^\/api\/jobs\/([^/]+)$/)
       if (request.method === 'GET' && jobMatch) {
-        const job = store.read(state => state.jobs.find(item => item.id === jobMatch[1] && item.userId === user.id))
+        const state = store.read()
+        const job = state.jobs.find(item => item.id === jobMatch[1] && item.userId === user.id)
         if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
-        json(response, 200, { job: publicJob(job) })
+        json(response, 200, { job: publicJob(job, state) })
+        return
+      }
+
+      const shareJobMatch = pathname.match(/^\/api\/jobs\/([^/]+)\/share(?:\/(qrcode|url-link))?$/)
+      if (request.method === 'POST' && shareJobMatch) {
+        const jobId = shareJobMatch[1]
+        const action = shareJobMatch[2] || 'create'
+        const share = await store.transaction(draft => {
+          const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
+          if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+          if (job.status !== 'succeeded') throw new HttpError(409, 'JOB_NOT_READY', '作品完成后才能分享')
+          let item = draft.shares.find(entry => entry.jobId === job.id && entry.userId === user.id)
+          if (!item) {
+            item = {
+              id: randomUUID(),
+              token: randomBytes(18).toString('base64url'),
+              jobId: job.id,
+              userId: user.id,
+              title: draft.settings.shareTitle,
+              qrcodeStoragePath: '',
+              urlLink: '',
+              createdAt: now(),
+              updatedAt: now()
+            }
+            draft.shares.push(item)
+          }
+          return item
+        })
+
+        if (action === 'qrcode' && !share.qrcodeStoragePath) {
+          const storagePath = await createMiniProgramCode(share)
+          await store.transaction(draft => {
+            const item = draft.shares.find(entry => entry.id === share.id)
+            item.qrcodeStoragePath = storagePath
+            item.updatedAt = now()
+          })
+        }
+
+        if (action === 'url-link' && !share.urlLink) {
+          const urlLink = await createMiniProgramUrlLink(share)
+          await store.transaction(draft => {
+            const item = draft.shares.find(entry => entry.id === share.id)
+            item.urlLink = urlLink
+            item.updatedAt = now()
+          })
+        }
+
+        const state = store.read()
+        const current = state.shares.find(item => item.id === share.id)
+        json(response, 200, { share: publicShare(current, state), wechatShareReady: isWechatShareConfigured() })
+        return
+      }
+
+      if (request.method === 'POST' && pathname === '/api/checkins') {
+        const dateKey = chinaDateKey()
+        const result = await store.transaction(draft => {
+          const existing = draft.transactions.find(item => item.userId === user.id && item.type === 'checkin' && item.externalRef === dateKey)
+          const target = draft.users.find(item => item.id === user.id)
+          if (existing) return { claimed: false, user: target }
+          const amount = draft.settings.checkinCredits
+          target.credits += amount
+          target.updatedAt = now()
+          draft.transactions.push({
+            id: randomUUID(), userId: user.id, type: 'checkin', title: '每日签到', amount,
+            balanceAfter: target.credits, externalRef: dateKey, createdAt: now()
+          })
+          return { claimed: true, user: target }
+        })
+        const state = store.read()
+        json(response, 200, {
+          claimed: result.claimed,
+          reward: state.settings.checkinCredits,
+          user: publicUser(state.users.find(item => item.id === user.id), state)
+        })
         return
       }
 
@@ -370,15 +670,19 @@ export async function createApplication() {
           .map(publicTransaction)
         json(response, 200, {
           user: publicUser(state.users.find(item => item.id === user.id), state),
-          packages: publicPackages(),
-          transactions
+          packages: publicPackages(state),
+          transactions,
+          checkin: {
+            reward: state.settings.checkinCredits,
+            claimedToday: state.transactions.some(item => item.userId === user.id && item.type === 'checkin' && item.externalRef === chinaDateKey())
+          }
         })
         return
       }
 
       if (request.method === 'POST' && pathname === '/api/payments/orders') {
         const body = await readJson(request)
-        const creditPackage = creditPackages.find(item => item.id === body.packageId)
+        const creditPackage = store.read(state => state.packages.find(item => item.id === body.packageId && item.enabled !== false))
         if (!creditPackage) throw new HttpError(400, 'PACKAGE_NOT_FOUND', '充值套餐不存在')
         const order = await store.transaction(draft => {
           const item = {

@@ -5,10 +5,18 @@ function encode(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url')
 }
 
-export function createToken(userId) {
-  const payload = encode({ sub: userId, exp: Math.floor(Date.now() / 1000) + config.tokenTtlSeconds })
+function createSignedToken(claims, ttlSeconds = config.tokenTtlSeconds) {
+  const payload = encode({ ...claims, exp: Math.floor(Date.now() / 1000) + ttlSeconds })
   const signature = createHmac('sha256', config.tokenSecret).update(payload).digest('base64url')
   return `${payload}.${signature}`
+}
+
+export function createToken(userId) {
+  return createSignedToken({ sub: userId, role: 'user' })
+}
+
+export function createAdminToken() {
+  return createSignedToken({ sub: 'admin', role: 'admin' }, 60 * 60 * 12)
 }
 
 export function verifyToken(token) {
@@ -36,3 +44,7 @@ export function bearerToken(request) {
   return value.startsWith('Bearer ') ? value.slice(7) : ''
 }
 
+export function isAdminToken(token) {
+  const payload = verifyToken(token)
+  return Boolean(payload && payload.role === 'admin' && payload.sub === 'admin')
+}

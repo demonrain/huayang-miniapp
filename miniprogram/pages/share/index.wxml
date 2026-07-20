@@ -1,0 +1,29 @@
+<view class="page share-page page-enter">
+  <view wx:if="{{loading}}" class="share-loading">
+    <view class="loading-flower"></view>
+    <view>正在打开作品</view>
+  </view>
+
+  <view wx:elif="{{share}}">
+    <view class="share-heading">
+      <view class="share-kicker">HUAYANG MOMENT</view>
+      <view class="share-title">一组值得收藏的照片</view>
+      <view class="share-meta">{{share.templateName}} · 来自画漾</view>
+    </view>
+
+    <view class="shared-results">
+      <view wx:for="{{share.results}}" wx:key="id" class="shared-result">
+        <image src="{{item.url}}" mode="widthFix" data-url="{{item.url}}" bindtap="preview"></image>
+        <view class="shared-actions">
+          <button data-url="{{item.url}}" bindtap="saveImage">保存图片</button>
+          <button data-url="{{item.url}}" bindtap="shareImage">分享图片</button>
+        </view>
+      </view>
+    </view>
+
+    <view class="share-footer">
+      <view><view class="share-footer__title">也来制作你的专属作品</view><view class="share-footer__sub">更多清新风格正在画漾</view></view>
+      <button class="share-create-button" bindtap="goCreate">去创作</button>
+    </view>
+  </view>
+</view>

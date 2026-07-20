@@ -32,10 +32,14 @@ export const config = {
   tokenTtlSeconds: 60 * 60 * 24 * 30,
   newUserCredits: Number(process.env.NEW_USER_CREDITS || 20),
   maxUploadBytes: Number(process.env.MAX_UPLOAD_MB || 10) * 1024 * 1024,
+  admin: {
+    password: process.env.ADMIN_PASSWORD || 'admin123456'
+  },
   wechat: {
     mockLogin: process.env.WECHAT_MOCK_LOGIN !== 'false',
     appId: process.env.WECHAT_APP_ID || '',
-    appSecret: process.env.WECHAT_APP_SECRET || ''
+    appSecret: process.env.WECHAT_APP_SECRET || '',
+    envVersion: process.env.WECHAT_ENV_VERSION || 'release'
   },
   image: {
     provider: process.env.IMAGE_PROVIDER || 'mock',
@@ -61,6 +65,9 @@ export function assertProductionConfig() {
   if (!config.wechat.mockLogin && (!config.wechat.appId || !config.wechat.appSecret)) {
     errors.push('WECHAT_APP_ID and WECHAT_APP_SECRET are required')
   }
+  if (process.env.NODE_ENV === 'production' && config.admin.password === 'admin123456') {
+    errors.push('ADMIN_PASSWORD must be changed in production')
+  }
   if (config.image.provider === 'compatible' && !config.image.apiKey) {
     errors.push('IMAGE_API_KEY is required for compatible image generation')
   }
@@ -78,4 +85,3 @@ export function assertProductionConfig() {
   }
   if (errors.length) throw new Error(errors.join('; '))
 }
-

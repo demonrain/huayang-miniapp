@@ -1,8 +1,12 @@
 .profile-head {
-  min-height: 156rpx;
+  min-height: 170rpx;
+  padding: 22rpx;
   display: flex;
   align-items: center;
   gap: 24rpx;
+  background: linear-gradient(135deg, var(--mint-soft), #fff5f6);
+  border: 2rpx solid #e5eee9;
+  border-radius: 16rpx;
 }
 
 .avatar-button {
@@ -15,35 +19,46 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: var(--yellow);
-  color: var(--ink);
-  font-family: "Songti SC", serif;
-  font-size: 52rpx;
+  background: #fff;
+  border: 8rpx solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 8rpx 22rpx rgba(100, 76, 85, 0.1);
+  color: var(--coral);
+  font-family: "Kaiti SC", "STKaiti", serif;
+  font-size: 48rpx;
   line-height: 120rpx;
 }
 
 .avatar-button image { width: 100%; height: 100%; }
 .profile-copy { min-width: 0; flex: 1; }
-.nickname-input { width: 100%; height: 60rpx; font-size: 38rpx; font-weight: 700; }
-.profile-id { margin-top: 7rpx; color: var(--muted); font-size: 21rpx; }
+.profile-kicker { color: var(--green); font-family: Georgia, serif; font-size: 15rpx; }
+.nickname-input { width: 100%; height: 58rpx; margin-top: 2rpx; font-size: 35rpx; font-weight: 650; }
+.profile-id { margin-top: 5rpx; color: var(--muted); font-size: 20rpx; }
 
 .stats-grid {
-  margin-top: 30rpx;
+  margin-top: 22rpx;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  background: var(--surface);
+  overflow: hidden;
+  background: #fff;
   border: 2rpx solid var(--line);
+  border-radius: 16rpx;
+  box-shadow: 0 8rpx 24rpx rgba(108,82,92,0.05);
 }
 
-.stats-grid view { min-width: 0; padding: 27rpx 8rpx; text-align: center; border-right: 2rpx solid var(--line); }
+.stats-grid view { min-width: 0; padding: 28rpx 8rpx; text-align: center; border-right: 2rpx solid var(--line); }
 .stats-grid view:last-child { border-right: 0; }
-.stats-value { display: block; font-family: Georgia, serif; font-size: 36rpx; font-weight: 700; }
-.stats-grid text { display: block; margin-top: 5rpx; color: var(--muted); font-size: 19rpx; }
+.stats-value { display: block; color: var(--coral); font-family: Georgia, serif; font-size: 35rpx; font-weight: 700; }
+.stats-grid text { display: block; margin-top: 5rpx; color: var(--muted); font-size: 18rpx; }
 
-.menu-list { margin-top: 38rpx; background: var(--surface); border: 2rpx solid var(--line); }
-.menu-list button { width: 100%; height: 100rpx; margin: 0; padding: 0 24rpx; display: flex; align-items: center; justify-content: space-between; background: transparent; border-bottom: 2rpx solid var(--line); color: var(--ink); font-size: 26rpx; font-weight: 400; line-height: 100rpx; }
+.menu-list { margin-top: 34rpx; overflow: hidden; background: #fff; border: 2rpx solid var(--line); border-radius: 16rpx; box-shadow: 0 8rpx 24rpx rgba(108,82,92,0.04); }
+.menu-list button { width: 100%; height: 104rpx; margin: 0; padding: 0 24rpx; display: flex; align-items: center; justify-content: space-between; background: transparent; border-bottom: 2rpx solid var(--line); color: var(--ink); font-size: 25rpx; font-weight: 400; line-height: 104rpx; }
 .menu-list button:last-child { border-bottom: 0; }
-.menu-arrow { color: #999a95; font-size: 38rpx; font-weight: 300; }
+.menu-label { display: flex; align-items: center; gap: 16rpx; }
+.menu-icon { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-family: Georgia, serif; font-size: 22rpx; font-weight: 700; line-height: 44rpx; }
+.menu-icon--help { background: var(--pink-soft); color: var(--coral); }
+.menu-icon--privacy { background: var(--mint-soft); color: var(--green); }
+.menu-arrow { color: #c5b7bc; font-size: 36rpx; font-weight: 300; }
 
-.account-note { margin-top: 26rpx; padding: 22rpx; background: #e7eee9; color: #5c6862; font-size: 21rpx; line-height: 1.6; }
-.account-note__title { color: var(--green); font-size: 24rpx; font-weight: 700; }
+.account-note { margin-top: 24rpx; padding: 22rpx; background: #fff8e7; border: 2rpx solid #f3ead1; border-radius: 14rpx; color: #84775c; font-size: 20rpx; line-height: 1.65; }
+.account-note__title { color: #9b7b3f; font-size: 23rpx; font-weight: 650; }

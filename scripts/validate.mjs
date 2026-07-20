@@ -8,7 +8,8 @@ const miniRoot = path.join(root, 'miniprogram')
 
 function walk(directory) {
   return readdirSync(directory).flatMap(name => {
-    if (name === '.git' || name === 'node_modules') return []
+    if (['.git', 'node_modules', '.playwright-cli', 'output', 'secrets'].includes(name)) return []
+    if (name.toLowerCase().endsWith('deploy.private.json')) return []
     const filename = path.join(directory, name)
     return statSync(filename).isDirectory() ? walk(filename) : [filename]
   })

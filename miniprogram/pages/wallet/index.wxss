@@ -1,28 +1,56 @@
 .balance-panel {
   position: relative;
-  min-height: 248rpx;
+  min-height: 258rpx;
   padding: 34rpx;
+  display: flex;
   overflow: hidden;
-  background: var(--ink);
-  color: #fff;
-  border-radius: 8rpx;
+  background: linear-gradient(135deg, #fff0f3 0%, #fff8e4 52%, #e8f7f2 100%);
+  border: 2rpx solid #f2e2e3;
+  border-radius: 16rpx;
+  color: var(--ink);
+  box-shadow: 0 14rpx 34rpx rgba(119, 86, 98, 0.07);
 }
 
-.balance-panel::after {
-  content: '';
+.balance-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.balance-label { color: #9b727b; font-size: 21rpx; font-weight: 600; }
+.balance-row { margin-top: 6rpx; display: flex; align-items: baseline; gap: 10rpx; }
+.balance-value { color: var(--coral); font-family: Georgia, serif; font-size: 78rpx; font-weight: 700; line-height: 1.1; }
+.balance-unit { color: #9b727b; font-size: 20rpx; }
+.balance-foot { margin-top: 22rpx; color: var(--muted); font-size: 19rpx; }
+.balance-stamp { position: absolute; top: 26rpx; right: 24rpx; padding: 7rpx 10rpx; border: 2rpx solid rgba(231,109,130,0.3); border-radius: 6rpx; color: var(--coral); font-family: Georgia, serif; font-size: 15rpx; }
+
+.balance-flower {
   position: absolute;
-  right: -50rpx;
-  bottom: -76rpx;
-  width: 230rpx;
-  height: 170rpx;
-  border: 28rpx solid var(--coral);
-  transform: rotate(-18deg);
+  right: 34rpx;
+  bottom: 22rpx;
+  width: 116rpx;
+  height: 116rpx;
+  transform: rotate(8deg);
 }
 
-.balance-label { color: #a8aaa6; font-size: 22rpx; }
-.balance-value { margin-top: 10rpx; font-family: Georgia, serif; font-size: 82rpx; font-weight: 700; line-height: 1.1; }
-.balance-foot { margin-top: 24rpx; color: #b9bbb7; font-size: 20rpx; }
-.balance-stamp { position: absolute; top: 30rpx; right: 28rpx; padding: 8rpx 12rpx; border: 2rpx solid #5d615e; color: #c4c5c2; font-family: "Songti SC", serif; font-size: 18rpx; }
+.balance-petal {
+  position: absolute;
+  width: 54rpx;
+  height: 54rpx;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 50% 50% 45% 50%;
+}
+
+.balance-petal--one { top: 0; left: 31rpx; }
+.balance-petal--two { top: 31rpx; right: 0; transform: rotate(90deg); }
+.balance-petal--three { bottom: 0; left: 31rpx; transform: rotate(180deg); }
+.balance-petal--four { top: 31rpx; left: 0; transform: rotate(270deg); }
+.balance-flower-dot { position: absolute; top: 40rpx; left: 40rpx; z-index: 2; width: 36rpx; height: 36rpx; background: var(--yellow); border: 6rpx solid #fff; border-radius: 50%; }
+
+.checkin-panel { min-height: 112rpx; margin-top: 18rpx; padding: 20rpx 22rpx; display: flex; align-items: center; justify-content: space-between; gap: 18rpx; background: #fff; border: 2rpx solid var(--line); border-radius: 16rpx; box-shadow: 0 8rpx 24rpx rgba(108,82,92,.04); }
+.checkin-title { font-size: 25rpx; font-weight: 650; }
+.checkin-sub { margin-top: 6rpx; color: var(--muted); font-size: 18rpx; }
+.checkin-button { width: 176rpx; height: 66rpx; flex: none; margin: 0; background: var(--mint); color: #fff; font-size: 21rpx; line-height: 66rpx; }
+.checkin-button--done, .checkin-button[disabled] { background: var(--mint-soft); color: var(--green); }
 
 .package-grid {
   display: grid;
@@ -33,35 +61,52 @@
 .package-card {
   position: relative;
   min-width: 0;
-  min-height: 198rpx;
+  min-height: 202rpx;
   margin: 0;
   padding: 25rpx 20rpx;
-  background: var(--surface);
+  overflow: hidden;
+  background: #fff;
   border: 2rpx solid var(--line);
+  box-shadow: 0 8rpx 24rpx rgba(108, 82, 92, 0.05);
   text-align: left;
   line-height: 1.35;
 }
 
 .package-card--selected {
-  background: #edf3ef;
-  border: 4rpx solid var(--green);
+  background: var(--pink-soft);
+  border: 4rpx solid #ef9cab;
   padding: 23rpx 18rpx;
 }
 
-.package-badge { position: absolute; top: 0; right: 0; padding: 7rpx 10rpx; background: var(--coral); color: #fff; font-size: 17rpx; }
-.package-credits { font-size: 30rpx; font-weight: 700; }
-.package-credits text { font-size: 20rpx; font-weight: 400; }
-.package-price { margin-top: 20rpx; font-family: Georgia, serif; font-size: 44rpx; font-weight: 700; }
-.package-price text { margin-right: 3rpx; font-size: 22rpx; }
-.package-bonus { margin-top: 10rpx; color: var(--coral); font-size: 18rpx; }
-.pay-button { margin-top: 24rpx; }
-.pay-note { margin-top: 14rpx; color: var(--muted); font-size: 19rpx; text-align: center; }
-.transaction-title { margin-top: 50rpx; }
-.transaction-list { background: var(--surface); border: 2rpx solid var(--line); }
-.transaction-row { min-height: 106rpx; padding: 20rpx 22rpx; display: flex; align-items: center; justify-content: space-between; border-bottom: 2rpx solid var(--line); }
-.transaction-row:last-child { border-bottom: 0; }
-.transaction-name { font-size: 25rpx; font-weight: 600; }
-.transaction-time { margin-top: 7rpx; color: var(--muted); font-size: 18rpx; }
-.transaction-amount { color: var(--coral); font-family: Georgia, serif; font-size: 30rpx; font-weight: 700; }
-.transaction-amount--plus { color: var(--green); }
+.package-card--selected::after {
+  content: '✓';
+  position: absolute;
+  right: 14rpx;
+  bottom: 12rpx;
+  width: 34rpx;
+  height: 34rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--coral);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 18rpx;
+}
 
+.package-badge { position: absolute; top: 0; right: 0; padding: 7rpx 10rpx; background: var(--yellow); border-radius: 0 0 0 8rpx; color: #7e6948; font-size: 16rpx; }
+.package-credits { font-size: 29rpx; font-weight: 650; }
+.package-credits text { font-size: 19rpx; font-weight: 400; }
+.package-price { margin-top: 20rpx; color: var(--coral); font-family: Georgia, serif; font-size: 42rpx; font-weight: 700; }
+.package-price text { margin-right: 3rpx; font-size: 21rpx; }
+.package-bonus { margin-top: 10rpx; color: var(--green); font-size: 17rpx; }
+.pay-button { margin-top: 26rpx; }
+.pay-note { margin-top: 14rpx; color: var(--muted); font-size: 18rpx; text-align: center; }
+.transaction-title { margin-top: 52rpx; }
+.transaction-list { overflow: hidden; background: #fff; border: 2rpx solid var(--line); border-radius: 16rpx; box-shadow: 0 8rpx 24rpx rgba(108,82,92,0.04); }
+.transaction-row { min-height: 108rpx; padding: 20rpx 22rpx; display: flex; align-items: center; justify-content: space-between; border-bottom: 2rpx solid var(--line); }
+.transaction-row:last-child { border-bottom: 0; }
+.transaction-name { font-size: 24rpx; font-weight: 600; }
+.transaction-time { margin-top: 7rpx; color: var(--muted); font-size: 18rpx; }
+.transaction-amount { color: var(--coral); font-family: Georgia, serif; font-size: 29rpx; font-weight: 700; }
+.transaction-amount--plus { color: var(--green); }

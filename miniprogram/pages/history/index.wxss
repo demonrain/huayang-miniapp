@@ -1,8 +1,31 @@
 .history-heading {
-  margin: 12rpx 0 30rpx;
+  min-height: 130rpx;
+  margin: 6rpx 0 30rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
 }
 
-.history-heading .section-title__sub { margin-top: 10rpx; }
+.history-kicker {
+  margin-bottom: 8rpx;
+  color: var(--coral);
+  font-family: Georgia, serif;
+  font-size: 17rpx;
+  letter-spacing: 0;
+}
+
+.history-heading .section-title__sub {
+  margin-top: 9rpx;
+}
+
+.album-count {
+  margin-bottom: 5rpx;
+  padding: 8rpx 13rpx;
+  background: var(--mint-soft);
+  border-radius: 8rpx;
+  color: var(--green);
+  font-size: 19rpx;
+}
 
 .history-list {
   display: flex;
@@ -12,44 +35,86 @@
 
 .history-card {
   width: 100%;
-  min-height: 152rpx;
+  min-height: 164rpx;
   margin: 0;
-  padding: 16rpx;
+  padding: 18rpx;
   display: flex;
   align-items: center;
   gap: 18rpx;
-  background: var(--surface);
+  background: #fff;
   border: 2rpx solid var(--line);
+  box-shadow: 0 10rpx 28rpx rgba(108, 81, 92, 0.06);
   text-align: left;
   line-height: 1.4;
 }
 
 .history-cover {
-  width: 116rpx;
-  height: 116rpx;
+  position: relative;
+  width: 126rpx;
+  height: 126rpx;
   flex: none;
+  padding: 12rpx;
   display: flex;
   align-items: flex-end;
-  padding: 12rpx;
   overflow: hidden;
+  border: 6rpx solid #fff;
+  border-radius: 12rpx;
+  box-shadow: 0 6rpx 16rpx rgba(99, 74, 83, 0.1);
   color: #fff;
-  font-family: "Songti SC", serif;
-  font-size: 25rpx;
+  font-family: "Kaiti SC", "STKaiti", serif;
+  font-size: 24rpx;
   font-weight: 700;
+}
+
+.history-cover::after {
+  content: '';
+  position: absolute;
+  right: 12rpx;
+  bottom: 12rpx;
+  width: 28rpx;
+  height: 28rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 50%;
 }
 
 .history-cover image { width: 100%; height: 100%; margin: -12rpx; }
 .history-copy { min-width: 0; flex: 1; }
 .history-row { display: flex; align-items: center; gap: 10rpx; }
-.history-name { min-width: 0; overflow: hidden; font-size: 28rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.history-time { margin-top: 12rpx; color: var(--muted); font-size: 20rpx; }
-.status { flex: none; padding: 5rpx 9rpx; background: #e8e7e1; color: var(--muted); font-size: 17rpx; }
-.status--succeeded { background: #dbe9e1; color: var(--green); }
-.status--failed { background: #f2dbd6; color: #833c31; }
-.chevron { color: #999a95; font-size: 40rpx; font-weight: 300; }
-.skeleton { height: 152rpx; }
-.empty-mark { width: 106rpx; height: 106rpx; margin: 0 auto 24rpx; display: flex; align-items: center; justify-content: center; background: var(--yellow); color: var(--ink); font-family: "Songti SC", serif; font-size: 48rpx; }
-.empty-title { color: var(--ink); font-size: 30rpx; font-weight: 700; }
-.empty-sub { margin: 12rpx 0 34rpx; font-size: 22rpx; }
-.empty-work .primary-button { width: 280rpx; margin: 0 auto; }
+.history-name { min-width: 0; overflow: hidden; font-size: 27rpx; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.history-time { margin-top: 12rpx; color: var(--muted); font-size: 19rpx; }
+.status { flex: none; padding: 5rpx 9rpx; background: #f4eff0; border-radius: 6rpx; color: var(--muted); font-size: 16rpx; }
+.status--succeeded { background: var(--mint-soft); color: var(--green); }
+.status--failed { background: #fff0ed; color: #c56f60; }
+.chevron { color: #c7b9be; font-size: 38rpx; font-weight: 300; }
+.skeleton { height: 164rpx; }
 
+.empty-mark {
+  position: relative;
+  width: 110rpx;
+  height: 110rpx;
+  margin: 0 auto 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--pink-soft);
+  border: 2rpx solid #f4dfe3;
+  border-radius: 50%;
+  color: var(--coral);
+  font-family: "Kaiti SC", "STKaiti", serif;
+  font-size: 44rpx;
+}
+
+.empty-flower-dot {
+  position: absolute;
+  top: 7rpx;
+  right: 7rpx;
+  width: 28rpx;
+  height: 28rpx;
+  background: var(--yellow);
+  border: 5rpx solid #fff;
+  border-radius: 50%;
+}
+
+.empty-title { color: var(--ink); font-size: 29rpx; font-weight: 650; }
+.empty-sub { margin: 12rpx 0 34rpx; font-size: 21rpx; }
+.empty-work .primary-button { width: 280rpx; margin: 0 auto; }

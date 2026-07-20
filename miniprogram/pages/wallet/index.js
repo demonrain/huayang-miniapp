@@ -5,8 +5,10 @@ Page({
     user: null,
     packages: [],
     transactions: [],
+    checkin: null,
     selectedId: '',
-    paying: false
+    paying: false,
+    checking: false
   },
 
   onShow() {
@@ -16,12 +18,13 @@ Page({
   async loadWallet() {
     try {
       await getApp().ensureSession()
-      const { user, packages, transactions } = await api.get('/api/wallet')
+      const { user, packages, transactions, checkin } = await api.get('/api/wallet')
       getApp().setUser(user)
       this.setData({
         user,
         packages,
         transactions,
+        checkin,
         selectedId: this.data.selectedId || packages[1]?.id || packages[0]?.id || ''
       })
     } catch (error) {
@@ -31,6 +34,22 @@ Page({
 
   selectPackage(event) {
     this.setData({ selectedId: event.currentTarget.dataset.id })
+  },
+
+  async checkin() {
+    if (this.data.checking || this.data.checkin?.claimedToday) return
+    this.setData({ checking: true })
+    try {
+      const { claimed, reward, user } = await api.post('/api/checkins', {})
+      getApp().setUser(user)
+      this.setData({ user, checkin: { reward, claimedToday: true } })
+      wx.showToast({ title: claimed ? `签到成功 +${reward}` : '今天已经签到', icon: 'success' })
+      await this.loadWallet()
+    } catch (error) {
+      wx.showToast({ title: error.message, icon: 'none' })
+    } finally {
+      this.setData({ checking: false })
+    }
   },
 
   async pay() {
@@ -63,4 +82,3 @@ Page({
     return new Promise((resolve, reject) => wx.requestPayment({ ...params, success: resolve, fail: reject }))
   }
 })
-

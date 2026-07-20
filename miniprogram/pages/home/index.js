@@ -13,10 +13,15 @@ Page({
       { id: 'pet', name: '宠物' },
       { id: 'art', name: '艺术' }
     ],
-    activeCategory: 'all'
+    activeCategory: 'all',
+    navSpacer: 176
   },
 
   onLoad() {
+    const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
+    const menuButton = wx.getMenuButtonBoundingClientRect()
+    const navSpacer = Math.ceil((menuButton.bottom + 8) * 750 / windowInfo.windowWidth)
+    this.setData({ navSpacer })
     this.loadPage()
   },
 
@@ -71,4 +76,3 @@ Page({
     wx.switchTab({ url: '/pages/wallet/index' })
   }
 })
-

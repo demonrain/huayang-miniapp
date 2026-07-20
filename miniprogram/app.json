@@ -5,25 +5,26 @@
     "pages/wallet/index",
     "pages/profile/index",
     "pages/create/index",
-    "pages/job/index"
+    "pages/job/index",
+    "pages/share/index"
   ],
   "window": {
     "navigationBarTitleText": "画漾",
-    "navigationBarBackgroundColor": "#F7F5F0",
+    "navigationBarBackgroundColor": "#FFF9F8",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#F7F5F0",
-    "backgroundTextStyle": "dark"
+    "backgroundColor": "#FFF9F8",
+    "backgroundTextStyle": "light"
   },
   "tabBar": {
-    "color": "#8A8882",
-    "selectedColor": "#1E4D45",
-    "backgroundColor": "#FFFEFB",
+    "color": "#9A929A",
+    "selectedColor": "#E76D82",
+    "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/home/index", "text": "创作" },
-      { "pagePath": "pages/history/index", "text": "作品" },
-      { "pagePath": "pages/wallet/index", "text": "积分" },
-      { "pagePath": "pages/profile/index", "text": "我的" }
+      { "pagePath": "pages/home/index", "text": "创作", "iconPath": "assets/icons/create.png", "selectedIconPath": "assets/icons/create-active.png" },
+      { "pagePath": "pages/history/index", "text": "作品", "iconPath": "assets/icons/works.png", "selectedIconPath": "assets/icons/works-active.png" },
+      { "pagePath": "pages/wallet/index", "text": "积分", "iconPath": "assets/icons/wallet.png", "selectedIconPath": "assets/icons/wallet-active.png" },
+      { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "assets/icons/profile.png", "selectedIconPath": "assets/icons/profile-active.png" }
     ]
   },
   "style": "v2",

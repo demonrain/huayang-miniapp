@@ -1,13 +1,19 @@
 page {
-  --ink: #202522;
-  --muted: #777973;
-  --paper: #f7f5f0;
-  --surface: #fffefb;
-  --line: #deddd7;
-  --green: #1e4d45;
-  --coral: #df6b57;
-  --yellow: #efbd4e;
-  background: var(--paper);
+  --ink: #403b43;
+  --muted: #8d858d;
+  --paper: #fff9f8;
+  --surface: #ffffff;
+  --line: #f0e3e5;
+  --green: #58ad99;
+  --mint: #78c9b5;
+  --mint-soft: #e9f7f2;
+  --coral: #e76d82;
+  --pink: #f28fa0;
+  --pink-soft: #fff0f3;
+  --peach: #ffb59c;
+  --yellow: #ffd978;
+  --lavender: #b9a9dc;
+  background: linear-gradient(180deg, #fff9f8 0%, #f9fffd 52%, #fffafb 100%);
   color: var(--ink);
   font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 28rpx;
@@ -18,7 +24,7 @@ view, text, image, button, input, scroll-view {
 }
 
 button {
-  border-radius: 8rpx;
+  border-radius: 16rpx;
   font-size: 28rpx;
   font-weight: 600;
 }
@@ -29,25 +35,25 @@ button::after {
 
 .page {
   min-height: 100vh;
-  padding: 32rpx 28rpx 56rpx;
+  padding: 32rpx 30rpx 64rpx;
 }
 
 .section-title {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin: 42rpx 0 22rpx;
+  margin: 48rpx 0 22rpx;
 }
 
 .section-title__main {
-  font-family: "Songti SC", serif;
-  font-size: 38rpx;
-  font-weight: 700;
+  font-size: 36rpx;
+  font-weight: 650;
+  letter-spacing: 0;
 }
 
 .section-title__sub {
   color: var(--muted);
-  font-size: 24rpx;
+  font-size: 22rpx;
 }
 
 .primary-button {
@@ -55,8 +61,9 @@ button::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--green);
+  background: var(--coral);
   color: #fff;
+  box-shadow: 0 12rpx 28rpx rgba(231, 109, 130, 0.2);
 }
 
 .ghost-button {
@@ -64,7 +71,7 @@ button::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: #fff;
   border: 2rpx solid var(--line);
   color: var(--ink);
 }
@@ -76,8 +83,19 @@ button::after {
 }
 
 .skeleton {
-  background: #e9e7e1;
+  background: #f4eaec;
   animation: pulse 1.2s ease-in-out infinite alternate;
+}
+
+.soft-card {
+  background: var(--surface);
+  border: 2rpx solid rgba(240, 227, 229, 0.9);
+  border-radius: 16rpx;
+  box-shadow: 0 12rpx 32rpx rgba(107, 80, 90, 0.06);
+}
+
+.page-enter {
+  animation: page-in 0.45s ease-out both;
 }
 
 @keyframes pulse {
@@ -85,3 +103,7 @@ button::after {
   to { opacity: 1; }
 }
 
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(12rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
