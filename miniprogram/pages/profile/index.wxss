@@ -1,3 +1,24 @@
+.profile-tip {
+  margin-top: 18rpx;
+  padding: 20rpx 22rpx;
+  background: #fff8e7;
+  border: 2rpx solid #f3ead1;
+  border-radius: 14rpx;
+}
+
+.profile-tip__title {
+  color: #9b7b3f;
+  font-size: 24rpx;
+  font-weight: 650;
+}
+
+.profile-tip__text {
+  margin-top: 8rpx;
+  color: #84775c;
+  font-size: 20rpx;
+  line-height: 1.55;
+}
+
 .guest-panel {
   margin-top: 24rpx;
   padding: 48rpx 32rpx;

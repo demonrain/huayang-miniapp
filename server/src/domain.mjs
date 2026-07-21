@@ -89,13 +89,21 @@ export function findTemplate(state, templateId, includeDisabled = false) {
   return state.templates.find(item => item.id === templateId && (includeDisabled || item.enabled !== false))
 }
 
+const CATEGORY_LABELS = {
+  portrait: '人像',
+  life: '生活',
+  pet: '宠物',
+  art: '艺术'
+}
+
 export function publicTemplate(template, state, admin = false) {
   const cover = template.coverAssetId ? state.assets.find(item => item.id === template.coverAssetId) : null
   const value = {
     id: template.id,
     name: template.name,
-    shortName: template.shortName,
+    shortName: template.shortName || String(template.name || '').slice(0, 4),
     category: template.category,
+    categoryLabel: CATEGORY_LABELS[template.category] || template.category || '',
     description: template.description,
     cost: template.cost,
     badge: template.badge || '',

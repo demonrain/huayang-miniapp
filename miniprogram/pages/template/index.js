@@ -53,7 +53,7 @@ Page({
       this.setData({
         template,
         samples,
-        categoryLabel: CATEGORY_LABELS[template.category] || template.category || '风格',
+        categoryLabel: template.categoryLabel || CATEGORY_LABELS[template.category] || template.category || '风格',
         displayTags: tags.slice(0, 5),
         popularityText: template.popularity >= 10000
           ? `${(template.popularity / 10000).toFixed(1)}万`

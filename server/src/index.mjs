@@ -38,13 +38,44 @@ function publicUser(user, state) {
   return {
     id: user.id,
     maskedId: user.id.slice(0, 4).toUpperCase(),
-    nickname: user.nickname,
-    avatarUrl: avatar ? assetUrl(avatar) : '',
+    nickname: user.nickname || '微信用户',
+    // Prefer uploaded asset; fall back to WeChat CDN / external avatar URL
+    avatarUrl: avatar ? assetUrl(avatar) : (user.avatarUrl || ''),
+    profileComplete: Boolean(
+      user.nickname &&
+      user.nickname !== '微信用户' &&
+      (user.avatarAssetId || user.avatarUrl)
+    ),
     credits: user.credits,
     isNew: Boolean(user.isNew),
     enabled: user.enabled !== false,
     createdAt: user.createdAt
   }
+}
+
+const TEMPLATE_CATEGORIES = [
+  { id: 'portrait', name: '人像' },
+  { id: 'life', name: '生活' },
+  { id: 'pet', name: '宠物' },
+  { id: 'art', name: '艺术' }
+]
+
+function categoryLabel(categoryId) {
+  return TEMPLATE_CATEGORIES.find(item => item.id === categoryId)?.name || categoryId || ''
+}
+
+function slugifyTemplateId(name) {
+  const base = String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 24)
+  const suffix = randomBytes(3).toString('hex')
+  if (base.length >= 2) return `${base}-${suffix}`
+  return `tpl-${suffix}`
 }
 
 function displayTime(value) {
@@ -109,18 +140,24 @@ function cleanTags(value) {
 }
 
 function applyTemplateFields(target, body, creating = false) {
-  const textFields = [
-    ['name', '模板名称', 30, true],
-    ['shortName', '模板简称', 8, true],
-    ['category', '模板分类', 20, true],
-    ['description', '模板描述', 80, true],
-    ['badge', '模板角标', 12, false],
-    ['palette', '模板配色', 240, true],
-    ['prompt', '生图提示词', 3000, true]
-  ]
-  for (const [key, label, maxLength, required] of textFields) {
-    if (creating || key in body) target[key] = cleanText(body[key], label, maxLength, required)
+  if (creating || 'name' in body) target.name = cleanText(body.name, '模板名称', 30, true)
+  if (creating || 'shortName' in body) {
+    // shortName is optional; default to first chars of name
+    const shortName = String(body.shortName ?? '').trim()
+    if (shortName) target.shortName = cleanText(shortName, '模板简称', 8, false)
+    else target.shortName = cleanText(String(target.name || body.name || '风格').slice(0, 4), '模板简称', 8, true)
   }
+  if (creating || 'category' in body) {
+    const category = cleanText(body.category, '模板分类', 20, true)
+    if (!TEMPLATE_CATEGORIES.some(item => item.id === category)) {
+      throw new HttpError(400, 'INVALID_CATEGORY', `分类需为：${TEMPLATE_CATEGORIES.map(item => item.name).join('、')}`)
+    }
+    target.category = category
+  }
+  if (creating || 'description' in body) target.description = cleanText(body.description, '模板描述', 80, true)
+  if (creating || 'badge' in body) target.badge = cleanText(body.badge, '模板角标', 12, false)
+  if (creating || 'palette' in body) target.palette = cleanText(body.palette, '模板配色', 240, true)
+  if (creating || 'prompt' in body) target.prompt = cleanText(body.prompt, '生图提示词', 3000, true)
   if (creating || 'cost' in body) target.cost = boundedInteger(body.cost, '模板积分', 0, 10000)
   if (creating || 'popularity' in body) target.popularity = boundedInteger(body.popularity ?? 0, '人气值', 0, 100000000)
   if (creating || 'tags' in body) target.tags = cleanTags(body.tags)
@@ -351,7 +388,8 @@ export async function createApplication() {
           paymentMode: config.payment.mode,
           wechatShareReady: isWechatShareConfigured(),
           subscribeEnabled: isSubscribeNotifyConfigured(),
-          subscribeTemplateId: config.wechat.subscribeTemplateId || ''
+          subscribeTemplateId: config.wechat.subscribeTemplateId || '',
+          templateCategories: TEMPLATE_CATEGORIES
         })
         return
       }
@@ -451,6 +489,7 @@ export async function createApplication() {
             templates: publicTemplates(state, true),
             banners: publicBanners(state, true),
             packages: publicPackages(state, true),
+            templateCategories: TEMPLATE_CATEGORIES,
             stats: {
               users: state.users.length,
               jobs: state.jobs.length,
@@ -644,10 +683,17 @@ export async function createApplication() {
 
         if (request.method === 'POST' && pathname === '/api/admin/templates') {
           const body = await readJson(request)
-          const id = cleanText(body.id, '模板 ID', 40, true)
-          if (!/^[a-z0-9][a-z0-9-]+$/.test(id)) throw new HttpError(400, 'INVALID_TEMPLATE_ID', '模板 ID 仅支持小写字母、数字和连字符')
+          // Auto-generate id when omitted; keep optional client-provided slug if valid
+          let id = String(body.id || '').trim().toLowerCase()
+          if (id) {
+            if (!/^[a-z0-9][a-z0-9-]+$/.test(id)) throw new HttpError(400, 'INVALID_TEMPLATE_ID', '模板 ID 仅支持小写字母、数字和连字符')
+          } else {
+            id = slugifyTemplateId(body.name)
+          }
           await store.transaction(draft => {
-            if (draft.templates.some(item => item.id === id)) throw new HttpError(409, 'TEMPLATE_EXISTS', '模板 ID 已存在')
+            while (draft.templates.some(item => item.id === id)) {
+              id = slugifyTemplateId(body.name)
+            }
             const item = { id, enabled: body.enabled !== false, coverAssetId: '' }
             applyTemplateFields(item, body, true)
             draft.templates.push(item)
@@ -752,10 +798,23 @@ export async function createApplication() {
             if (!nickname || nickname.length > 20) throw new HttpError(400, 'INVALID_NICKNAME', '昵称需为 1–20 个字符')
             target.nickname = nickname
           }
-          if (typeof body.avatarAssetId === 'string') {
+          if (typeof body.avatarAssetId === 'string' && body.avatarAssetId) {
             const avatar = draft.assets.find(item => item.id === body.avatarAssetId && item.userId === user.id)
             if (!avatar) throw new HttpError(400, 'INVALID_AVATAR', '头像图片不存在')
             target.avatarAssetId = avatar.id
+            target.avatarUrl = ''
+          }
+          // Allow WeChat CDN / https avatar URL (chooseAvatar may return https://tmp or thirdwx.qlogo.cn)
+          if (typeof body.avatarUrl === 'string' && body.avatarUrl.trim()) {
+            const avatarUrl = body.avatarUrl.trim()
+            if (!/^https:\/\//i.test(avatarUrl) && !/^http:\/\/(tmp|usr)\//i.test(avatarUrl) && !avatarUrl.startsWith('wxfile://')) {
+              throw new HttpError(400, 'INVALID_AVATAR_URL', '头像地址不合法')
+            }
+            // Permanent https URLs can be stored directly; local temp files should use upload + avatarAssetId
+            if (/^https:\/\//i.test(avatarUrl)) {
+              target.avatarUrl = avatarUrl.slice(0, 500)
+              target.avatarAssetId = ''
+            }
           }
           target.updatedAt = now()
           return target

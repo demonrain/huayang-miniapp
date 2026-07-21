@@ -129,12 +129,19 @@
 
   <dialog id="templateDialog" class="dialog">
     <form id="templateForm" method="dialog">
-      <div class="dialog-heading"><div><h3 id="templateDialogTitle">新增模板</h3><p>模板 ID 创建后不可修改。</p></div><button class="icon-button" type="button" data-close="templateDialog" aria-label="关闭">×</button></div>
+      <div class="dialog-heading"><div><h3 id="templateDialogTitle">新增模板</h3><p>新增时自动生成 ID；编辑时 ID 不可改。</p></div><button class="icon-button" type="button" data-close="templateDialog" aria-label="关闭">×</button></div>
       <div class="form-grid form-grid--dialog">
-        <label>模板 ID<input name="id" pattern="[a-z0-9][a-z0-9-]+" maxlength="40" required></label>
+        <label id="templateIdField" hidden>模板 ID<input name="id" pattern="[a-z0-9][a-z0-9-]+" maxlength="40" readonly></label>
         <label>模板名称<input name="name" maxlength="30" required></label>
-        <label>模板简称<input name="shortName" maxlength="8" required></label>
-        <label>分类<input name="category" maxlength="20" placeholder="portrait" required></label>
+        <label>模板简称<input name="shortName" maxlength="8" placeholder="可留空，默认取名称前几字"></label>
+        <label>分类
+          <select name="category" required>
+            <option value="portrait">人像</option>
+            <option value="life">生活</option>
+            <option value="pet">宠物</option>
+            <option value="art">艺术</option>
+          </select>
+        </label>
         <label>每张积分<input name="cost" type="number" min="0" max="10000" required></label>
         <label>人气值<input name="popularity" type="number" min="0" max="100000000" required></label>
         <label>排序值<input name="sortOrder" type="number" min="0" max="100000" required></label>

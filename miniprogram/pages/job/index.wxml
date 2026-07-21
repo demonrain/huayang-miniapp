@@ -80,12 +80,12 @@
         </scroll-view>
       </view>
 
-      <view class="job-row-actions">
-        <view class="job-row-actions__cell">
+      <view class="job-row-actions {{job.results.length > 1 ? '' : 'job-row-actions--single'}}">
+        <view wx:if="{{job.results.length > 1}}" class="job-row-actions__cell">
           <button class="primary-button job-row-btn" loading="{{saving}}" disabled="{{saving}}" bindtap="saveAll">保存全部作品</button>
         </view>
         <view class="job-row-actions__cell">
-          <button class="ghost-button job-row-btn" bindtap="createAgain">继续创作</button>
+          <button class="{{job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">继续创作</button>
         </view>
       </view>
 
@@ -126,10 +126,16 @@
       </view>
     </view>
 
-    <view class="job-footer-actions job-row-actions">
+    <!-- 生成中 / 失败：查看作品 + 返回首页；完成：仅返回首页（作品已在本页展示） -->
+    <view wx:if="{{isWaiting || job.status === 'failed'}}" class="job-footer-actions job-row-actions">
       <view class="job-row-actions__cell">
         <button class="ghost-button job-row-btn" bindtap="goWorks">查看作品</button>
       </view>
+      <view class="job-row-actions__cell">
+        <button class="primary-button job-row-btn" bindtap="goHome">返回首页</button>
+      </view>
+    </view>
+    <view wx:elif="{{job.status === 'succeeded'}}" class="job-footer-actions job-row-actions job-row-actions--single">
       <view class="job-row-actions__cell">
         <button class="primary-button job-row-btn" bindtap="goHome">返回首页</button>
       </view>

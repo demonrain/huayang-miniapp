@@ -130,14 +130,25 @@ function renderOverview() {
   elements.settingsForm.elements.shareTitle.value = settings.shareTitle
 }
 
+const CATEGORY_LABELS = {
+  portrait: '人像',
+  life: '生活',
+  pet: '宠物',
+  art: '艺术'
+}
+
+function categoryLabel(categoryId) {
+  return CATEGORY_LABELS[categoryId] || categoryId || '-'
+}
+
 function renderTemplates() {
   elements.templateRows.innerHTML = state.data.templates.map(template => `
     <tr>
       <td><div class="template-cell">
-        <div class="cover-thumb" style="background:${escapeHtml(template.palette)}">${template.coverUrl ? `<img src="${escapeHtml(template.coverUrl)}" alt="">` : escapeHtml(template.shortName)}</div>
+        <div class="cover-thumb" style="background:${escapeHtml(template.palette)}">${template.coverUrl ? `<img src="${escapeHtml(template.coverUrl)}" alt="">` : escapeHtml(template.shortName || template.name || '')}</div>
         <div><strong>${escapeHtml(template.name)}</strong><span>${escapeHtml(template.id)}</span></div>
       </div></td>
-      <td>${escapeHtml(template.category)}</td>
+      <td><span class="tag">${escapeHtml(template.categoryLabel || categoryLabel(template.category))}</span></td>
       <td><div class="tag-list">${template.tags.length ? template.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('') : '<span class="muted">未设置</span>'}</div></td>
       <td>${Number(template.popularity).toLocaleString('zh-CN')}</td>
       <td>${Number(template.cost)}</td>
@@ -275,27 +286,34 @@ function openTemplateDialog(template = null) {
   elements.templateDialogTitle.textContent = template ? '编辑模板' : '新增模板'
   elements.templateForm.reset()
   const form = elements.templateForm.elements
-  form.id.disabled = Boolean(template)
+  const idField = document.querySelector('#templateIdField')
+  if (idField) idField.hidden = !template
+  if (form.id) {
+    form.id.readOnly = true
+    form.id.required = false
+  }
   if (template) {
     for (const key of ['id', 'name', 'shortName', 'category', 'cost', 'popularity', 'sortOrder', 'badge', 'palette', 'description', 'prompt']) {
-      form[key].value = template[key] ?? ''
+      if (form[key]) form[key].value = template[key] ?? ''
     }
-    form.tags.value = template.tags.join('，')
+    form.tags.value = (template.tags || []).join('，')
     form.enabled.checked = template.enabled
   } else {
+    if (form.id) form.id.value = ''
     form.enabled.checked = true
     form.cost.value = 2
     form.popularity.value = 0
     form.sortOrder.value = (state.data.templates.length + 1) * 10
     form.palette.value = 'linear-gradient(145deg, #f7b6c2, #f8dda0, #a8daca)'
+    form.category.value = 'portrait'
+    form.shortName.value = ''
   }
   elements.templateDialog.showModal()
 }
 
 function templatePayload(form) {
   const values = new FormData(form)
-  return {
-    id: String(values.get('id') || ''),
+  const payload = {
     name: String(values.get('name') || ''),
     shortName: String(values.get('shortName') || ''),
     category: String(values.get('category') || ''),
@@ -309,6 +327,9 @@ function templatePayload(form) {
     prompt: String(values.get('prompt') || ''),
     enabled: form.elements.enabled.checked
   }
+  // id only when editing display; create omits id so server auto-generates
+  if (state.editingTemplateId) payload.id = state.editingTemplateId
+  return payload
 }
 
 function bannerById(id) {
@@ -487,6 +508,7 @@ elements.templateForm.addEventListener('submit', async event => {
       delete payload.id
       await api(`/api/admin/templates/${encodeURIComponent(state.editingTemplateId)}`, { method: 'PATCH', json: payload })
     } else {
+      delete payload.id
       await api('/api/admin/templates', { method: 'POST', json: payload })
     }
     elements.templateDialog.close()

@@ -20,9 +20,22 @@
       </button>
       <view class="profile-copy">
         <view class="profile-kicker">MY XIANGHUI</view>
-        <input class="nickname-input" type="nickname" value="{{nickname}}" placeholder="设置昵称" bindinput="nicknameInput" bindblur="nicknameBlur" />
+        <input
+          class="nickname-input"
+          type="nickname"
+          value="{{nickname}}"
+          placeholder="点击填写微信昵称"
+          bindinput="nicknameInput"
+          bindblur="nicknameBlur"
+          bindnicknamereview="nicknameReview"
+        />
         <view class="profile-id">花漾相绘用户 · {{user.maskedId}}</view>
       </view>
+    </view>
+
+    <view wx:if="{{!profileComplete}}" class="profile-tip">
+      <view class="profile-tip__title">完善微信资料</view>
+      <view class="profile-tip__text">点击头像选择微信头像，点击昵称栏使用微信昵称，授权后会保存到你的账号。</view>
     </view>
 
     <view class="stats-grid">
@@ -38,7 +51,7 @@
 
     <view class="account-note">
       <view class="account-note__title">微信快捷登录已开启</view>
-      <view>你的作品与积分会跟随当前微信账号保存</view>
+      <view>你的作品与积分会跟随当前微信账号保存。头像与昵称需在本页主动授权后才会写入资料。</view>
     </view>
   </block>
 </view>

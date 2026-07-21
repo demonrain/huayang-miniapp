@@ -19,6 +19,7 @@ Page({
     welcomeCredits: 20,
     templates: [],
     filteredTemplates: [],
+    // Keep in sync with server TEMPLATE_CATEGORIES / admin select
     categories: [
       { id: 'all', name: '全部' },
       { id: 'portrait', name: '人像' },
@@ -83,11 +84,16 @@ Page({
           ? `${(item.popularity / 10000).toFixed(1)}万`
           : String(item.popularity || 0)
       }))
+      // Prefer server-provided categories (Chinese labels) when available
+      const categories = Array.isArray(config.templateCategories) && config.templateCategories.length
+        ? [{ id: 'all', name: '全部' }, ...config.templateCategories.map(item => ({ id: item.id, name: item.name }))]
+        : this.data.categories
       this.stopLoadingTips()
       this.setData({
         user: app.isLoggedIn() ? user : null,
         banners,
         welcomeCredits: config.newUserCredits,
+        categories,
         templates: displayTemplates,
         filteredTemplates: this.data.activeCategory === 'all'
           ? displayTemplates
