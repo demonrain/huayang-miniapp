@@ -1,32 +1,52 @@
-<view class="page history-page page-enter">
+<view class="page history-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav credits="{{user ? user.credits : null}}"></custom-nav>
+
   <view class="history-heading">
     <view>
-      <view class="history-kicker">MY ALBUM</view>
-      <view class="section-title__main">我的小画册</view>
+      <view class="history-kicker">MY GARDEN</view>
+      <view class="section-title__main">我的作品花园</view>
       <view class="section-title__sub">每一次心动，都好好收藏</view>
     </view>
     <view class="album-count">{{jobs.length}} 组</view>
   </view>
 
-  <view wx:if="{{loading}}" class="history-list">
-    <view wx:for="{{[1,2,3]}}" wx:key="*this" class="history-card skeleton"></view>
+  <view wx:if="{{!isLoggedIn && !loading}}" class="empty empty-work">
+    <view class="empty-mark">
+      <view class="empty-flower-dot"></view>
+      <text>登</text>
+    </view>
+    <view class="empty-title">登录后查看作品</view>
+    <view class="empty-sub">游客可以先逛逛模板，登录后保存你的花园</view>
+    <button class="primary-button" bindtap="doLogin">微信登录</button>
   </view>
 
-  <view wx:elif="{{jobs.length}}" class="history-list">
-    <button wx:for="{{jobs}}" wx:key="id" class="history-card" data-id="{{item.id}}" bindtap="openJob">
-      <view class="history-cover" style="background: {{item.templatePalette}}">
-        <image wx:if="{{item.coverUrl}}" src="{{item.coverUrl}}" mode="aspectFill"></image>
-        <text wx:else>{{item.templateShortName}}</text>
+  <view wx:elif="{{loading}}" class="works-grid">
+    <view wx:for="{{[1,2,3,4]}}" wx:key="*this" class="work-item skeleton"></view>
+  </view>
+
+  <view wx:elif="{{jobs.length}}" class="works-grid">
+    <view
+      wx:for="{{jobs}}"
+      wx:key="id"
+      class="work-item"
+      data-id="{{item.id}}"
+      bindtap="openJob"
+    >
+      <image
+        wx:if="{{item.coverUrl}}"
+        class="work-item__cover"
+        src="{{item.coverUrl}}"
+        mode="widthFix"
+      ></image>
+      <view wx:else class="work-item__placeholder" style="background: {{item.templatePalette}}">
+        <text>{{item.templateShortName}}</text>
       </view>
-      <view class="history-copy">
-        <view class="history-row">
-          <view class="history-name">{{item.templateName}}</view>
-          <view class="status status--{{item.status}}">{{item.statusLabel}}</view>
-        </view>
-        <view class="history-time">{{item.relativeTime}} · {{item.assetIds.length}} 张 · {{item.cost}} 积分</view>
+      <view class="work-item__badge status status--{{item.status}}">{{item.statusLabel}}</view>
+      <view class="work-item__meta">
+        <text class="work-item__name">{{item.templateName}}</text>
+        <text class="work-item__sub">{{item.relativeTime}} · {{item.assetIds.length}} 张</text>
       </view>
-      <view class="chevron">›</view>
-    </button>
+    </view>
   </view>
 
   <view wx:else class="empty empty-work">

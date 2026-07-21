@@ -1,16 +1,18 @@
 const api = require('../../utils/api')
+const { getNavMetrics } = require('../../utils/nav')
 
 Page({
   data: {
     token: '',
     share: null,
     loading: true,
-    saving: false
+    saving: false,
+    navSpacer: 176
   },
 
   onLoad(query) {
     const token = query.token || decodeURIComponent(query.scene || '')
-    this.setData({ token })
+    this.setData({ ...getNavMetrics(), token })
     wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
     this.loadShare()
   },

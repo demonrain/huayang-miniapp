@@ -4,11 +4,13 @@
     "pages/history/index",
     "pages/wallet/index",
     "pages/profile/index",
+    "pages/template/index",
     "pages/create/index",
     "pages/job/index",
     "pages/share/index"
   ],
   "window": {
+    "navigationStyle": "custom",
     "navigationBarTitleText": "花漾相绘",
     "navigationBarBackgroundColor": "#FFF9F8",
     "navigationBarTextStyle": "black",

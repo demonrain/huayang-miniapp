@@ -1,4 +1,5 @@
 const api = require('../../utils/api')
+const { getNavMetrics } = require('../../utils/nav')
 
 Page({
   data: {
@@ -6,7 +7,12 @@ Page({
     stats: null,
     avatarUrl: '',
     nickname: '',
-    avatarInitial: '画'
+    avatarInitial: '画',
+    navSpacer: 176
+  },
+
+  onLoad() {
+    this.setData(getNavMetrics())
   },
 
   onShow() {
@@ -15,9 +21,14 @@ Page({
 
   async loadProfile() {
     try {
-      await getApp().ensureSession()
+      const app = getApp()
+      await app.ensureSession()
+      if (!app.isLoggedIn()) {
+        this.setData({ user: null, stats: null })
+        return
+      }
       const { user, stats } = await api.get('/api/profile')
-      getApp().setUser(user)
+      app.setUser(user)
       this.setData({
         user,
         stats,
@@ -26,11 +37,27 @@ Page({
         avatarInitial: (user.nickname || '画').slice(0, 1)
       })
     } catch (error) {
+      if (error.statusCode === 401) {
+        this.setData({ user: null, stats: null })
+        return
+      }
       wx.showToast({ title: error.message, icon: 'none' })
     }
   },
 
-  chooseAvatar(event) {
+  async doLogin() {
+    try {
+      await getApp().requireLogin('登录后可管理个人资料与作品数据')
+      this.loadProfile()
+    } catch (error) {}
+  },
+
+  async chooseAvatar(event) {
+    try {
+      await getApp().requireLogin('登录后可设置头像')
+    } catch (error) {
+      return
+    }
     this.setData({ avatarUrl: event.detail.avatarUrl })
     this.saveProfile({ avatarUrl: event.detail.avatarUrl })
   },
@@ -39,13 +66,15 @@ Page({
     this.setData({ nickname: event.detail.value })
   },
 
-  nicknameBlur() {
+  async nicknameBlur() {
+    if (!this.data.user) return
     const nickname = this.data.nickname.trim()
     if (nickname && nickname !== this.data.user.nickname) this.saveProfile({ nickname })
   },
 
   async saveProfile(changes) {
     try {
+      await getApp().requireLogin('登录后可更新资料')
       let payload = changes
       if (changes.avatarUrl?.startsWith('wxfile://') || changes.avatarUrl?.startsWith('http://tmp/')) {
         const { asset } = await api.upload(changes.avatarUrl)
@@ -61,6 +90,7 @@ Page({
       })
       wx.showToast({ title: '已更新', icon: 'success' })
     } catch (error) {
+      if (error.code === 'LOGIN_CANCELLED') return
       wx.showToast({ title: error.message, icon: 'none' })
     }
   },

@@ -1,8 +1,19 @@
 const api = require('../../utils/api')
+const { getNavMetrics } = require('../../utils/nav')
+
+const LOADING_TIPS = [
+  '小花瓣在排队挑风格，马上就好…',
+  '正在给模板浇水，灵感很快发芽',
+  'AI 在翻今日花色图鉴，请稍等一下',
+  '像素小猫踩着键盘跑来了',
+  '好风格值得等一等，像等一朵花开',
+  '正在把心动装进模板盒子里'
+]
 
 Page({
   data: {
     loading: true,
+    loadingTip: LOADING_TIPS[0],
     user: null,
     banners: [],
     welcomeCredits: 20,
@@ -20,18 +31,38 @@ Page({
   },
 
   onLoad() {
-    const windowInfo = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
-    const menuButton = wx.getMenuButtonBoundingClientRect()
-    const navSpacer = Math.ceil((menuButton.bottom + 8) * 750 / windowInfo.windowWidth)
-    this.setData({ navSpacer })
+    this.setData(getNavMetrics())
+    this.startLoadingTips()
     this.loadPage()
+  },
+
+  onUnload() {
+    this.stopLoadingTips()
   },
 
   onShow() {
     if (!this.data.loading) this.refreshUser()
   },
 
+  startLoadingTips() {
+    this.loadingTipIndex = 0
+    this.stopLoadingTips()
+    this.loadingTipTimer = setInterval(() => {
+      this.loadingTipIndex = (this.loadingTipIndex + 1) % LOADING_TIPS.length
+      this.setData({ loadingTip: LOADING_TIPS[this.loadingTipIndex] })
+    }, 2800)
+  },
+
+  stopLoadingTips() {
+    if (this.loadingTipTimer) {
+      clearInterval(this.loadingTipTimer)
+      this.loadingTipTimer = null
+    }
+  },
+
   async onPullDownRefresh() {
+    this.setData({ loading: true, loadingTip: LOADING_TIPS[0] })
+    this.startLoadingTips()
     await this.loadPage()
     wx.stopPullDownRefresh()
   },
@@ -39,6 +70,7 @@ Page({
   async loadPage() {
     try {
       const app = getApp()
+      // Guest can browse templates; only restore session if already logged in
       const user = await app.ensureSession()
       const [{ templates }, { banners }, config] = await Promise.all([
         api.get('/api/templates'),
@@ -51,15 +83,19 @@ Page({
           ? `${(item.popularity / 10000).toFixed(1)}万`
           : String(item.popularity || 0)
       }))
+      this.stopLoadingTips()
       this.setData({
-        user,
+        user: app.isLoggedIn() ? user : null,
         banners,
         welcomeCredits: config.newUserCredits,
         templates: displayTemplates,
-        filteredTemplates: displayTemplates,
+        filteredTemplates: this.data.activeCategory === 'all'
+          ? displayTemplates
+          : displayTemplates.filter(item => item.category === this.data.activeCategory),
         loading: false
       })
     } catch (error) {
+      this.stopLoadingTips()
       this.setData({ loading: false })
       wx.showToast({ title: error.message, icon: 'none' })
     }
@@ -67,8 +103,13 @@ Page({
 
   async refreshUser() {
     try {
+      const app = getApp()
+      if (!app.isLoggedIn()) {
+        this.setData({ user: null })
+        return
+      }
       const { user } = await api.get('/api/me')
-      getApp().setUser(user)
+      app.setUser(user)
       this.setData({ user })
     } catch (error) {}
   },
@@ -83,7 +124,7 @@ Page({
 
   startCreate(event) {
     const id = event.currentTarget.dataset.id
-    wx.navigateTo({ url: `/pages/create/index?templateId=${id}` })
+    wx.navigateTo({ url: `/pages/template/index?id=${id}` })
   },
 
   openBanner(event) {
@@ -92,9 +133,5 @@ Page({
     const tabPages = ['/pages/home/index', '/pages/history/index', '/pages/wallet/index', '/pages/profile/index']
     if (tabPages.includes(path)) wx.switchTab({ url: path })
     else wx.navigateTo({ url: path })
-  },
-
-  openWallet() {
-    wx.switchTab({ url: '/pages/wallet/index' })
   }
 })

@@ -1,23 +1,5 @@
 <view class="page home-page page-enter" style="padding-top: {{navSpacer}}rpx">
-  <view class="topbar">
-    <view class="brand-wrap">
-      <view class="brand-flower">
-        <view class="petal petal--one"></view>
-        <view class="petal petal--two"></view>
-        <view class="petal petal--three"></view>
-        <view class="petal petal--four"></view>
-        <view class="flower-dot"></view>
-      </view>
-      <view>
-        <view class="brand">花漾相绘</view>
-        <view class="brand-sub">收藏每一种心动</view>
-      </view>
-    </view>
-    <button class="credit-pill" bindtap="openWallet">
-      <text class="credit-mark">积</text>
-      <text class="credit-value">{{user ? user.credits : '--'}}</text>
-    </button>
-  </view>
+  <custom-nav credits="{{user ? user.credits : null}}"></custom-nav>
 
   <swiper
     wx:if="{{banners.length}}"
@@ -86,8 +68,19 @@
     </view>
   </scroll-view>
 
-  <view wx:if="{{loading}}" class="template-grid">
-    <view wx:for="{{[1,2,3,4]}}" wx:key="*this" class="template-card skeleton"></view>
+  <view wx:if="{{loading}}" class="home-loading">
+    <view class="home-loading__flower">
+      <view class="home-loading__petal home-loading__petal--1"></view>
+      <view class="home-loading__petal home-loading__petal--2"></view>
+      <view class="home-loading__petal home-loading__petal--3"></view>
+      <view class="home-loading__petal home-loading__petal--4"></view>
+      <view class="home-loading__dot"></view>
+    </view>
+    <view class="home-loading__title">风格正在开花</view>
+    <view class="home-loading__tip">{{loadingTip}}</view>
+    <view class="template-grid home-loading__grid">
+      <view wx:for="{{[1,2,3,4]}}" wx:key="*this" class="template-card skeleton"></view>
+    </view>
   </view>
 
   <view wx:else class="template-grid">
@@ -98,22 +91,29 @@
       data-id="{{item.id}}"
       bindtap="startCreate"
     >
-      <view class="template-art" style="background: {{item.palette}}">
-        <image wx:if="{{item.coverUrl}}" class="template-cover" src="{{item.coverUrl}}" mode="aspectFill"></image>
-        <view wx:else class="art-paper">
-          <view class="art-window">
-            <view class="art-land"></view>
-            <view class="art-light"></view>
+      <view class="template-art {{item.coverUrl ? 'template-art--cover' : ''}}" style="background: {{item.palette}}">
+        <image
+          wx:if="{{item.coverUrl}}"
+          class="template-cover"
+          src="{{item.coverUrl}}"
+          mode="widthFix"
+        ></image>
+        <block wx:else>
+          <view class="art-paper">
+            <view class="art-window">
+              <view class="art-land"></view>
+              <view class="art-light"></view>
+            </view>
           </view>
-        </view>
-        <view class="art-tape"></view>
-        <view class="art-flower">
-          <view class="art-petal art-petal--one"></view>
-          <view class="art-petal art-petal--two"></view>
-          <view class="art-petal art-petal--three"></view>
-          <view class="art-petal art-petal--four"></view>
-          <view class="art-flower-dot"></view>
-        </view>
+          <view class="art-tape"></view>
+          <view class="art-flower">
+            <view class="art-petal art-petal--one"></view>
+            <view class="art-petal art-petal--two"></view>
+            <view class="art-petal art-petal--three"></view>
+            <view class="art-petal art-petal--four"></view>
+            <view class="art-flower-dot"></view>
+          </view>
+        </block>
         <view class="art-title">{{item.shortName}}</view>
         <view wx:if="{{item.badge}}" class="art-badge">{{item.badge}}</view>
       </view>

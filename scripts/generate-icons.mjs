@@ -21,6 +21,12 @@ const actionIcons = {
   link: 'link'
 }
 
+// White variants used on coral primary buttons
+const buttonIcons = {
+  sparkles: 'sparkles',
+  'wand-sparkles': 'wand-sparkles'
+}
+
 async function render(iconName, filename, color, size = 81) {
   const source = await readFile(path.join(sourceDir, `${iconName}.svg`), 'utf8')
   const svg = source
@@ -42,4 +48,8 @@ for (const [name, icon] of Object.entries(actionIcons)) {
   await render(icon, `${name}.png`, '#655f66', 72)
 }
 
-console.log(`Generated ${Object.keys(tabIcons).length * 2 + Object.keys(actionIcons).length} Lucide PNG icons.`)
+for (const [name, icon] of Object.entries(buttonIcons)) {
+  await render(icon, `${name}.png`, '#ffffff', 72)
+}
+
+console.log(`Generated ${Object.keys(tabIcons).length * 2 + Object.keys(actionIcons).length + Object.keys(buttonIcons).length} Lucide PNG icons.`)

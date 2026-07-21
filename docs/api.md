@@ -5,7 +5,7 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/health` | 健康检查 |
-| `GET` | `/api/config` | 客户端公开配置 |
+| `GET` | `/api/config` | 客户端公开配置（含订阅消息模板 ID） |
 | `POST` | `/api/auth/wechat` | 使用微信登录 code 换取令牌 |
 | `GET/PATCH` | `/api/me` | 获取或修改昵称头像 |
 | `GET` | `/api/profile` | 用户和作品统计 |
@@ -47,9 +47,12 @@
 {
   "templateId": "film-diary",
   "assetIds": ["asset-uuid"],
-  "clientRequestId": "device-generated-unique-id"
+  "clientRequestId": "device-generated-unique-id",
+  "notify": true
 }
 ```
+
+`notify: true` 表示用户已授权订阅消息，任务完成/失败后服务端尝试推送。配置见 [wechat-subscribe.md](./wechat-subscribe.md)。
 
 错误响应统一为：
 

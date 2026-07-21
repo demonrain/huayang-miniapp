@@ -16,7 +16,7 @@ export function isWechatShareConfigured() {
   return Boolean(!config.wechat.mockLogin && config.wechat.appId && config.wechat.appSecret)
 }
 
-async function getAccessToken() {
+export async function getAccessToken() {
   if (!isWechatShareConfigured()) {
     throw serviceError('WECHAT_SHARE_NOT_CONFIGURED', '请先配置真实微信 AppID 和 AppSecret', 409)
   }

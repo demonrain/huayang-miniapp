@@ -1,4 +1,6 @@
 {
-  "navigationBarTitleText": "积分中心"
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "custom-nav": "/components/custom-nav/index"
+  }
 }
-

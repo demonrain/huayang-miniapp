@@ -1,0 +1,24 @@
+<view class="custom-nav" style="height: {{navBarHeight}}px;">
+  <view
+    class="custom-nav__row"
+    style="top: {{navRowTop}}px; height: {{navRowHeight}}px; padding-right: {{navRowRight}}px;"
+  >
+    <view class="nav-left">
+      <view wx:if="{{showBack}}" class="nav-back" bindtap="goBack">‹</view>
+      <view class="brand-wrap">
+        <view class="brand-flower">
+          <view class="petal petal--one"></view>
+          <view class="petal petal--two"></view>
+          <view class="petal petal--three"></view>
+          <view class="petal petal--four"></view>
+          <view class="flower-dot"></view>
+        </view>
+        <view class="brand">{{title || '花漾相绘'}}</view>
+      </view>
+    </view>
+    <view wx:if="{{showCredit}}" class="credit-pill" bindtap="openWallet">
+      <text class="credit-mark">积</text>
+      <text class="credit-value">{{credits == null ? '--' : credits}}</text>
+    </view>
+  </view>
+</view>

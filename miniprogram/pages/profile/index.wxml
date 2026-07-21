@@ -1,29 +1,44 @@
-<view class="page profile-page page-enter" wx:if="{{user}}">
-  <view class="profile-head">
-    <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar">
-      <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill"></image>
-      <text wx:else>{{avatarInitial}}</text>
-    </button>
-    <view class="profile-copy">
-      <view class="profile-kicker">MY XIANGHUI</view>
-      <input class="nickname-input" type="nickname" value="{{nickname}}" placeholder="设置昵称" bindinput="nicknameInput" bindblur="nicknameBlur" />
-      <view class="profile-id">花漾相绘用户 · {{user.maskedId}}</view>
+<view class="page profile-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav credits="{{user ? user.credits : null}}"></custom-nav>
+
+  <view wx:if="{{!user}}" class="guest-panel">
+    <view class="guest-title">登录后管理个人主页</view>
+    <view class="guest-sub">游客可浏览模板；签到、创作与作品需要登录。</view>
+    <button class="primary-button guest-login" bindtap="doLogin">微信登录</button>
+  </view>
+
+  <block wx:else>
+    <view class="profile-head">
+      <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" hover-class="avatar-button--hover">
+        <view class="avatar-face">
+          <image wx:if="{{avatarUrl}}" class="avatar-image" src="{{avatarUrl}}" mode="aspectFill"></image>
+          <view wx:else class="avatar-fallback">
+            <text class="avatar-initial">{{avatarInitial}}</text>
+          </view>
+        </view>
+        <view class="avatar-edit">换</view>
+      </button>
+      <view class="profile-copy">
+        <view class="profile-kicker">MY XIANGHUI</view>
+        <input class="nickname-input" type="nickname" value="{{nickname}}" placeholder="设置昵称" bindinput="nicknameInput" bindblur="nicknameBlur" />
+        <view class="profile-id">花漾相绘用户 · {{user.maskedId}}</view>
+      </view>
     </view>
-  </view>
 
-  <view class="stats-grid">
-    <view><text class="stats-value">{{user.credits}}</text><text>可用积分</text></view>
-    <view><text class="stats-value">{{stats.completedJobs}}</text><text>完成创作</text></view>
-    <view><text class="stats-value">{{stats.generatedImages}}</text><text>生成作品</text></view>
-  </view>
+    <view class="stats-grid">
+      <view><text class="stats-value">{{user.credits}}</text><text>可用积分</text></view>
+      <view><text class="stats-value">{{stats.completedJobs}}</text><text>完成创作</text></view>
+      <view><text class="stats-value">{{stats.generatedImages}}</text><text>生成作品</text></view>
+    </view>
 
-  <view class="menu-list">
-    <button bindtap="openHelp"><view class="menu-label"><view class="menu-icon menu-icon--help">?</view><text>使用帮助</text></view><text class="menu-arrow">›</text></button>
-    <button bindtap="openPrivacy"><view class="menu-label"><view class="menu-icon menu-icon--privacy">i</view><text>隐私说明</text></view><text class="menu-arrow">›</text></button>
-  </view>
+    <view class="menu-list">
+      <button bindtap="openHelp"><view class="menu-label"><view class="menu-icon menu-icon--help">?</view><text>使用帮助</text></view><text class="menu-arrow">›</text></button>
+      <button bindtap="openPrivacy"><view class="menu-label"><view class="menu-icon menu-icon--privacy">i</view><text>隐私说明</text></view><text class="menu-arrow">›</text></button>
+    </view>
 
-  <view class="account-note">
-    <view class="account-note__title">微信快捷登录已开启</view>
-    <view>你的作品与积分会跟随当前微信账号保存</view>
-  </view>
+    <view class="account-note">
+      <view class="account-note__title">微信快捷登录已开启</view>
+      <view>你的作品与积分会跟随当前微信账号保存</view>
+    </view>
+  </block>
 </view>

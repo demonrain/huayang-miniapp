@@ -1,51 +1,138 @@
 const api = require('../../utils/api')
+const { getNavMetrics } = require('../../utils/nav')
 
 const STATUS_TEXT = {
   queued: '正在排队',
-  processing: '正在创作',
+  processing: '正在出图',
   succeeded: '作品完成',
   failed: '生成失败'
 }
+
+const WAITING_TIPS = [
+  '大约 2–5 分钟就好，先去刷会儿手机也行',
+  '画笔正在热身，颜料也在排队喝咖啡…',
+  '完成后会发微信提醒，你先忙别的也没关系',
+  'AI 在认真数你的睫毛，请再给它一点点耐心',
+  '光影调色中：少一点滤镜感，多一点心动感',
+  '正在给照片浇水施肥，马上就开花',
+  '像素们正在手拉手换装，场面有点热闹',
+  '大师在琢磨构图，灵感还在路上堵车',
+  '好作品值得等待，就像花期总在不经意间到来',
+  '后台小精灵加班中，结果出来会喊你一声',
+  '正在把平凡瞬间酿成一点点魔法',
+  'AI 说：再等我五秒…好吧可能是五十秒'
+]
 
 Page({
   data: {
     id: '',
     job: null,
     statusText: '',
+    isWaiting: false,
+    waitingTip: WAITING_TIPS[0],
     saving: false,
     share: null,
     sharing: false,
-    showQr: false
+    showQr: false,
+    credits: null,
+    retrying: false,
+    navSpacer: 176
   },
 
   onLoad(query) {
-    this.setData({ id: query.id })
+    this.setData({ ...getNavMetrics(), id: query.id })
     wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
+    this.tipIndex = 0
     this.loadJob()
   },
 
   onUnload() {
-    if (this.timer) clearTimeout(this.timer)
+    this.clearTimers()
+  },
+
+  onHide() {
+    // Keep polling while waiting so returning to the page feels up to date
+  },
+
+  clearTimers() {
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer)
+      this.pollTimer = null
+    }
+    if (this.tipTimer) {
+      clearInterval(this.tipTimer)
+      this.tipTimer = null
+    }
+  },
+
+  startTipRotation() {
+    if (this.tipTimer) return
+    this.tipTimer = setInterval(() => {
+      this.tipIndex = (this.tipIndex + 1) % WAITING_TIPS.length
+      this.setData({ waitingTip: WAITING_TIPS[this.tipIndex] })
+    }, 5000)
+  },
+
+  stopTipRotation() {
+    if (this.tipTimer) {
+      clearInterval(this.tipTimer)
+      this.tipTimer = null
+    }
   },
 
   async loadJob() {
     try {
-      await getApp().ensureSession()
+      const app = getApp()
+      let user = await app.ensureSession()
+      if (!app.isLoggedIn()) {
+        try {
+          user = await app.requireLogin('登录后可查看生成进度与作品')
+        } catch (error) {
+          wx.switchTab({ url: '/pages/home/index' })
+          return
+        }
+      }
       const { job } = await api.get(`/api/jobs/${this.data.id}`)
-      this.setData({ job, statusText: STATUS_TEXT[job.status] || '处理中' })
-      if (job.status === 'queued' || job.status === 'processing') {
-        this.timer = setTimeout(() => this.loadJob(), 1600)
-      } else if (job.status === 'succeeded') {
-        this.ensureShare()
+      const isWaiting = job.status === 'queued' || job.status === 'processing'
+      this.setData({
+        job,
+        statusText: STATUS_TEXT[job.status] || '处理中',
+        isWaiting,
+        credits: user?.credits ?? getApp().globalData.user?.credits ?? null
+      })
+
+      if (isWaiting) {
+        this.startTipRotation()
+        if (this.pollTimer) clearTimeout(this.pollTimer)
+        this.pollTimer = setTimeout(() => this.loadJob(), 2500)
+      } else {
+        this.stopTipRotation()
+        if (this.pollTimer) {
+          clearTimeout(this.pollTimer)
+          this.pollTimer = null
+        }
+        if (job.status === 'succeeded') this.ensureShare()
       }
     } catch (error) {
       wx.showToast({ title: error.message, icon: 'none' })
+      if (this.pollTimer) clearTimeout(this.pollTimer)
+      this.pollTimer = setTimeout(() => this.loadJob(), 4000)
     }
   },
 
   preview(event) {
     const current = event.currentTarget.dataset.url
     wx.previewImage({ current, urls: this.data.job.results.map(item => item.url) })
+  },
+
+  previewOriginal(event) {
+    const originals = this.data.job?.originals || []
+    if (!originals.length) return
+    const current = event.currentTarget.dataset.url
+    wx.previewImage({
+      current,
+      urls: originals.map(item => item.url).filter(Boolean)
+    })
   },
 
   onShareAppMessage() {
@@ -179,7 +266,55 @@ Page({
   },
 
   createAgain() {
-    wx.redirectTo({ url: `/pages/create/index?templateId=${this.data.job.templateId}` })
+    wx.redirectTo({ url: `/pages/template/index?id=${this.data.job.templateId}` })
+  },
+
+  async retryJob() {
+    const job = this.data.job
+    if (!job || job.status !== 'failed' || this.data.retrying) return
+    if (!job.templateId || !job.assetIds?.length) {
+      wx.showToast({ title: '无法重试，请重新选图', icon: 'none' })
+      return
+    }
+
+    this.setData({ retrying: true })
+    wx.showLoading({ title: '重新提交', mask: true })
+    try {
+      await getApp().requireLogin('登录后可重试生成作品')
+      let notify = false
+      try {
+        const config = await api.get('/api/config')
+        if (config.subscribeEnabled && config.subscribeTemplateId) {
+          notify = await new Promise(resolve => {
+            wx.requestSubscribeMessage({
+              tmplIds: [config.subscribeTemplateId],
+              success: res => resolve(res[config.subscribeTemplateId] === 'accept'),
+              fail: () => resolve(false)
+            })
+          })
+        }
+      } catch (error) {}
+
+      const { job: nextJob, user } = await api.post('/api/jobs', {
+        templateId: job.templateId,
+        assetIds: job.assetIds,
+        notify,
+        clientRequestId: `retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      })
+      if (user) getApp().setUser(user)
+      wx.hideLoading()
+      wx.redirectTo({ url: `/pages/job/index?id=${nextJob.id}` })
+    } catch (error) {
+      wx.hideLoading()
+      if (error.code === 'LOGIN_CANCELLED') return
+      wx.showModal({ title: '重试失败', content: error.message || '请稍后重试', showCancel: false })
+    } finally {
+      this.setData({ retrying: false })
+    }
+  },
+
+  goWorks() {
+    wx.switchTab({ url: '/pages/history/index' })
   },
 
   goHome() {

@@ -1,6 +1,6 @@
 .history-heading {
   min-height: 130rpx;
-  margin: 6rpx 0 30rpx;
+  margin: 6rpx 0 28rpx;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -27,66 +27,111 @@
   font-size: 19rpx;
 }
 
-.history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 18rpx;
+/* POC-like works garden: 2-col masonry-ish full covers */
+.works-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+  align-items: start;
 }
 
-.history-card {
-  width: 100%;
-  min-height: 164rpx;
-  margin: 0;
-  padding: 18rpx;
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-  background: #fff;
-  border: 2rpx solid var(--line);
-  box-shadow: 0 10rpx 28rpx rgba(108, 81, 92, 0.06);
-  text-align: left;
-  line-height: 1.4;
-}
-
-.history-cover {
+.work-item {
   position: relative;
-  width: 126rpx;
-  height: 126rpx;
-  flex: none;
-  padding: 12rpx;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #ebe6e8;
+  border-radius: 14rpx;
+  box-shadow: 0 10rpx 24rpx rgba(108, 81, 92, 0.08);
+}
+
+.work-item__cover {
+  display: block;
+  width: 100%;
+  vertical-align: top;
+}
+
+.work-item__placeholder {
+  width: 100%;
+  min-height: 360rpx;
   display: flex;
   align-items: flex-end;
-  overflow: hidden;
-  border: 6rpx solid #fff;
-  border-radius: 12rpx;
-  box-shadow: 0 6rpx 16rpx rgba(99, 74, 83, 0.1);
+  justify-content: center;
+  padding: 28rpx;
   color: #fff;
   font-family: "Kaiti SC", "STKaiti", serif;
-  font-size: 24rpx;
+  font-size: 36rpx;
   font-weight: 700;
 }
 
-.history-cover::after {
-  content: '';
-  position: absolute;
-  right: 12rpx;
-  bottom: 12rpx;
-  width: 28rpx;
-  height: 28rpx;
-  background: rgba(255, 255, 255, 0.78);
-  border-radius: 50%;
+.work-item:nth-child(3n + 2) .work-item__placeholder {
+  min-height: 300rpx;
 }
 
-.history-cover image { width: 100%; height: 100%; margin: -12rpx; }
-.history-copy { min-width: 0; flex: 1; }
-.history-row { display: flex; align-items: center; gap: 10rpx; }
-.history-name { min-width: 0; overflow: hidden; font-size: 27rpx; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.history-time { margin-top: 12rpx; color: var(--muted); font-size: 19rpx; }
-.status { flex: none; padding: 5rpx 9rpx; background: #f4eff0; border-radius: 6rpx; color: var(--muted); font-size: 16rpx; }
-.status--succeeded { background: var(--mint-soft); color: var(--green); }
-.status--failed { background: #fff0ed; color: #c56f60; }
-.chevron { color: #c7b9be; font-size: 38rpx; font-weight: 300; }
-.skeleton { height: 164rpx; }
+.work-item__badge {
+  position: absolute;
+  top: 14rpx;
+  left: 14rpx;
+  z-index: 2;
+}
+
+.work-item__meta {
+  position: absolute;
+  right: 14rpx;
+  bottom: 14rpx;
+  left: 14rpx;
+  z-index: 2;
+  padding: 12rpx 14rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 10rpx;
+}
+
+.work-item__name {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 24rpx;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-item__sub {
+  display: block;
+  margin-top: 4rpx;
+  color: var(--muted);
+  font-size: 18rpx;
+}
+
+.status {
+  flex: none;
+  padding: 5rpx 10rpx;
+  background: rgba(244, 239, 240, 0.95);
+  border-radius: 8rpx;
+  color: var(--muted);
+  font-size: 18rpx;
+}
+
+.status--succeeded {
+  background: rgba(233, 247, 242, 0.96);
+  color: var(--green);
+}
+
+.status--failed {
+  background: rgba(255, 240, 237, 0.96);
+  color: #c56f60;
+}
+
+.status--processing,
+.status--queued {
+  background: rgba(255, 249, 232, 0.96);
+  color: #b08a2e;
+}
+
+.skeleton {
+  min-height: 360rpx;
+  border-radius: 14rpx;
+}
 
 .empty-mark {
   position: relative;
@@ -115,6 +160,18 @@
   border-radius: 50%;
 }
 
-.empty-title { color: var(--ink); font-size: 29rpx; font-weight: 650; }
-.empty-sub { margin: 12rpx 0 34rpx; font-size: 21rpx; }
-.empty-work .primary-button { width: 280rpx; margin: 0 auto; }
+.empty-title {
+  color: var(--ink);
+  font-size: 29rpx;
+  font-weight: 650;
+}
+
+.empty-sub {
+  margin: 12rpx 0 34rpx;
+  font-size: 21rpx;
+}
+
+.empty-work .primary-button {
+  width: 280rpx;
+  margin: 0 auto;
+}

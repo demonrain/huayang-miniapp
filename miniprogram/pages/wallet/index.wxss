@@ -1,3 +1,30 @@
+.guest-panel {
+  margin-top: 24rpx;
+  padding: 48rpx 32rpx;
+  text-align: center;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 16rpx;
+  box-shadow: 0 10rpx 28rpx rgba(108, 81, 92, 0.06);
+}
+
+.guest-title {
+  font-size: 32rpx;
+  font-weight: 650;
+}
+
+.guest-sub {
+  margin: 14rpx 0 32rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+
+.guest-login {
+  width: 280rpx;
+  margin: 0 auto;
+}
+
 .balance-panel {
   position: relative;
   min-height: 258rpx;
@@ -46,11 +73,67 @@
 .balance-petal--four { top: 31rpx; left: 0; transform: rotate(270deg); }
 .balance-flower-dot { position: absolute; top: 40rpx; left: 40rpx; z-index: 2; width: 36rpx; height: 36rpx; background: var(--yellow); border: 6rpx solid #fff; border-radius: 50%; }
 
-.checkin-panel { min-height: 112rpx; margin-top: 18rpx; padding: 20rpx 22rpx; display: flex; align-items: center; justify-content: space-between; gap: 18rpx; background: #fff; border: 2rpx solid var(--line); border-radius: 16rpx; box-shadow: 0 8rpx 24rpx rgba(108,82,92,.04); }
-.checkin-title { font-size: 25rpx; font-weight: 650; }
-.checkin-sub { margin-top: 6rpx; color: var(--muted); font-size: 18rpx; }
-.checkin-button { width: 176rpx; height: 66rpx; flex: none; margin: 0; background: var(--mint); color: #fff; font-size: 21rpx; line-height: 66rpx; }
-.checkin-button--done, .checkin-button[disabled] { background: var(--mint-soft); color: var(--green); }
+.checkin-panel {
+  min-height: 112rpx;
+  margin-top: 18rpx;
+  padding: 20rpx 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 16rpx;
+  box-shadow: 0 8rpx 24rpx rgba(108, 82, 92, 0.04);
+}
+
+.checkin-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.checkin-title {
+  font-size: 25rpx;
+  font-weight: 650;
+}
+
+.checkin-sub {
+  margin-top: 6rpx;
+  color: var(--muted);
+  font-size: 18rpx;
+}
+
+.checkin-button {
+  width: auto;
+  min-width: 148rpx;
+  height: 66rpx;
+  flex: none;
+  margin: 0;
+  padding: 0 24rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: var(--mint);
+  border: 0;
+  border-radius: 33rpx;
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.checkin-button::after {
+  border: 0;
+}
+
+.checkin-button--done,
+.checkin-button[disabled] {
+  background-color: var(--mint-soft) !important;
+  color: var(--green) !important;
+  opacity: 1 !important;
+}
 
 .package-grid {
   display: grid;

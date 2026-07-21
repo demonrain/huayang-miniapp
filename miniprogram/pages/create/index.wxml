@@ -1,56 +1,76 @@
-<view class="page create-page page-enter" wx:if="{{template}}">
-  <view class="selected-style">
-    <view class="style-swatch" style="background: {{template.palette}}">
-      <view class="swatch-paper"></view>
-      <view class="swatch-tape"></view>
-      <text>{{template.shortName}}</text>
-    </view>
-    <view class="style-copy">
-      <view class="eyebrow">这次选择</view>
-      <view class="style-name">{{template.name}}</view>
-      <view class="style-desc">{{template.description}}</view>
-    </view>
-    <view class="unit-cost">{{template.cost}} 积分/张</view>
-  </view>
+<view class="page create-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav show-back credits="{{credits}}"></custom-nav>
 
-  <view class="section-title">
-    <view>
-      <view class="section-title__main">选几张喜欢的照片</view>
-      <view class="photo-subtitle">清晰自然的原图会更好看</view>
+  <block wx:if="{{template}}">
+    <view class="step-line">
+      <text class="step-line__item step-line__item--active">选择照片</text>
+      <text class="step-line__item">确认效果</text>
+      <text class="step-line__item">生成作品</text>
     </view>
-    <view class="section-title__sub">{{files.length}} / {{maxFiles}}</view>
-  </view>
 
-  <view class="photo-grid">
-    <view wx:for="{{files}}" wx:key="path" class="photo-item">
-      <image src="{{item.path}}" mode="aspectFill" data-path="{{item.path}}" bindtap="previewImage"></image>
-      <button class="remove-button" data-index="{{index}}" bindtap="removeImage" aria-label="删除照片">×</button>
-      <view class="photo-number">{{index + 1}}</view>
-    </view>
-    <button wx:if="{{files.length < maxFiles}}" class="add-photo" bindtap="chooseImages">
-      <view class="camera-icon">
-        <view class="camera-lens"></view>
+    <view class="selected-style">
+      <view class="style-swatch" style="background: {{template.palette}}">
+        <image wx:if="{{template.coverUrl}}" class="style-swatch__image" src="{{template.coverUrl}}" mode="aspectFill"></image>
+        <block wx:else>
+          <view class="swatch-paper"></view>
+          <view class="swatch-tape"></view>
+        </block>
+        <text>{{template.shortName}}</text>
       </view>
-      <view>添加照片</view>
-      <text>相册或拍摄</text>
-    </button>
-  </view>
-
-  <view class="photo-note">
-    <view class="note-mark">小贴士</view>
-    <view>主体完整、光线自然的照片，风格效果会更细腻。</view>
-  </view>
-
-  <view class="bottom-bar">
-    <view>
-      <view class="cost-label">预计消耗</view>
-      <view class="cost-value">{{totalCost}} <text>积分</text></view>
+      <view class="style-copy">
+        <view class="eyebrow">本次创作</view>
+        <view class="style-name">{{template.name}}</view>
+        <view class="style-desc">{{template.description}}</view>
+      </view>
+      <view class="unit-cost">{{template.cost}} 积分/张</view>
     </view>
-    <button
-      class="generate-button"
-      disabled="{{!files.length || busy}}"
-      loading="{{busy}}"
-      bindtap="generate"
-    >{{busy ? '正在提交' : '开始变好看'}}</button>
-  </view>
+
+    <view class="section-title">
+      <view>
+        <view class="section-title__main">选几张喜欢的照片</view>
+        <view class="photo-subtitle">清晰自然的原图会更好看 · 最多 {{maxFiles}} 张</view>
+      </view>
+      <view class="section-title__sub">{{files.length}} / {{maxFiles}}</view>
+    </view>
+
+    <view class="photo-grid">
+      <view wx:for="{{files}}" wx:key="path" class="photo-cell photo-item">
+        <view class="photo-cell__inner">
+          <image class="photo-item__image" src="{{item.path}}" mode="aspectFill" data-path="{{item.path}}" bindtap="previewImage"></image>
+          <view class="remove-button" data-index="{{index}}" catchtap="removeImage">×</view>
+          <view class="photo-number">{{index + 1}}</view>
+        </view>
+      </view>
+      <view wx:if="{{files.length < maxFiles}}" class="photo-cell add-photo" bindtap="chooseImages">
+        <view class="photo-cell__inner add-photo__inner">
+          <view class="camera-icon">
+            <view class="camera-lens"></view>
+          </view>
+          <view class="add-photo__title">添加照片</view>
+          <text class="add-photo__sub">相册或拍摄</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="photo-note">
+      <view class="note-mark">隐私保护</view>
+      <view>照片仅用于本次创作。原图与生成结果由你管理，不会出现在公开广场。</view>
+    </view>
+
+    <view class="bottom-bar">
+      <view>
+        <view class="cost-label">预计消耗</view>
+        <view class="cost-value">{{totalCost}} <text>积分</text></view>
+      </view>
+      <button
+        class="generate-button"
+        disabled="{{!files.length || busy}}"
+        loading="{{busy}}"
+        bindtap="generate"
+      >
+        <image wx:if="{{!busy}}" class="generate-button__icon" src="/assets/icons/wand-sparkles.png" mode="aspectFit"></image>
+        <text>{{busy ? '正在提交' : (files.length ? '确认生成 · ' + totalCost + ' 积分' : '确认生成')}}</text>
+      </button>
+    </view>
+  </block>
 </view>

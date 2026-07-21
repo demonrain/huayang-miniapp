@@ -39,14 +39,28 @@ export const config = {
     mockLogin: process.env.WECHAT_MOCK_LOGIN !== 'false',
     appId: process.env.WECHAT_APP_ID || '',
     appSecret: process.env.WECHAT_APP_SECRET || '',
-    envVersion: process.env.WECHAT_ENV_VERSION || 'release'
+    envVersion: process.env.WECHAT_ENV_VERSION || 'release',
+    // 订阅消息：生成完成/失败后推送（需用户在小程序内授权）
+    subscribeTemplateId: process.env.WECHAT_SUBSCRIBE_TEMPLATE_ID || '',
+    subscribeFields: {
+      style: process.env.WECHAT_SUBSCRIBE_FIELD_STYLE || 'thing1',
+      status: process.env.WECHAT_SUBSCRIBE_FIELD_STATUS || 'phrase2',
+      time: process.env.WECHAT_SUBSCRIBE_FIELD_TIME || 'time3',
+      tip: process.env.WECHAT_SUBSCRIBE_FIELD_TIP || 'thing4'
+    }
   },
   image: {
     provider: process.env.IMAGE_PROVIDER || 'mock',
     apiBase: process.env.IMAGE_API_BASE || 'https://api.openai.com/v1/images/edits',
     apiKey: process.env.IMAGE_API_KEY || '',
     model: process.env.IMAGE_MODEL || 'gpt-image-1',
-    size: process.env.IMAGE_SIZE || '1024x1024',
+    // Leave empty to omit size when gateway rejects size values
+    size: process.env.IMAGE_SIZE === '' ? '' : (process.env.IMAGE_SIZE || '1024x1024'),
+    // Optional: b64_json | url — omit by default (some gpt-image gateways reject response_format)
+    responseFormat: process.env.IMAGE_RESPONSE_FORMAT || '',
+    // image | image[]
+    formImageField: process.env.IMAGE_FORM_IMAGE_FIELD || 'image',
+    timeoutMs: Number(process.env.IMAGE_TIMEOUT_MS || 300000),
     mockDelayMs: Number(process.env.JOB_MOCK_DELAY_MS || 800)
   },
   payment: {

@@ -1,0 +1,62 @@
+<view class="page template-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav show-back credits="{{credits}}"></custom-nav>
+
+  <block wx:if="{{template}}">
+    <view class="detail-cover" style="background: {{template.palette}}" bindtap="previewCover">
+      <image wx:if="{{template.coverUrl}}" class="detail-cover__image" src="{{template.coverUrl}}" mode="aspectFill"></image>
+      <view wx:else class="detail-cover__fallback">
+        <view class="fallback-paper"></view>
+        <view class="fallback-tape"></view>
+        <text class="fallback-title">{{template.shortName}}</text>
+      </view>
+      <view wx:if="{{template.badge}}" class="detail-cover__badge">{{template.badge}}</view>
+    </view>
+
+    <view class="detail-body">
+      <view class="detail-eyebrow">XIANGHUI STYLE · {{categoryLabel}}</view>
+      <view class="detail-title">{{template.name}}</view>
+      <view class="detail-desc">{{template.description}}</view>
+
+      <view class="detail-meta">
+        <text>人气 {{popularityText}}</text>
+        <text>{{template.cost}} 积分/张</text>
+      </view>
+
+      <view class="tag-row" wx:if="{{displayTags.length}}">
+        <text wx:for="{{displayTags}}" wx:key="*this">{{item}}</text>
+      </view>
+
+      <view class="sample-heading">
+        <view>
+          <view class="sample-heading__main">更多效果参考</view>
+          <view class="sample-heading__sub">同一风格会根据原图自然变化</view>
+        </view>
+      </view>
+
+      <view class="sample-strip">
+        <view
+          wx:for="{{samples}}"
+          wx:key="key"
+          class="sample-card"
+          style="background: {{item.palette}}"
+          data-url="{{item.coverUrl}}"
+          bindtap="previewSample"
+        >
+          <image wx:if="{{item.coverUrl}}" src="{{item.coverUrl}}" mode="aspectFill"></image>
+          <text wx:else class="sample-card__label">{{item.name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="detail-action">
+      <view>
+        <view class="detail-action__label">每张消耗</view>
+        <view class="detail-action__cost">{{template.cost}} <text>积分</text></view>
+      </view>
+      <button class="detail-action__button" bindtap="useStyle">
+        <image class="detail-action__icon" src="/assets/icons/sparkles.png" mode="aspectFit"></image>
+        <text>用这个风格</text>
+      </button>
+    </view>
+  </block>
+</view>

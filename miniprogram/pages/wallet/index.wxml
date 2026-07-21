@@ -1,4 +1,13 @@
-<view class="page wallet-page page-enter">
+<view class="page wallet-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav credits="{{user ? user.credits : null}}"></custom-nav>
+
+  <view wx:if="{{!isLoggedIn}}" class="guest-panel">
+    <view class="guest-title">登录后管理积分</view>
+    <view class="guest-sub">签到、充值与账单需要微信登录后使用。模板浏览不需要登录。</view>
+    <button class="primary-button guest-login" bindtap="doLogin">微信登录</button>
+  </view>
+
+  <block wx:else>
   <view class="balance-panel">
     <view class="balance-copy">
       <view class="balance-label">我的灵感积分</view>
@@ -16,11 +25,17 @@
   </view>
 
   <view wx:if="{{checkin}}" class="checkin-panel">
-    <view>
+    <view class="checkin-copy">
       <view class="checkin-title">每日签到</view>
       <view class="checkin-sub">今天可领取 {{checkin.reward}} 积分</view>
     </view>
-    <button class="checkin-button {{checkin.claimedToday ? 'checkin-button--done' : ''}}" loading="{{checking}}" disabled="{{checkin.claimedToday || checking}}" bindtap="checkin">{{checkin.claimedToday ? '今日已签到' : '领取积分'}}</button>
+    <button
+      class="checkin-button {{checkin.claimedToday ? 'checkin-button--done' : ''}}"
+      hover-class="none"
+      loading="{{checking}}"
+      disabled="{{checkin.claimedToday || checking}}"
+      bindtap="checkin"
+    >{{checkin.claimedToday ? '今日已签到' : '领取积分'}}</button>
   </view>
 
   <view class="section-title">
@@ -59,4 +74,5 @@
     </view>
     <view wx:if="{{!transactions.length}}" class="empty">暂无积分记录</view>
   </view>
+  </block>
 </view>

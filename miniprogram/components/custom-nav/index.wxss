@@ -1,0 +1,143 @@
+.custom-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: linear-gradient(180deg, #fff9f8 0%, rgba(255, 249, 248, 0.92) 70%, rgba(255, 249, 248, 0));
+}
+
+.custom-nav__row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  padding-left: 24rpx;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.nav-left {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  overflow: hidden;
+}
+
+.nav-back {
+  width: 48rpx;
+  height: 100%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  font-size: 44rpx;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.brand-wrap {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  overflow: hidden;
+}
+
+.brand-flower {
+  position: relative;
+  width: 36rpx;
+  height: 36rpx;
+  flex: none;
+  transform: rotate(-8deg);
+}
+
+.petal {
+  position: absolute;
+  width: 16rpx;
+  height: 16rpx;
+  background: var(--pink);
+  border-radius: 50% 50% 45% 50%;
+}
+
+.petal--one { top: 0; left: 10rpx; }
+.petal--two { top: 10rpx; right: 0; transform: rotate(90deg); }
+.petal--three { bottom: 0; left: 10rpx; transform: rotate(180deg); }
+.petal--four { top: 10rpx; left: 0; transform: rotate(270deg); }
+
+.flower-dot {
+  position: absolute;
+  top: 12rpx;
+  left: 12rpx;
+  z-index: 2;
+  width: 12rpx;
+  height: 12rpx;
+  background: var(--yellow);
+  border: 3rpx solid #fff;
+  border-radius: 50%;
+}
+
+.brand {
+  min-width: 0;
+  overflow: hidden;
+  font-family: "STXingkai", "Kaiti SC", "Songti SC", serif;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.credit-pill {
+  flex: none;
+  height: 100%;
+  width: auto;
+  min-width: 0;
+  max-width: 160rpx;
+  margin: 0;
+  padding: 0 12rpx 0 6rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  background: #fff;
+  border: 2rpx solid #f2e3e6;
+  box-shadow: 0 8rpx 20rpx rgba(123, 94, 105, 0.07);
+  color: var(--ink);
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 999rpx;
+  box-sizing: border-box;
+}
+
+.credit-mark {
+  width: 28rpx;
+  height: 28rpx;
+  flex: none;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--yellow);
+  color: #7d6641;
+  font-size: 16rpx;
+  line-height: 28rpx;
+}
+
+.credit-value {
+  flex: none;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

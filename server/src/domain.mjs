@@ -172,6 +172,16 @@ export function publicJob(job, state) {
     mime: result.mime,
     url: mediaUrl(result.storagePath)
   }))
+  const originals = (job.assetIds || []).map((assetId, index) => {
+    const asset = state.assets.find(item => item.id === assetId)
+    if (!asset) return null
+    return {
+      id: asset.id,
+      mime: asset.mime,
+      url: assetUrl(asset),
+      index: index + 1
+    }
+  }).filter(Boolean)
   return {
     id: job.id,
     templateId: job.templateId,
@@ -188,7 +198,8 @@ export function publicJob(job, state) {
     templatePalette: template?.palette || '#f2c5cc',
     statusLabel: statusLabels[job.status] || job.status,
     results,
-    coverUrl: results[0]?.url || ''
+    originals,
+    coverUrl: results[0]?.url || originals[0]?.url || ''
   }
 }
 

@@ -22,6 +22,7 @@ import {
   seedConfig
 } from './domain.mjs'
 import { createMiniProgramCode, createMiniProgramUrlLink, isWechatShareConfigured } from './wechat-share.mjs'
+import { isSubscribeNotifyConfigured, sendJobResultSubscribeMessage } from './wechat-notify.mjs'
 
 const now = () => new Date().toISOString()
 
@@ -208,7 +209,33 @@ export async function createApplication() {
   if (store.read(state => !state.settings || state.settings.shareTitle === '来看看我用画漾制作的作品' || !state.templates.length || !state.banners.length || !state.packages.length || state.templates.some(item => !Array.isArray(item.tags) || !Number.isFinite(Number(item.popularity))))) {
     await store.transaction(draft => seedConfig(draft))
   }
+  console.log(
+    `[image] provider=${config.image.provider}` +
+    (config.image.provider === 'compatible'
+      ? ` endpoint=${config.image.apiBase} model=${config.image.model} key=${config.image.apiKey ? 'set' : 'missing'}`
+      : ' (mock copies uploads; set IMAGE_PROVIDER=compatible for real AI generation)')
+  )
+  console.log(
+    `[notify] subscribe=${isSubscribeNotifyConfigured() ? `enabled template=${config.wechat.subscribeTemplateId}` : 'disabled (set WECHAT_SUBSCRIBE_TEMPLATE_ID)'}`
+  )
   const adminAttempts = new Map()
+
+  async function notifyJobResult(jobId) {
+    try {
+      const state = store.read()
+      const job = state.jobs.find(item => item.id === jobId)
+      if (!job?.notifyRequested) return
+      const user = state.users.find(item => item.id === job.userId)
+      const template = findTemplate(state, job.templateId, true)
+      await sendJobResultSubscribeMessage({
+        openid: user?.openid,
+        job,
+        templateName: template?.name || '花漾相绘作品'
+      })
+    } catch (error) {
+      console.error(`[notify] job=${jobId}`, error)
+    }
+  }
 
   async function processJob(jobId) {
     const claimed = await store.transaction(draft => {
@@ -222,6 +249,7 @@ export async function createApplication() {
     if (!claimed) return
 
     try {
+      console.log(`[job:${jobId}] processing template=${claimed.templateId} assets=${claimed.assetIds.length}`)
       const state = store.read()
       const template = findTemplate(state, claimed.templateId, true)
       if (!template) throw new Error('模板已下架')
@@ -236,8 +264,10 @@ export async function createApplication() {
         job.completedAt = now()
         job.updatedAt = now()
       })
+      console.log(`[job:${jobId}] succeeded results=${results.length}`)
+      await notifyJobResult(jobId)
     } catch (error) {
-      console.error(`[job:${jobId}]`, error)
+      console.error(`[job:${jobId}] failed:`, error)
       await store.transaction(draft => {
         const job = draft.jobs.find(item => item.id === jobId)
         if (!job || job.status === 'succeeded') return
@@ -254,10 +284,12 @@ export async function createApplication() {
           }
         }
         job.status = 'failed'
-        job.error = '生图服务暂时不可用，积分已退回'
+        const detail = String(error?.message || error || '未知错误').replace(/\s+/g, ' ').trim().slice(0, 160)
+        job.error = `生图失败：${detail}（积分已退回）`
         job.completedAt = now()
         job.updatedAt = now()
       })
+      await notifyJobResult(jobId)
     }
   }
 
@@ -317,7 +349,9 @@ export async function createApplication() {
           maxUploadMb: config.maxUploadBytes / 1024 / 1024,
           imageProvider: config.image.provider,
           paymentMode: config.payment.mode,
-          wechatShareReady: isWechatShareConfigured()
+          wechatShareReady: isWechatShareConfigured(),
+          subscribeEnabled: isSubscribeNotifyConfigured(),
+          subscribeTemplateId: config.wechat.subscribeTemplateId || ''
         })
         return
       }
@@ -784,8 +818,18 @@ export async function createApplication() {
           target.credits -= cost
           target.updatedAt = now()
           const job = {
-            id: randomUUID(), clientRequestId: String(body.clientRequestId || ''), userId: user.id, templateId: currentTemplate.id,
-            assetIds: body.assetIds, cost, status: 'queued', results: [], error: '', createdAt: now(), updatedAt: now()
+            id: randomUUID(),
+            clientRequestId: String(body.clientRequestId || ''),
+            userId: user.id,
+            templateId: currentTemplate.id,
+            assetIds: body.assetIds,
+            cost,
+            status: 'queued',
+            results: [],
+            error: '',
+            notifyRequested: Boolean(body.notify),
+            createdAt: now(),
+            updatedAt: now()
           }
           draft.jobs.push(job)
           draft.transactions.push({

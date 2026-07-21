@@ -1,108 +1,6 @@
-.topbar {
-  min-height: 82rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-}
-
-.brand-wrap {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-
-.brand-flower {
-  position: relative;
-  width: 58rpx;
-  height: 58rpx;
-  flex: none;
-  transform: rotate(-8deg);
-}
-
-.petal {
-  position: absolute;
-  width: 25rpx;
-  height: 25rpx;
-  background: var(--pink);
-  border-radius: 50% 50% 45% 50%;
-}
-
-.petal--one { top: 0; left: 17rpx; }
-.petal--two { top: 17rpx; right: 0; transform: rotate(90deg); }
-.petal--three { bottom: 0; left: 17rpx; transform: rotate(180deg); }
-.petal--four { top: 17rpx; left: 0; transform: rotate(270deg); }
-
-.flower-dot {
-  position: absolute;
-  top: 20rpx;
-  left: 20rpx;
-  z-index: 2;
-  width: 18rpx;
-  height: 18rpx;
-  background: var(--yellow);
-  border: 4rpx solid #fff;
-  border-radius: 50%;
-}
-
-.brand {
-  font-family: "STXingkai", "Kaiti SC", "Songti SC", serif;
-  font-size: 48rpx;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.brand-sub {
-  margin-top: 7rpx;
-  color: var(--muted);
-  font-size: 19rpx;
-  white-space: nowrap;
-}
-
-.credit-pill {
-  width: 116rpx;
-  height: 52rpx;
-  flex: none;
-  margin: 0;
-  padding: 0 8rpx;
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  background: #fff;
-  border: 2rpx solid #f2e3e6;
-  box-shadow: 0 8rpx 20rpx rgba(123, 94, 105, 0.07);
-  color: var(--ink);
-  font-size: 20rpx;
-  line-height: 52rpx;
-  border-radius: 26rpx;
-}
-
-.credit-mark {
-  width: 34rpx;
-  height: 34rpx;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--yellow);
-  color: #7d6641;
-  font-size: 18rpx;
-}
-
-.credit-value {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .banner-swiper {
   height: 292rpx;
-  margin-top: 32rpx;
+  margin-top: 12rpx;
 }
 
 .banner-swiper .welcome-card {
@@ -139,7 +37,7 @@
 .welcome-card {
   position: relative;
   height: 292rpx;
-  margin-top: 32rpx;
+  margin-top: 12rpx;
   padding: 34rpx 32rpx;
   display: flex;
   overflow: hidden;
@@ -322,7 +220,7 @@
 
 .template-card {
   min-width: 0;
-  height: 454rpx;
+  height: auto;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -342,13 +240,21 @@
   position: relative;
   height: 268rpx;
   overflow: hidden;
+  background: #f4ecee;
+}
+
+/* Full cover, keep aspect ratio, no crop */
+.template-art--cover {
+  height: auto;
+  min-height: 200rpx;
+  overflow: visible;
 }
 
 .template-cover {
-  position: absolute;
-  inset: 0;
+  display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  vertical-align: top;
 }
 
 .art-paper {
@@ -463,7 +369,8 @@
 }
 
 .template-meta {
-  height: 186rpx;
+  min-height: 160rpx;
+  height: auto;
   padding: 18rpx;
   display: flex;
   align-items: flex-start;
@@ -547,6 +454,70 @@
 
 .skeleton {
   min-height: 454rpx;
+}
+
+.home-loading {
+  margin-top: 8rpx;
+}
+
+.home-loading__flower {
+  position: relative;
+  width: 88rpx;
+  height: 88rpx;
+  margin: 12rpx auto 18rpx;
+  animation: home-flower-spin 3.8s linear infinite;
+}
+
+.home-loading__petal {
+  position: absolute;
+  width: 34rpx;
+  height: 48rpx;
+  background: var(--pink);
+  border-radius: 50%;
+  opacity: 0.9;
+}
+
+.home-loading__petal--1 { top: 0; left: 27rpx; }
+.home-loading__petal--2 { top: 20rpx; right: 0; transform: rotate(90deg); }
+.home-loading__petal--3 { bottom: 0; left: 27rpx; transform: rotate(180deg); }
+.home-loading__petal--4 { top: 20rpx; left: 0; transform: rotate(270deg); }
+
+.home-loading__dot {
+  position: absolute;
+  top: 30rpx;
+  left: 30rpx;
+  z-index: 2;
+  width: 28rpx;
+  height: 28rpx;
+  background: var(--yellow);
+  border: 4rpx solid #fff;
+  border-radius: 50%;
+}
+
+.home-loading__title {
+  text-align: center;
+  color: var(--coral);
+  font-family: "Kaiti SC", "STKaiti", serif;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.home-loading__tip {
+  margin: 10rpx 0 28rpx;
+  min-height: 40rpx;
+  text-align: center;
+  color: var(--muted);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.home-loading__grid {
+  margin-top: 0;
+  opacity: 0.72;
+}
+
+@keyframes home-flower-spin {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes card-in {

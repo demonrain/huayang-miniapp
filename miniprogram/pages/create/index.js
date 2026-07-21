@@ -1,4 +1,5 @@
 const api = require('../../utils/api')
+const { getNavMetrics } = require('../../utils/nav')
 
 Page({
   data: {
@@ -7,18 +8,38 @@ Page({
     files: [],
     busy: false,
     maxFiles: 6,
-    totalCost: 0
+    totalCost: 0,
+    credits: null,
+    navSpacer: 176,
+    subscribeEnabled: false,
+    subscribeTemplateId: ''
   },
 
   async onLoad(query) {
-    this.setData({ templateId: query.templateId || '' })
+    this.setData({ ...getNavMetrics(), templateId: query.templateId || '' })
     try {
-      await getApp().ensureSession()
-      const { templates } = await api.get('/api/templates')
+      const app = getApp()
+      let user = await app.ensureSession()
+      if (!app.isLoggedIn()) {
+        user = await app.requireLogin('登录后即可上传照片并开始创作')
+      }
+      const [{ templates }, config] = await Promise.all([
+        api.get('/api/templates'),
+        api.get('/api/config')
+      ])
       const template = templates.find(item => item.id === this.data.templateId)
       if (!template) throw new Error('模板不存在或已下架')
-      this.setData({ template })
+      this.setData({
+        template,
+        credits: user?.credits ?? null,
+        subscribeEnabled: Boolean(config.subscribeEnabled && config.subscribeTemplateId),
+        subscribeTemplateId: config.subscribeTemplateId || ''
+      })
     } catch (error) {
+      if (error.code === 'LOGIN_CANCELLED') {
+        wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/home/index' }) })
+        return
+      }
       wx.showModal({ title: '无法开始创作', content: error.message, showCancel: false })
     }
   },
@@ -49,8 +70,32 @@ Page({
     wx.previewImage({ current, urls: this.data.files.map(file => file.path) })
   },
 
+  /** Ask user to allow one-shot subscribe message for job completion push. */
+  requestNotifyPermission() {
+    const templateId = this.data.subscribeTemplateId
+    if (!this.data.subscribeEnabled || !templateId) {
+      return Promise.resolve(false)
+    }
+    return new Promise(resolve => {
+      wx.requestSubscribeMessage({
+        tmplIds: [templateId],
+        success(res) {
+          resolve(res[templateId] === 'accept')
+        },
+        fail() {
+          resolve(false)
+        }
+      })
+    })
+  },
+
   async generate() {
     if (!this.data.files.length || this.data.busy) return
+    try {
+      await getApp().requireLogin('登录后即可生成作品')
+    } catch (error) {
+      return
+    }
     const user = getApp().globalData.user
     if (user && user.credits < this.data.totalCost) {
       wx.showModal({
@@ -63,6 +108,9 @@ Page({
       })
       return
     }
+
+    // Must call subscribe API while still in a user gesture context
+    const notify = await this.requestNotifyPermission()
 
     this.setData({ busy: true })
     wx.showLoading({ title: '正在上传', mask: true })
@@ -77,9 +125,11 @@ Page({
       const { job, user: nextUser } = await api.post('/api/jobs', {
         templateId: this.data.templateId,
         assetIds,
+        notify,
         clientRequestId: `${Date.now()}-${Math.random().toString(36).slice(2)}`
       })
       getApp().setUser(nextUser)
+      this.setData({ credits: nextUser?.credits ?? this.data.credits })
       wx.hideLoading()
       wx.redirectTo({ url: `/pages/job/index?id=${job.id}` })
     } catch (error) {

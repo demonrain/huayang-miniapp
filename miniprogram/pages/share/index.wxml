@@ -1,4 +1,6 @@
-<view class="page share-page page-enter">
+<view class="page share-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav show-back show-credit="{{false}}"></custom-nav>
+
   <view wx:if="{{loading}}" class="share-loading">
     <view class="loading-flower"></view>
     <view>正在打开作品</view>

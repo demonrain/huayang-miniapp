@@ -1,5 +1,4 @@
 // Replace this URL with the HTTPS domain added to the WeChat request/download whitelist.
-const API_BASE_URL = 'http://127.0.0.1:8787'
+const API_BASE_URL = "https://huayang.demonrain.top";
 
-module.exports = { API_BASE_URL }
-
+module.exports = { API_BASE_URL };

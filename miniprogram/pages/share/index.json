@@ -1,5 +1,8 @@
 {
-  "navigationBarTitleText": "花漾相绘作品",
+  "navigationStyle": "custom",
   "enableShareAppMessage": true,
-  "enableShareTimeline": true
+  "enableShareTimeline": true,
+  "usingComponents": {
+    "custom-nav": "/components/custom-nav/index"
+  }
 }

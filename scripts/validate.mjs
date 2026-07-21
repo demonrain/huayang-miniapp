@@ -38,8 +38,8 @@ for (const page of appConfig.pages) {
   }
 }
 
-const allowedTags = new Set(['view', 'text', 'image', 'button', 'input', 'scroll-view', 'swiper', 'swiper-item'])
-const voidTags = new Set(['image', 'input'])
+const allowedTags = new Set(['view', 'text', 'image', 'button', 'input', 'scroll-view', 'swiper', 'swiper-item', 'block', 'custom-nav'])
+const voidTags = new Set(['image', 'input', 'custom-nav'])
 for (const filename of files.filter(item => item.endsWith('.wxml'))) {
   const source = readFileSync(filename, 'utf8')
   const stack = []
@@ -54,6 +54,24 @@ for (const filename of files.filter(item => item.endsWith('.wxml'))) {
     }
   }
   if (stack.length) throw new Error(`Unclosed <${stack.at(-1)}> in ${filename}`)
+}
+
+// Ensure every page uses the shared custom-nav component
+const componentJson = path.join(miniRoot, 'components', 'custom-nav', 'index.json')
+if (!files.includes(componentJson)) throw new Error('Missing custom-nav component')
+for (const page of appConfig.pages) {
+  const pageJsonPath = path.join(miniRoot, `${page}.json`)
+  const pageJson = JSON.parse(readFileSync(pageJsonPath, 'utf8'))
+  if (pageJson.navigationStyle !== 'custom' && appConfig.window?.navigationStyle !== 'custom') {
+    throw new Error(`${page} must use navigationStyle custom`)
+  }
+  if (!pageJson.usingComponents?.['custom-nav']) {
+    throw new Error(`${page} must register custom-nav component`)
+  }
+  const pageWxml = readFileSync(path.join(miniRoot, `${page}.wxml`), 'utf8')
+  if (!pageWxml.includes('<custom-nav')) {
+    throw new Error(`${page} must render <custom-nav>`)
+  }
 }
 
 console.log(`Validated ${appConfig.pages.length} mini program pages and ${files.length} project files.`)
