@@ -84,19 +84,19 @@
   </view>
 
   <view wx:else class="template-grid">
-    <button
+    <view
       wx:for="{{filteredTemplates}}"
       wx:key="id"
       class="template-card"
       data-id="{{item.id}}"
       bindtap="startCreate"
     >
-      <view class="template-art {{item.coverUrl ? 'template-art--cover' : ''}}" style="background: {{item.palette}}">
+      <view class="template-art" style="background: {{item.palette}}">
         <image
           wx:if="{{item.coverUrl}}"
           class="template-cover"
           src="{{item.coverUrl}}"
-          mode="widthFix"
+          mode="aspectFit"
         ></image>
         <block wx:else>
           <view class="art-paper">
@@ -121,17 +121,13 @@
         <view class="template-copy">
           <view class="template-name">{{item.name}}</view>
           <view class="template-desc">{{item.description}}</view>
-          <view class="template-tags" wx:if="{{item.tags.length}}">
-            <text wx:for="{{item.tags}}" wx:key="*this">{{item}}</text>
-          </view>
         </view>
         <view class="template-side">
           <view class="template-cost">{{item.cost}} 积分</view>
           <view class="template-popularity">人气 {{item.popularityText}}</view>
-          <view class="template-arrow">›</view>
         </view>
       </view>
-    </button>
+    </view>
   </view>
 
   <view wx:if="{{!loading && !filteredTemplates.length}}" class="empty">这个分类的模板还在准备中</view>

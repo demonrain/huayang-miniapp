@@ -58,8 +58,10 @@ export const config = {
     size: process.env.IMAGE_SIZE === '' ? '' : (process.env.IMAGE_SIZE || '1024x1024'),
     // Optional: b64_json | url — omit by default (some gpt-image gateways reject response_format)
     responseFormat: process.env.IMAGE_RESPONSE_FORMAT || '',
-    // image | image[]
-    formImageField: process.env.IMAGE_FORM_IMAGE_FIELD || 'image',
+    // image | image[] — gpt-image edits / playground use image[]
+    formImageField: process.env.IMAGE_FORM_IMAGE_FIELD || 'image[]',
+    quality: process.env.IMAGE_QUALITY || 'auto',
+    outputFormat: process.env.IMAGE_OUTPUT_FORMAT || 'png',
     timeoutMs: Number(process.env.IMAGE_TIMEOUT_MS || 300000),
     mockDelayMs: Number(process.env.JOB_MOCK_DELAY_MS || 800)
   },

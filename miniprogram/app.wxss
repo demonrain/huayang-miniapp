@@ -35,25 +35,33 @@ button::after {
 
 .page {
   min-height: 100vh;
-  padding: 32rpx 30rpx 64rpx;
+  max-width: 100%;
+  padding: 16rpx 24rpx 28rpx;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Content under fixed custom nav: set padding-top via navSpacer inline style */
+.page.page-enter {
+  position: relative;
 }
 
 .section-title {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin: 48rpx 0 22rpx;
+  margin: 20rpx 0 12rpx;
 }
 
 .section-title__main {
-  font-size: 36rpx;
+  font-size: 32rpx;
   font-weight: 650;
   letter-spacing: 0;
 }
 
 .section-title__sub {
   color: var(--muted);
-  font-size: 22rpx;
+  font-size: 20rpx;
 }
 
 .primary-button {

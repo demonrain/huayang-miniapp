@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Blob } from 'node:buffer'
@@ -134,9 +135,18 @@ async function compatibleGenerate(job, template, assets) {
     form.append('model', config.image.model)
     form.append('prompt', template.prompt)
     if (config.image.size) form.append('size', config.image.size)
+    if (config.image.quality) form.append('quality', config.image.quality)
+    if (config.image.outputFormat) form.append('output_format', config.image.outputFormat)
     if (config.image.responseFormat) form.append('response_format', config.image.responseFormat)
-    // Some gateways expect image[], others image
-    form.append(imageField, new Blob([source], { type: asset.mime || 'image/jpeg' }), asset.originalName || `image-${index + 1}.jpg`)
+    // Prefer image[] (OpenAI gpt-image edits / playground); override via IMAGE_FORM_IMAGE_FIELD
+    const filename = asset.originalName || `image-${index + 1}.jpg`
+    const mimeType = asset.mime || 'image/jpeg'
+    const blob = new Blob([source], { type: mimeType })
+    form.append(imageField, blob, filename)
+    // Some gateways only accept bare "image"; send both when using image[]
+    if (imageField === 'image[]') {
+      form.append('image', blob, filename)
+    }
 
     const startedAt = Date.now()
     const controller = new AbortController()
@@ -146,8 +156,7 @@ async function compatibleGenerate(job, template, assets) {
       response = await fetch(config.image.apiBase, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${config.image.apiKey}`,
-          ...(config.image.extraHeaders || {})
+          Authorization: `Bearer ${config.image.apiKey}`
         },
         body: form,
         signal: controller.signal
@@ -194,10 +203,20 @@ async function compatibleGenerate(job, template, assets) {
 
     if (!output?.length) throw new Error('生图结果为空')
 
+    const sourceHash = createHash('sha256').update(source).digest('hex')
+    const outputHash = createHash('sha256').update(output).digest('hex')
+    if (sourceHash === outputHash) {
+      console.error(`[image:compatible] job=${job.id} output identical to input (hash=${sourceHash.slice(0, 12)})`)
+      throw new Error('生图结果与原图完全相同：请确认 IMAGE_PROVIDER=compatible、模型与提示词已生效，而不是 mock 或透传')
+    }
+
     const relativePath = path.join('outputs', job.userId, `${job.id}-${index + 1}${extensionForMime(mime)}`)
     await writeFile(path.join(config.mediaDir, relativePath), output)
     results.push({ id: `${job.id}-${index + 1}`, storagePath: relativePath.replaceAll('\\', '/'), mime })
-    console.log(`[image:compatible] job=${job.id} image ${index + 1}/${assets.length} ok in ${Date.now() - startedAt}ms bytes=${output.length}`)
+    console.log(
+      `[image:compatible] job=${job.id} image ${index + 1}/${assets.length} ok in ${Date.now() - startedAt}ms ` +
+      `bytes=${output.length} revised=${item.revised_prompt ? 'yes' : 'no'}`
+    )
   }
   return results
 }
