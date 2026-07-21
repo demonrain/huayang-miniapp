@@ -36,6 +36,7 @@
         <button class="nav-item" data-view="jobs"><span class="nav-icon">作</span>作品任务</button>
         <button class="nav-item" data-view="banners"><span class="nav-icon">图</span>首页 Banner</button>
         <button class="nav-item" data-view="templates"><span class="nav-icon">▦</span>模板管理</button>
+        <button class="nav-item" data-view="categories"><span class="nav-icon">分</span>模板分类</button>
         <button class="nav-item" data-view="packages"><span class="nav-icon">¥</span>充值套餐</button>
       </nav>
       <button id="logoutButton" class="logout-button">退出登录</button>
@@ -91,30 +92,59 @@
 
       <section id="jobsView" class="view-panel" hidden>
         <div class="toolbar">
-          <div><h3>作品生成记录</h3><p>查看任务创建、处理、完成时间和失败原因。</p></div>
+          <div><h3>作品生成记录</h3><p>可查看原图与生成结果；点击缩略图可打开大图。</p></div>
           <form id="jobFilterForm" class="filter-bar">
             <input name="query" placeholder="昵称、任务 ID 或模板">
             <select name="status"><option value="all">全部状态</option><option value="queued">排队中</option><option value="processing">生成中</option><option value="succeeded">已完成</option><option value="failed">失败</option></select>
             <button class="button button--quiet" type="submit">查询</button>
           </form>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>作品</th><th>用户</th><th>模板</th><th>状态</th><th>数量/积分</th><th>生成时间</th><th>完成时间</th><th>耗时</th><th>异常</th></tr></thead><tbody id="jobRows"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>图片</th><th>用户</th><th>模板</th><th>状态</th><th>数量/积分</th><th>生成时间</th><th>完成时间</th><th>耗时</th><th>异常</th></tr></thead><tbody id="jobRows"></tbody></table></div>
       </section>
 
       <section id="bannersView" class="view-panel" hidden>
         <div class="toolbar">
-          <div><h3>首页 Banner</h3><p>建议上传 16:9 或 2:1 图片；无图片时使用设置的背景配色。</p></div>
+          <div><h3>首页 Banner</h3><p>可同时启用多张；多张时由下方轮播规则控制自动/手动切换。</p></div>
           <button id="addBannerButton" class="button button--primary" type="button"><span>＋</span>新增 Banner</button>
         </div>
+        <form id="bannerCarouselForm" class="settings-form content-panel banner-carousel-panel">
+          <div class="panel-heading">
+            <div>
+              <h3>多 Banner 轮播规则</h3>
+              <p id="bannerEnabledHint">当前启用 0 张。仅当启用 ≥ 2 张时，切换方式与间隔才会在小程序生效。</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>切换方式
+              <select name="bannerSwitchMode">
+                <option value="auto">自动轮播</option>
+                <option value="manual">仅手动滑动</option>
+              </select>
+            </label>
+            <label>切换间隔（毫秒）
+              <input name="bannerSwitchIntervalMs" type="number" min="1500" max="30000" step="100" required>
+            </label>
+            <label class="toggle-field"><input name="bannerCircular" type="checkbox" checked><span>循环播放（滑到最后一张后回到第一张）</span></label>
+          </div>
+          <div class="form-actions"><button class="button button--primary" type="submit">保存轮播规则</button></div>
+        </form>
         <div class="table-wrap"><table><thead><tr><th>Banner</th><th>文案</th><th>跳转路径</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="bannerRows"></tbody></table></div>
       </section>
 
       <section id="templatesView" class="view-panel" hidden>
         <div class="toolbar">
-          <div><h3>风格模板</h3><p>封面建议使用 1:1 或 4:5 图片。</p></div>
+          <div><h3>风格模板</h3><p>封面建议使用 1:1 或 4:5 图片。分类在「模板分类」中维护。</p></div>
           <button id="addTemplateButton" class="button button--primary" type="button"><span>＋</span>新增模板</button>
         </div>
         <div class="table-wrap"><table><thead><tr><th>模板</th><th>分类</th><th>标签</th><th>人气</th><th>积分/张</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="templateRows"></tbody></table></div>
+      </section>
+
+      <section id="categoriesView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div><h3>模板分类</h3><p>管理小程序首页筛选与新建模板时的分类选项。</p></div>
+          <button id="addCategoryButton" class="button button--primary" type="button"><span>＋</span>新增分类</button>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>分类</th><th>ID</th><th>排序</th><th>模板数</th><th>状态</th><th>操作</th></tr></thead><tbody id="categoryRows"></tbody></table></div>
       </section>
 
       <section id="packagesView" class="view-panel" hidden>
@@ -135,12 +165,7 @@
         <label>模板名称<input name="name" maxlength="30" required></label>
         <label>模板简称<input name="shortName" maxlength="8" placeholder="可留空，默认取名称前几字"></label>
         <label>分类
-          <select name="category" required>
-            <option value="portrait">人像</option>
-            <option value="life">生活</option>
-            <option value="pet">宠物</option>
-            <option value="art">艺术</option>
-          </select>
+          <select name="category" id="templateCategorySelect" required></select>
         </label>
         <label>每张积分<input name="cost" type="number" min="0" max="10000" required></label>
         <label>人气值<input name="popularity" type="number" min="0" max="100000000" required></label>
@@ -195,6 +220,19 @@
         <label>排序值<input name="sortOrder" type="number" min="0" value="10" required></label>
       </div>
       <div class="dialog-actions"><button class="button button--quiet" type="button" data-close="packageDialog">取消</button><button class="button button--primary" type="submit">保存套餐</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="categoryDialog" class="dialog dialog--small">
+    <form id="categoryForm" method="dialog">
+      <div class="dialog-heading"><div><h3 id="categoryDialogTitle">新增分类</h3><p>ID 可留空自动生成；编辑时 ID 不可修改。</p></div><button class="icon-button" type="button" data-close="categoryDialog" aria-label="关闭">×</button></div>
+      <div class="form-grid form-grid--dialog">
+        <label id="categoryIdField">分类 ID<input name="id" pattern="[a-z0-9][a-z0-9-]*" maxlength="40" placeholder="可留空自动生成"></label>
+        <label>分类名称<input name="name" maxlength="20" required></label>
+        <label>排序值<input name="sortOrder" type="number" min="0" max="100000" required></label>
+        <label class="toggle-field"><input name="enabled" type="checkbox" checked><span>启用分类（停用后小程序筛选不再展示）</span></label>
+      </div>
+      <div class="dialog-actions"><button class="button button--quiet" type="button" data-close="categoryDialog">取消</button><button class="button button--primary" type="submit">保存分类</button></div>
     </form>
   </dialog>
 

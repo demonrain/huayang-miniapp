@@ -16,10 +16,13 @@ Page({
     loadingTip: LOADING_TIPS[0],
     user: null,
     banners: [],
+    bannerAutoplay: false,
+    bannerInterval: 4500,
+    bannerCircular: true,
     welcomeCredits: 20,
     templates: [],
     filteredTemplates: [],
-    // Keep in sync with server TEMPLATE_CATEGORIES / admin select
+    // Fallback; prefer server-managed categories from /api/config
     categories: [
       { id: 'all', name: '全部' },
       { id: 'portrait', name: '人像' },
@@ -89,11 +92,19 @@ Page({
       const categories = Array.isArray(config.templateCategories) && config.templateCategories.length
         ? [{ id: 'all', name: '全部' }, ...config.templateCategories.map(item => ({ id: item.id, name: item.name }))]
         : this.data.categories
+      const carousel = config.bannerCarousel || {}
+      const multiBanner = banners.length > 1
+      const bannerAutoplay = multiBanner && carousel.autoplay !== false && carousel.mode !== 'manual'
+      const bannerInterval = Math.min(30000, Math.max(1500, Number(carousel.intervalMs) || 4500))
+      const bannerCircular = multiBanner && carousel.circular !== false
       this.stopLoadingTips()
       const showOnboarding = !wx.getStorageSync('huayang_onboarding_done')
       this.setData({
         user: app.isLoggedIn() ? user : null,
         banners,
+        bannerAutoplay,
+        bannerInterval,
+        bannerCircular,
         welcomeCredits: config.newUserCredits,
         categories,
         templates: displayTemplates,

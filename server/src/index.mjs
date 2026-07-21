@@ -12,7 +12,9 @@ import { createWechatPrepay, decryptWechatResource, verifyWechatNotification } f
 import { HttpError, json, readBody, readImageUpload, readJson, serveFile, setCors } from './http.mjs'
 import {
   assetUrl,
+  DEFAULT_TEMPLATE_CATEGORIES,
   findTemplate,
+  listTemplateCategories,
   mediaUrl,
   publicBanners,
   publicJob,
@@ -54,15 +56,23 @@ function publicUser(user, state) {
   }
 }
 
-const TEMPLATE_CATEGORIES = [
-  { id: 'portrait', name: '人像' },
-  { id: 'life', name: '生活' },
-  { id: 'pet', name: '宠物' },
-  { id: 'art', name: '艺术' }
-]
+function categoryLabel(categoryId, state = null) {
+  if (state) {
+    const found = listTemplateCategories(state, true).find(item => item.id === categoryId)
+    if (found) return found.name
+  }
+  return DEFAULT_TEMPLATE_CATEGORIES.find(item => item.id === categoryId)?.name || categoryId || ''
+}
 
-function categoryLabel(categoryId) {
-  return TEMPLATE_CATEGORIES.find(item => item.id === categoryId)?.name || categoryId || ''
+function publicBannerSettings(settings = {}) {
+  const mode = settings.bannerSwitchMode === 'manual' ? 'manual' : 'auto'
+  const intervalMs = Math.min(30000, Math.max(1500, Number(settings.bannerSwitchIntervalMs) || 4500))
+  return {
+    mode,
+    intervalMs,
+    circular: settings.bannerCircular !== false,
+    autoplay: mode === 'auto'
+  }
 }
 
 function slugifyTemplateId(name) {
@@ -140,7 +150,7 @@ function cleanTags(value) {
   return [...new Set(tags)]
 }
 
-function applyTemplateFields(target, body, creating = false) {
+function applyTemplateFields(target, body, creating = false, categories = DEFAULT_TEMPLATE_CATEGORIES) {
   if (creating || 'name' in body) target.name = cleanText(body.name, '模板名称', 30, true)
   if (creating || 'shortName' in body) {
     // shortName is optional; default to first chars of name
@@ -149,9 +159,9 @@ function applyTemplateFields(target, body, creating = false) {
     else target.shortName = cleanText(String(target.name || body.name || '风格').slice(0, 4), '模板简称', 8, true)
   }
   if (creating || 'category' in body) {
-    const category = cleanText(body.category, '模板分类', 20, true)
-    if (!TEMPLATE_CATEGORIES.some(item => item.id === category)) {
-      throw new HttpError(400, 'INVALID_CATEGORY', `分类需为：${TEMPLATE_CATEGORIES.map(item => item.name).join('、')}`)
+    const category = cleanText(body.category, '模板分类', 40, true)
+    if (!categories.some(item => item.id === category)) {
+      throw new HttpError(400, 'INVALID_CATEGORY', `分类需为：${categories.map(item => item.name).join('、') || '请先创建分类'}`)
     }
     target.category = category
   }
@@ -244,7 +254,7 @@ export async function createApplication() {
   ])
   const store = new JsonStore(config.dataDir)
   await store.init()
-  if (store.read(state => !state.settings || state.settings.shareTitle === '来看看我用画漾制作的作品' || !state.templates.length || !state.banners.length || !state.packages.length || state.templates.some(item => !Array.isArray(item.tags) || !Number.isFinite(Number(item.popularity))))) {
+  if (store.read(state => !state.settings || state.settings.shareTitle === '来看看我用画漾制作的作品' || !state.templates.length || !state.banners.length || !state.packages.length || !state.templateCategories?.length || state.settings.bannerSwitchMode === undefined || state.templates.some(item => !Array.isArray(item.tags) || !Number.isFinite(Number(item.popularity))))) {
     await store.transaction(draft => seedConfig(draft))
   }
   console.log(
@@ -402,7 +412,8 @@ export async function createApplication() {
           wechatShareReady: isWechatShareConfigured(),
           subscribeEnabled: isSubscribeNotifyConfigured(),
           subscribeTemplateId: config.wechat.subscribeTemplateId || '',
-          templateCategories: TEMPLATE_CATEGORIES
+          templateCategories: listTemplateCategories(state).map(item => ({ id: item.id, name: item.name })),
+          bannerCarousel: publicBannerSettings(state.settings)
         })
         return
       }
@@ -502,7 +513,8 @@ export async function createApplication() {
             templates: publicTemplates(state, true),
             banners: publicBanners(state, true),
             packages: publicPackages(state, true),
-            templateCategories: TEMPLATE_CATEGORIES,
+            templateCategories: listTemplateCategories(state, true),
+            bannerCarousel: publicBannerSettings(state.settings),
             stats: {
               users: state.users.length,
               jobs: state.jobs.length,
@@ -521,9 +533,76 @@ export async function createApplication() {
             if ('welcomeCredits' in body) draft.settings.welcomeCredits = boundedInteger(body.welcomeCredits, '新用户积分', 0, 100000)
             if ('checkinCredits' in body) draft.settings.checkinCredits = boundedInteger(body.checkinCredits, '签到积分', 0, 100000)
             if ('shareTitle' in body) draft.settings.shareTitle = cleanText(body.shareTitle, '分享标题', 60, true)
+            if ('bannerSwitchMode' in body) {
+              const mode = String(body.bannerSwitchMode || '').trim()
+              if (!['auto', 'manual'].includes(mode)) throw new HttpError(400, 'INVALID_FIELD', 'Banner 切换方式需为 auto 或 manual')
+              draft.settings.bannerSwitchMode = mode
+            }
+            if ('bannerSwitchIntervalMs' in body) {
+              draft.settings.bannerSwitchIntervalMs = boundedInteger(body.bannerSwitchIntervalMs, 'Banner 切换间隔', 1500, 30000)
+            }
+            if ('bannerCircular' in body) draft.settings.bannerCircular = Boolean(body.bannerCircular)
             return draft.settings
           })
-          json(response, 200, { settings })
+          json(response, 200, { settings, bannerCarousel: publicBannerSettings(settings) })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/categories') {
+          json(response, 200, { categories: listTemplateCategories(store.read(), true) })
+          return
+        }
+
+        if (request.method === 'POST' && pathname === '/api/admin/categories') {
+          const body = await readJson(request)
+          let id = String(body.id || '').trim().toLowerCase()
+          if (id) {
+            if (!/^[a-z0-9][a-z0-9-]{0,39}$/.test(id)) throw new HttpError(400, 'INVALID_CATEGORY_ID', '分类 ID 仅支持小写字母、数字和连字符')
+          } else {
+            id = slugifyTemplateId(body.name || 'category').replace(/^tpl-/, 'cat-')
+          }
+          const name = cleanText(body.name, '分类名称', 20, true)
+          const sortOrder = boundedInteger(body.sortOrder ?? 0, '排序值', 0, 100000)
+          const enabled = body.enabled !== false
+          await store.transaction(draft => {
+            if (!Array.isArray(draft.templateCategories)) draft.templateCategories = []
+            while (draft.templateCategories.some(item => item.id === id)) {
+              id = slugifyTemplateId(name).replace(/^tpl-/, 'cat-')
+            }
+            draft.templateCategories.push({ id, name, sortOrder, enabled })
+          })
+          json(response, 201, { category: listTemplateCategories(store.read(), true).find(item => item.id === id) })
+          return
+        }
+
+        const adminCategoryMatch = pathname.match(/^\/api\/admin\/categories\/([^/]+)$/)
+        if (request.method === 'PATCH' && adminCategoryMatch) {
+          const body = await readJson(request)
+          const categoryId = adminCategoryMatch[1]
+          await store.transaction(draft => {
+            if (!Array.isArray(draft.templateCategories)) draft.templateCategories = []
+            const item = draft.templateCategories.find(entry => entry.id === categoryId)
+            if (!item) throw new HttpError(404, 'CATEGORY_NOT_FOUND', '分类不存在')
+            if ('name' in body) item.name = cleanText(body.name, '分类名称', 20, true)
+            if ('sortOrder' in body) item.sortOrder = boundedInteger(body.sortOrder, '排序值', 0, 100000)
+            if ('enabled' in body) item.enabled = Boolean(body.enabled)
+          })
+          json(response, 200, { category: listTemplateCategories(store.read(), true).find(item => item.id === categoryId) })
+          return
+        }
+
+        if (request.method === 'DELETE' && adminCategoryMatch) {
+          const categoryId = adminCategoryMatch[1]
+          await store.transaction(draft => {
+            if (!Array.isArray(draft.templateCategories)) draft.templateCategories = []
+            const index = draft.templateCategories.findIndex(entry => entry.id === categoryId)
+            if (index === -1) throw new HttpError(404, 'CATEGORY_NOT_FOUND', '分类不存在')
+            const inUse = draft.templates.some(item => item.category === categoryId)
+            if (inUse) throw new HttpError(409, 'CATEGORY_IN_USE', '仍有模板使用该分类，请先调整模板后再删除')
+            if (draft.templateCategories.length <= 1) throw new HttpError(409, 'CATEGORY_REQUIRED', '至少保留一个模板分类')
+            draft.templateCategories.splice(index, 1)
+          })
+          json(response, 200, { ok: true, id: categoryId })
           return
         }
 
@@ -709,7 +788,7 @@ export async function createApplication() {
               id = slugifyTemplateId(body.name)
             }
             const item = { id, enabled: body.enabled !== false, coverAssetId: '' }
-            applyTemplateFields(item, body, true)
+            applyTemplateFields(item, body, true, listTemplateCategories(draft, true))
             draft.templates.push(item)
           })
           const state = store.read()
@@ -724,7 +803,7 @@ export async function createApplication() {
           await store.transaction(draft => {
             const item = draft.templates.find(template => template.id === templateId)
             if (!item) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在')
-            applyTemplateFields(item, body)
+            applyTemplateFields(item, body, false, listTemplateCategories(draft, true))
           })
           const state = store.read()
           json(response, 200, { template: publicTemplates(state, true).find(item => item.id === templateId) })

@@ -4,20 +4,54 @@ import { thumbStoragePath } from './thumbs.mjs'
 
 const statusLabels = { queued: '排队中', processing: '生成中', succeeded: '已完成', failed: '失败' }
 
+export const DEFAULT_TEMPLATE_CATEGORIES = [
+  { id: 'portrait', name: '人像', sortOrder: 10, enabled: true },
+  { id: 'life', name: '生活', sortOrder: 20, enabled: true },
+  { id: 'pet', name: '宠物', sortOrder: 30, enabled: true },
+  { id: 'art', name: '艺术', sortOrder: 40, enabled: true }
+]
+
+export function listTemplateCategories(state, admin = false) {
+  const source = Array.isArray(state.templateCategories) && state.templateCategories.length
+    ? state.templateCategories
+    : DEFAULT_TEMPLATE_CATEGORIES
+  return source
+    .filter(item => admin || item.enabled !== false)
+    .slice()
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
+    .map(item => ({
+      id: item.id,
+      name: item.name,
+      sortOrder: Number(item.sortOrder || 0),
+      enabled: item.enabled !== false
+    }))
+}
+
+export function categoryLabelFromState(state, categoryId) {
+  const found = listTemplateCategories(state, true).find(item => item.id === categoryId)
+  return found?.name || categoryId || ''
+}
+
 export function seedConfig(draft) {
   let changed = false
   if (!draft.settings) {
     draft.settings = {
       welcomeCredits: config.newUserCredits,
       checkinCredits: 3,
-      shareTitle: '来看看我用花漾相绘制作的作品'
+      shareTitle: '来看看我用花漾相绘制作的作品',
+      bannerSwitchMode: 'auto',
+      bannerSwitchIntervalMs: 4500,
+      bannerCircular: true
     }
     changed = true
   } else {
     const defaults = {
       welcomeCredits: config.newUserCredits,
       checkinCredits: 3,
-      shareTitle: '来看看我用花漾相绘制作的作品'
+      shareTitle: '来看看我用花漾相绘制作的作品',
+      bannerSwitchMode: 'auto',
+      bannerSwitchIntervalMs: 4500,
+      bannerCircular: true
     }
     for (const [key, value] of Object.entries(defaults)) {
       if (draft.settings[key] === undefined) {
@@ -29,6 +63,10 @@ export function seedConfig(draft) {
       draft.settings.shareTitle = '来看看我用花漾相绘制作的作品'
       changed = true
     }
+  }
+  if (!Array.isArray(draft.templateCategories) || !draft.templateCategories.length) {
+    draft.templateCategories = DEFAULT_TEMPLATE_CATEGORIES.map(item => ({ ...item }))
+    changed = true
   }
   if (!draft.templates.length) {
     draft.templates = defaultTemplates.map((item, index) => ({
@@ -101,13 +139,6 @@ export function findTemplate(state, templateId, includeDisabled = false) {
   return state.templates.find(item => item.id === templateId && (includeDisabled || item.enabled !== false))
 }
 
-const CATEGORY_LABELS = {
-  portrait: '人像',
-  life: '生活',
-  pet: '宠物',
-  art: '艺术'
-}
-
 export function publicTemplate(template, state, admin = false) {
   const cover = template.coverAssetId ? state.assets.find(item => item.id === template.coverAssetId) : null
   const fullCover = assetUrl(cover)
@@ -116,7 +147,7 @@ export function publicTemplate(template, state, admin = false) {
     name: template.name,
     shortName: template.shortName || String(template.name || '').slice(0, 4),
     category: template.category,
-    categoryLabel: CATEGORY_LABELS[template.category] || template.category || '',
+    categoryLabel: categoryLabelFromState(state, template.category),
     description: template.description,
     cost: template.cost,
     badge: template.badge || '',

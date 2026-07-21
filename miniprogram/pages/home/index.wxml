@@ -7,9 +7,9 @@
     indicator-dots="{{banners.length > 1}}"
     indicator-color="rgba(255,255,255,.55)"
     indicator-active-color="#ffffff"
-    autoplay="{{banners.length > 1}}"
-    interval="4500"
-    circular="{{banners.length > 1}}"
+    autoplay="{{bannerAutoplay}}"
+    interval="{{bannerInterval}}"
+    circular="{{bannerCircular}}"
   >
     <swiper-item wx:for="{{banners}}" wx:key="id">
       <view class="welcome-card banner-card" style="background: {{item.palette}}" data-path="{{item.targetPath}}" bindtap="openBanner">

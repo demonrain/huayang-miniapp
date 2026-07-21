@@ -8,6 +8,7 @@ const state = {
   coverTemplateId: '',
   editingBannerId: '',
   bannerImageId: '',
+  editingCategoryId: '',
   creditUserId: ''
 }
 
@@ -27,14 +28,21 @@ const elements = {
   jobRows: document.querySelector('#jobRows'),
   jobFilterForm: document.querySelector('#jobFilterForm'),
   bannerRows: document.querySelector('#bannerRows'),
+  bannerCarouselForm: document.querySelector('#bannerCarouselForm'),
+  bannerEnabledHint: document.querySelector('#bannerEnabledHint'),
   templateRows: document.querySelector('#templateRows'),
+  categoryRows: document.querySelector('#categoryRows'),
   packageList: document.querySelector('#packageList'),
   templateDialog: document.querySelector('#templateDialog'),
   templateDialogTitle: document.querySelector('#templateDialogTitle'),
   templateForm: document.querySelector('#templateForm'),
+  templateCategorySelect: document.querySelector('#templateCategorySelect'),
   bannerDialog: document.querySelector('#bannerDialog'),
   bannerDialogTitle: document.querySelector('#bannerDialogTitle'),
   bannerForm: document.querySelector('#bannerForm'),
+  categoryDialog: document.querySelector('#categoryDialog'),
+  categoryDialogTitle: document.querySelector('#categoryDialogTitle'),
+  categoryForm: document.querySelector('#categoryForm'),
   creditDialog: document.querySelector('#creditDialog'),
   creditForm: document.querySelector('#creditForm'),
   creditUserLabel: document.querySelector('#creditUserLabel'),
@@ -108,6 +116,7 @@ async function loadOverview() {
   renderOverview()
   renderTemplates()
   renderBanners()
+  renderCategories()
   renderPackages()
 }
 
@@ -128,17 +137,56 @@ function renderOverview() {
   elements.settingsForm.elements.welcomeCredits.value = settings.welcomeCredits
   elements.settingsForm.elements.checkinCredits.value = settings.checkinCredits
   elements.settingsForm.elements.shareTitle.value = settings.shareTitle
+  fillBannerCarouselForm()
 }
 
-const CATEGORY_LABELS = {
-  portrait: '人像',
-  life: '生活',
-  pet: '宠物',
-  art: '艺术'
+function categoryList() {
+  return Array.isArray(state.data?.templateCategories) ? state.data.templateCategories : []
 }
 
 function categoryLabel(categoryId) {
-  return CATEGORY_LABELS[categoryId] || categoryId || '-'
+  const found = categoryList().find(item => item.id === categoryId)
+  return found?.name || categoryId || '-'
+}
+
+function fillCategorySelect(selectedId = '') {
+  const categories = categoryList()
+  const options = categories.length
+    ? categories.map(item => {
+      const label = item.enabled === false ? `${item.name}（已停用）` : item.name
+      return `<option value="${escapeHtml(item.id)}">${escapeHtml(label)}</option>`
+    }).join('')
+    : '<option value="">请先创建分类</option>'
+  elements.templateCategorySelect.innerHTML = options
+  if (selectedId && categories.some(item => item.id === selectedId)) {
+    elements.templateCategorySelect.value = selectedId
+  } else if (categories.length) {
+    const enabled = categories.find(item => item.enabled !== false) || categories[0]
+    elements.templateCategorySelect.value = enabled.id
+  }
+}
+
+function fillBannerCarouselForm() {
+  if (!elements.bannerCarouselForm || !state.data) return
+  const settings = state.data.settings || {}
+  const form = elements.bannerCarouselForm.elements
+  form.bannerSwitchMode.value = settings.bannerSwitchMode === 'manual' ? 'manual' : 'auto'
+  form.bannerSwitchIntervalMs.value = Number(settings.bannerSwitchIntervalMs) || 4500
+  form.bannerCircular.checked = settings.bannerCircular !== false
+  const enabledCount = (state.data.banners || []).filter(item => item.enabled).length
+  if (elements.bannerEnabledHint) {
+    elements.bannerEnabledHint.textContent = `当前启用 ${enabledCount} 张。仅当启用 ≥ 2 张时，切换方式与间隔才会在小程序生效。`
+  }
+}
+
+function mediaThumbs(items, emptyText) {
+  const list = Array.isArray(items) ? items.filter(item => item?.url || item?.thumbUrl) : []
+  if (!list.length) return `<span class="muted">${escapeHtml(emptyText)}</span>`
+  return `<div class="job-media-row">${list.map((item, index) => {
+    const full = item.url || item.thumbUrl
+    const thumb = item.thumbUrl || item.url
+    return `<a class="job-media-thumb" href="${escapeHtml(full)}" target="_blank" rel="noreferrer" title="打开大图 ${index + 1}"><img src="${escapeHtml(thumb)}" alt=""></a>`
+  }).join('')}</div>`
 }
 
 function renderTemplates() {
@@ -164,6 +212,7 @@ function renderTemplates() {
 }
 
 function renderBanners() {
+  fillBannerCarouselForm()
   elements.bannerRows.innerHTML = state.data.banners.map(banner => `
     <tr>
       <td><div class="template-cell">
@@ -181,6 +230,29 @@ function renderBanners() {
       </div></td>
     </tr>
   `).join('') || emptyRow(6, '暂无 Banner')
+}
+
+function renderCategories() {
+  if (!elements.categoryRows || !state.data) return
+  const counts = {}
+  for (const template of state.data.templates || []) {
+    counts[template.category] = (counts[template.category] || 0) + 1
+  }
+  const categories = categoryList()
+  elements.categoryRows.innerHTML = categories.map(category => `
+    <tr>
+      <td><strong>${escapeHtml(category.name)}</strong></td>
+      <td><code class="mono-id">${escapeHtml(category.id)}</code></td>
+      <td>${Number(category.sortOrder)}</td>
+      <td>${Number(counts[category.id] || 0)}</td>
+      <td><span class="status-pill${category.enabled ? ' is-active' : ''}">${category.enabled ? '已启用' : '已停用'}</span></td>
+      <td><div class="row-actions">
+        <button class="row-button" data-category-action="edit" data-id="${escapeHtml(category.id)}">编辑</button>
+        <button class="row-button" data-category-action="toggle" data-id="${escapeHtml(category.id)}">${category.enabled ? '停用' : '启用'}</button>
+        <button class="row-button" data-category-action="delete" data-id="${escapeHtml(category.id)}">删除</button>
+      </div></td>
+    </tr>
+  `).join('') || emptyRow(6, '还没有分类，请先新增')
 }
 
 function renderPackages() {
@@ -247,11 +319,23 @@ async function loadJobs() {
   state.jobs = result.jobs
   elements.jobRows.innerHTML = state.jobs.map(job => `
     <tr>
-      <td>${job.coverUrl ? `<a class="work-thumb" href="${escapeHtml(job.coverUrl)}" target="_blank" rel="noreferrer"><img src="${escapeHtml(job.coverUrl)}" alt="查看作品"></a>` : `<span class="work-placeholder">${escapeHtml(job.templateShortName)}</span>`}<span class="cell-subtitle">${escapeHtml(shortId(job.id, 10))}</span></td>
+      <td>
+        <div class="job-media">
+          <div class="job-media-group">
+            <span class="job-media-label">原图</span>
+            ${mediaThumbs(job.originals, '无原图')}
+          </div>
+          <div class="job-media-group">
+            <span class="job-media-label">生成</span>
+            ${mediaThumbs(job.results, job.status === 'succeeded' ? '无结果' : '未生成')}
+          </div>
+        </div>
+        <span class="cell-subtitle">${escapeHtml(shortId(job.id, 12))}</span>
+      </td>
       <td><strong>${escapeHtml(job.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(job.userMaskedId)}</span></td>
       <td>${escapeHtml(job.templateName)}</td>
       <td><span class="job-status job-status--${escapeHtml(job.status)}">${escapeHtml(job.statusLabel)}</span></td>
-      <td>${job.assetIds.length} 张 / ${Number(job.cost)} 积分</td>
+      <td>${(job.assetIds || []).length} 张 / ${Number(job.cost)} 积分</td>
       <td>${escapeHtml(job.createdTime)}</td>
       <td>${escapeHtml(job.completedTime || '-')}</td>
       <td>${job.durationSeconds === null ? '-' : `${Number(job.durationSeconds)} 秒`}</td>
@@ -263,7 +347,7 @@ async function loadJobs() {
 async function switchView(name) {
   const titles = {
     overview: '概览与规则', users: '用户管理', transactions: '积分流水', jobs: '作品任务',
-    banners: '首页 Banner', templates: '模板管理', packages: '充值套餐'
+    banners: '首页 Banner', templates: '模板管理', categories: '模板分类', packages: '充值套餐'
   }
   document.querySelectorAll('.view-panel').forEach(view => { view.hidden = view.id !== `${name}View` })
   document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('is-active', item.dataset.view === name))
@@ -272,6 +356,8 @@ async function switchView(name) {
     if (name === 'users') await loadUsers()
     if (name === 'transactions') await loadTransactions()
     if (name === 'jobs') await loadJobs()
+    if (name === 'categories') renderCategories()
+    if (name === 'banners') fillBannerCarouselForm()
   } catch (error) {
     showToast(error.message, true)
   }
@@ -292,12 +378,14 @@ function openTemplateDialog(template = null) {
     form.id.readOnly = true
     form.id.required = false
   }
+  fillCategorySelect(template?.category || '')
   if (template) {
-    for (const key of ['id', 'name', 'shortName', 'category', 'cost', 'popularity', 'sortOrder', 'badge', 'palette', 'description', 'prompt']) {
+    for (const key of ['id', 'name', 'shortName', 'cost', 'popularity', 'sortOrder', 'badge', 'palette', 'description', 'prompt']) {
       if (form[key]) form[key].value = template[key] ?? ''
     }
     form.tags.value = (template.tags || []).join('，')
     form.enabled.checked = template.enabled
+    if (template.category) elements.templateCategorySelect.value = template.category
   } else {
     if (form.id) form.id.value = ''
     form.enabled.checked = true
@@ -305,10 +393,41 @@ function openTemplateDialog(template = null) {
     form.popularity.value = 0
     form.sortOrder.value = (state.data.templates.length + 1) * 10
     form.palette.value = 'linear-gradient(145deg, #f7b6c2, #f8dda0, #a8daca)'
-    form.category.value = 'portrait'
     form.shortName.value = ''
   }
+  if (!categoryList().length) {
+    showToast('请先在「模板分类」中创建分类', true)
+  }
   elements.templateDialog.showModal()
+}
+
+function categoryById(id) {
+  return categoryList().find(item => item.id === id)
+}
+
+function openCategoryDialog(category = null) {
+  state.editingCategoryId = category?.id || ''
+  elements.categoryDialogTitle.textContent = category ? '编辑分类' : '新增分类'
+  elements.categoryForm.reset()
+  const form = elements.categoryForm.elements
+  const idField = document.querySelector('#categoryIdField')
+  if (category) {
+    form.id.value = category.id
+    form.id.readOnly = true
+    form.id.required = false
+    if (idField) idField.hidden = false
+    form.name.value = category.name
+    form.sortOrder.value = Number(category.sortOrder || 0)
+    form.enabled.checked = category.enabled !== false
+  } else {
+    form.id.value = ''
+    form.id.readOnly = false
+    form.id.required = false
+    if (idField) idField.hidden = false
+    form.sortOrder.value = (categoryList().length + 1) * 10
+    form.enabled.checked = true
+  }
+  elements.categoryDialog.showModal()
 }
 
 function templatePayload(form) {
@@ -397,6 +516,26 @@ elements.settingsForm.addEventListener('submit', async event => {
   } catch (error) { showToast(error.message, true) }
 })
 
+if (elements.bannerCarouselForm) {
+  elements.bannerCarouselForm.addEventListener('submit', async event => {
+    event.preventDefault()
+    const values = new FormData(elements.bannerCarouselForm)
+    try {
+      const result = await api('/api/admin/settings', {
+        method: 'PATCH',
+        json: {
+          bannerSwitchMode: String(values.get('bannerSwitchMode') || 'auto'),
+          bannerSwitchIntervalMs: Number(values.get('bannerSwitchIntervalMs')),
+          bannerCircular: elements.bannerCarouselForm.elements.bannerCircular.checked
+        }
+      })
+      state.data.settings = result.settings
+      fillBannerCarouselForm()
+      showToast('Banner 轮播规则已保存')
+    } catch (error) { showToast(error.message, true) }
+  })
+}
+
 elements.userFilterForm.addEventListener('submit', event => { event.preventDefault(); loadUsers().catch(error => showToast(error.message, true)) })
 elements.transactionFilterForm.addEventListener('submit', event => { event.preventDefault(); loadTransactions().catch(error => showToast(error.message, true)) })
 elements.jobFilterForm.addEventListener('submit', event => { event.preventDefault(); loadJobs().catch(error => showToast(error.message, true)) })
@@ -482,6 +621,67 @@ elements.bannerImageInput.addEventListener('change', async () => {
 })
 
 document.querySelector('#addTemplateButton').addEventListener('click', () => openTemplateDialog())
+document.querySelector('#addCategoryButton')?.addEventListener('click', () => openCategoryDialog())
+
+if (elements.categoryRows) {
+  elements.categoryRows.addEventListener('click', async event => {
+    const button = event.target.closest('[data-category-action]')
+    if (!button) return
+    const category = categoryById(button.dataset.id)
+    if (!category) return
+    if (button.dataset.categoryAction === 'edit') {
+      openCategoryDialog(category)
+      return
+    }
+    if (button.dataset.categoryAction === 'toggle') {
+      try {
+        await api(`/api/admin/categories/${encodeURIComponent(category.id)}`, {
+          method: 'PATCH',
+          json: { enabled: !category.enabled }
+        })
+        await loadOverview()
+        showToast(category.enabled ? '分类已停用' : '分类已启用')
+      } catch (error) { showToast(error.message, true) }
+      return
+    }
+    if (button.dataset.categoryAction === 'delete') {
+      if (!window.confirm(`确认删除分类“${category.name}”？`)) return
+      try {
+        await api(`/api/admin/categories/${encodeURIComponent(category.id)}`, { method: 'DELETE' })
+        await loadOverview()
+        showToast('分类已删除')
+      } catch (error) { showToast(error.message, true) }
+    }
+  })
+}
+
+if (elements.categoryForm) {
+  elements.categoryForm.addEventListener('submit', async event => {
+    event.preventDefault()
+    const values = new FormData(elements.categoryForm)
+    const payload = {
+      name: String(values.get('name') || ''),
+      sortOrder: Number(values.get('sortOrder')),
+      enabled: elements.categoryForm.elements.enabled.checked
+    }
+    const idValue = String(values.get('id') || '').trim()
+    if (!state.editingCategoryId && idValue) payload.id = idValue
+    try {
+      if (state.editingCategoryId) {
+        await api(`/api/admin/categories/${encodeURIComponent(state.editingCategoryId)}`, {
+          method: 'PATCH',
+          json: payload
+        })
+      } else {
+        await api('/api/admin/categories', { method: 'POST', json: payload })
+      }
+      elements.categoryDialog.close()
+      await loadOverview()
+      showToast('分类已保存')
+    } catch (error) { showToast(error.message, true) }
+  })
+}
+
 elements.templateRows.addEventListener('click', async event => {
   const button = event.target.closest('[data-template-action]')
   if (!button) return
