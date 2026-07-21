@@ -21,6 +21,7 @@ import {
   publicTemplates,
   seedConfig
 } from './domain.mjs'
+import { ensureThumb, findOriginalForThumb, isThumbPath } from './thumbs.mjs'
 import { createMiniProgramCode, createMiniProgramUrlLink, isWechatShareConfigured } from './wechat-share.mjs'
 import { isSubscribeNotifyConfigured, sendJobResultSubscribeMessage } from './wechat-notify.mjs'
 
@@ -369,13 +370,25 @@ export async function createApplication() {
       }
 
       if (request.method === 'GET' && pathname.startsWith('/media/')) {
-        const relative = pathname.slice('/media/'.length)
-        const filename = path.resolve(config.mediaDir, relative)
+        const relative = pathname.slice('/media/'.length).replaceAll('\\', '/')
         const mediaRoot = `${path.resolve(config.mediaDir)}${path.sep}`
-        if (!filename.startsWith(mediaRoot) || !(await serveFile(response, filename))) {
+        const filename = path.resolve(config.mediaDir, relative)
+        if (!filename.startsWith(mediaRoot)) {
           throw new HttpError(404, 'MEDIA_NOT_FOUND', '图片不存在')
         }
-        return
+        if (await serveFile(response, filename)) return
+        // Lazy-generate missing thumbnails from the original file
+        if (isThumbPath(relative)) {
+          const originalRel = await findOriginalForThumb(relative)
+          if (originalRel) {
+            await ensureThumb(originalRel)
+            if (await serveFile(response, filename)) return
+            // Fall back to original so UI never breaks without sharp
+            const originalFile = path.resolve(config.mediaDir, originalRel)
+            if (originalFile.startsWith(mediaRoot) && (await serveFile(response, originalFile))) return
+          }
+        }
+        throw new HttpError(404, 'MEDIA_NOT_FOUND', '图片不存在')
       }
 
       if (request.method === 'GET' && pathname === '/api/config') {
@@ -667,6 +680,7 @@ export async function createApplication() {
           const filename = path.join(config.mediaDir, relativePath)
           await mkdir(path.dirname(filename), { recursive: true })
           await writeFile(filename, upload.data)
+          ensureThumb(relativePath).catch(error => console.warn('[thumbs] banner', error.message))
           await store.transaction(draft => {
             const banner = draft.banners.find(item => item.id === bannerId)
             if (!banner) throw new HttpError(404, 'BANNER_NOT_FOUND', 'Banner 不存在')
@@ -731,6 +745,7 @@ export async function createApplication() {
           const filename = path.join(config.mediaDir, relativePath)
           await mkdir(path.dirname(filename), { recursive: true })
           await writeFile(filename, upload.data)
+          ensureThumb(relativePath).catch(error => console.warn('[thumbs] cover', error.message))
           await store.transaction(draft => {
             const template = draft.templates.find(item => item.id === templateId)
             if (!template) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在')
@@ -842,6 +857,7 @@ export async function createApplication() {
         const filename = path.join(config.mediaDir, relativePath)
         await mkdir(path.dirname(filename), { recursive: true })
         await writeFile(filename, upload.data)
+        ensureThumb(relativePath).catch(error => console.warn('[thumbs] asset', error.message))
         const asset = await store.transaction(draft => {
           const item = {
             id, userId: user.id, originalName: path.basename(upload.filename).slice(0, 120), mime: detected.mime,
@@ -921,6 +937,22 @@ export async function createApplication() {
         const job = state.jobs.find(item => item.id === jobMatch[1] && item.userId === user.id)
         if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
         json(response, 200, { job: publicJob(job, state) })
+        return
+      }
+
+      if (request.method === 'DELETE' && jobMatch) {
+        await store.transaction(draft => {
+          const index = draft.jobs.findIndex(item => item.id === jobMatch[1] && item.userId === user.id)
+          if (index === -1) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+          const job = draft.jobs[index]
+          if (job.status !== 'failed') {
+            throw new HttpError(409, 'JOB_NOT_DELETABLE', '仅支持删除生成失败的作品记录')
+          }
+          draft.jobs.splice(index, 1)
+          // Drop share records tied to this job (if any)
+          draft.shares = draft.shares.filter(item => item.jobId !== job.id)
+        })
+        json(response, 200, { ok: true, id: jobMatch[1] })
         return
       }
 

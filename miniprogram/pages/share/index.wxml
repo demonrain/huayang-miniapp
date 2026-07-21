@@ -15,7 +15,7 @@
 
     <view class="shared-results">
       <view wx:for="{{share.results}}" wx:key="id" class="shared-result">
-        <image src="{{item.url}}" mode="widthFix" data-url="{{item.url}}" bindtap="preview"></image>
+        <image src="{{item.thumbUrl || item.url}}" mode="widthFix" data-url="{{item.url}}" lazy-load bindtap="preview"></image>
         <view class="shared-actions">
           <button data-url="{{item.url}}" bindtap="saveImage">保存图片</button>
           <button data-url="{{item.url}}" bindtap="shareImage">分享图片</button>

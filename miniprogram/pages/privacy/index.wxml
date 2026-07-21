@@ -1,0 +1,25 @@
+<view class="page privacy-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav show-back show-credit="{{false}}" title="{{title}}"></custom-nav>
+
+  <view class="privacy-hero">
+    <view class="privacy-kicker">{{type === 'agreement' ? 'SERVICE TERMS' : 'PRIVACY POLICY'}}</view>
+    <view class="privacy-title">{{title}}</view>
+    <view class="privacy-meta">花漾相绘 · 更新日期 {{updatedAt}}</view>
+  </view>
+
+  <view class="privacy-card">
+    <view class="privacy-lead">
+      请在使用本小程序前仔细阅读以下内容。本说明用于帮助你了解我们如何处理个人信息，并满足微信小程序发布审核对隐私保护的要求。
+    </view>
+
+    <view wx:for="{{sections}}" wx:key="title" class="privacy-section">
+      <view class="privacy-section__title">{{item.title}}</view>
+      <text class="privacy-section__body" user-select="{{true}}">{{item.body}}</text>
+    </view>
+  </view>
+
+  <view class="privacy-foot">
+    <view>如有疑问，请通过「我的」— 使用帮助与我们联系。</view>
+    <view class="privacy-foot__brand">花漾相绘 · 用心守护你的作品与隐私</view>
+  </view>
+</view>

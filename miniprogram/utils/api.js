@@ -57,6 +57,7 @@ module.exports = {
   get: path => request(path),
   post: (path, data) => request(path, { method: 'POST', data }),
   patch: (path, data) => request(path, { method: 'PATCH', data }),
+  del: path => request(path, { method: 'DELETE' }),
   upload
 }
 

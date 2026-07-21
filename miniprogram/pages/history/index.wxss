@@ -75,6 +75,26 @@
   z-index: 2;
 }
 
+.work-item__delete {
+  position: absolute;
+  top: 14rpx;
+  right: 14rpx;
+  z-index: 3;
+  padding: 8rpx 16rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2rpx solid #f0d5d0;
+  border-radius: 999rpx;
+  color: #c56f60;
+  font-size: 20rpx;
+  font-weight: 650;
+  box-shadow: 0 6rpx 14rpx rgba(108, 81, 92, 0.12);
+}
+
+.work-item--failed .work-item__cover {
+  opacity: 0.72;
+  filter: grayscale(0.15);
+}
+
 .work-item__meta {
   position: absolute;
   right: 14rpx;

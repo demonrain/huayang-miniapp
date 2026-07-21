@@ -97,6 +97,7 @@
           class="template-cover"
           src="{{item.coverUrl}}"
           mode="aspectFit"
+          lazy-load
         ></image>
         <block wx:else>
           <view class="art-paper">
@@ -131,4 +132,38 @@
   </view>
 
   <view wx:if="{{!loading && !filteredTemplates.length}}" class="empty">这个分类的模板还在准备中</view>
+
+  <!-- First-time onboarding: guide user through first work -->
+  <view wx:if="{{showOnboarding}}" class="onboard-mask" catchtouchmove="noop">
+    <view class="onboard-sheet">
+      <view class="onboard-kicker">新手指引</view>
+      <view class="onboard-title">3 步生成第一组作品</view>
+      <view class="onboard-steps">
+        <view class="onboard-step">
+          <view class="onboard-step__num">1</view>
+          <view class="onboard-step__body">
+            <view class="onboard-step__title">挑一个风格</view>
+            <view class="onboard-step__text">在首页点进喜欢的模板卡片</view>
+          </view>
+        </view>
+        <view class="onboard-step">
+          <view class="onboard-step__num">2</view>
+          <view class="onboard-step__body">
+            <view class="onboard-step__title">上传 1–6 张照片</view>
+            <view class="onboard-step__text">清晰人像/宠物效果更好</view>
+          </view>
+        </view>
+        <view class="onboard-step">
+          <view class="onboard-step__num">3</view>
+          <view class="onboard-step__body">
+            <view class="onboard-step__title">一键生成并收藏</view>
+            <view class="onboard-step__text">约 2–5 分钟完成，可在「作品」查看</view>
+          </view>
+        </view>
+      </view>
+      <view class="onboard-gift">新用户赠送 {{welcomeCredits}} 积分，足够试几张</view>
+      <button class="primary-button onboard-cta" bindtap="finishOnboarding">开始创作</button>
+      <view class="onboard-skip" bindtap="skipOnboarding">我先随便看看</view>
+    </view>
+  </view>
 </view>

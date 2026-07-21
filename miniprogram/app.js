@@ -73,6 +73,7 @@ App({
   /**
    * Require login for protected actions (checkin / generate / pay / works).
    * Shows a modal; on confirm runs WeChat login.
+   * After first login, guides user to authorize avatar + nickname (WeChat policy).
    */
   async requireLogin(message = '登录后即可使用该功能') {
     if (this.isLoggedIn()) return this.globalData.user
@@ -100,12 +101,37 @@ App({
       const user = await this.login()
       wx.hideLoading()
       wx.showToast({ title: '登录成功', icon: 'success' })
+      // WeChat no longer allows silent getUserInfo; prompt profile setup after login
+      this.maybePromptProfileSetup(user)
       return user
     } catch (error) {
       wx.hideLoading()
       wx.showToast({ title: error.message || '登录失败', icon: 'none' })
       throw error
     }
+  },
+
+  /**
+   * After WeChat login, open profile tab so user can one-tap authorize
+   * avatar (chooseAvatar) and nickname (type=nickname). Cannot silent-fetch.
+   */
+  maybePromptProfileSetup(user) {
+    if (!user || user.profileComplete) return
+    if (wx.getStorageSync('huayang_profile_setup_prompted')) return
+    wx.setStorageSync('huayang_profile_setup_prompted', '1')
+    setTimeout(() => {
+      wx.showModal({
+        title: '设置头像与昵称',
+        content: '登录成功！请授权使用微信头像和昵称，方便在作品页展示你的主页。',
+        confirmText: '去设置',
+        cancelText: '稍后',
+        success: res => {
+          if (res.confirm) {
+            wx.switchTab({ url: '/pages/profile/index' })
+          }
+        }
+      })
+    }, 400)
   },
 
   setUser(user) {

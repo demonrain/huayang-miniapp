@@ -109,6 +109,35 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     }
     assert.equal(completed.body.job.status, 'succeeded')
     assert.equal(completed.body.job.results.length, 1)
+    assert.ok(completed.body.job.results[0].url)
+    assert.ok(completed.body.job.results[0].thumbUrl)
+    assert.ok(completed.body.job.coverUrl)
+
+    // Succeeded jobs cannot be deleted; only failed records can
+    const deleteSucceeded = await api(`/api/jobs/${created.body.job.id}`, { method: 'DELETE', token })
+    assert.equal(deleteSucceeded.response.status, 409)
+
+    const failedJobId = 'test-failed-job-to-delete'
+    await application.store.transaction(draft => {
+      draft.jobs.push({
+        id: failedJobId,
+        clientRequestId: '',
+        userId: login.body.user.id,
+        templateId: 'film-diary',
+        assetIds: [upload.body.asset.id],
+        cost: 0,
+        status: 'failed',
+        results: [],
+        error: '测试失败记录',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+    })
+    const deletedFailed = await api(`/api/jobs/${failedJobId}`, { method: 'DELETE', token })
+    assert.equal(deletedFailed.response.status, 200)
+    assert.equal(deletedFailed.body.ok, true)
+    const missing = await api(`/api/jobs/${failedJobId}`, { token })
+    assert.equal(missing.response.status, 404)
 
     const adminLogin = await api('/api/admin/login', {
       method: 'POST', json: { password: 'test-admin-password' }

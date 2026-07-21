@@ -44,18 +44,20 @@
   </view>
 
   <view class="package-grid">
-    <button
+    <view
       wx:for="{{packages}}"
       wx:key="id"
       class="package-card {{selectedId === item.id ? 'package-card--selected' : ''}}"
       data-id="{{item.id}}"
       bindtap="selectPackage"
+      hover-class="package-card--hover"
     >
       <view wx:if="{{item.badge}}" class="package-badge">{{item.badge}}</view>
       <view class="package-credits">{{item.totalCredits}}<text> 积分</text></view>
       <view class="package-price"><text>¥</text>{{item.priceYuan}}</view>
       <view wx:if="{{item.bonus}}" class="package-bonus">含赠送 {{item.bonus}} 积分</view>
-    </button>
+      <view class="package-check">✓</view>
+    </view>
   </view>
 
   <button class="primary-button pay-button" loading="{{paying}}" disabled="{{!selectedId || paying}}" bindtap="pay">微信支付</button>

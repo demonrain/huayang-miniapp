@@ -36,6 +36,7 @@ Page({
     showQr: false,
     credits: null,
     retrying: false,
+    deleting: false,
     navSpacer: 176
   },
 
@@ -121,8 +122,10 @@ Page({
   },
 
   preview(event) {
+    // Preview loads full-resolution originals; list shows thumbnails first
     const current = event.currentTarget.dataset.url
-    wx.previewImage({ current, urls: this.data.job.results.map(item => item.url) })
+    const urls = this.data.job.results.map(item => item.url).filter(Boolean)
+    wx.previewImage({ current: current || urls[0], urls })
   },
 
   previewOriginal(event) {
@@ -310,6 +313,32 @@ Page({
       wx.showModal({ title: '重试失败', content: error.message || '请稍后重试', showCancel: false })
     } finally {
       this.setData({ retrying: false })
+    }
+  },
+
+  async deleteFailedJob() {
+    const job = this.data.job
+    if (!job || job.status !== 'failed' || this.data.deleting) return
+    const confirmed = await new Promise(resolve => {
+      wx.showModal({
+        title: '删除失败记录',
+        content: '确定删除这条失败记录吗？积分如已退回不会再次变动。',
+        confirmText: '删除',
+        confirmColor: '#c56f60',
+        success: res => resolve(Boolean(res.confirm)),
+        fail: () => resolve(false)
+      })
+    })
+    if (!confirmed) return
+    this.setData({ deleting: true })
+    try {
+      await api.del(`/api/jobs/${job.id}`)
+      wx.showToast({ title: '已删除', icon: 'success' })
+      setTimeout(() => wx.switchTab({ url: '/pages/history/index' }), 400)
+    } catch (error) {
+      wx.showToast({ title: error.message || '删除失败', icon: 'none' })
+    } finally {
+      this.setData({ deleting: false })
     }
   },
 

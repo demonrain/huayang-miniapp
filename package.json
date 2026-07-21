@@ -14,8 +14,10 @@
   "engines": {
     "node": ">=22"
   },
-  "devDependencies": {
-    "lucide-static": "^1.25.0",
+  "dependencies": {
     "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "lucide-static": "^1.25.0"
   }
 }

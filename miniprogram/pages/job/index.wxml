@@ -42,7 +42,13 @@
       </view>
       <view class="result-list">
         <view wx:for="{{job.results}}" wx:key="id" class="result-item">
-          <image src="{{item.url}}" mode="widthFix" data-url="{{item.url}}" bindtap="preview"></image>
+          <image
+            src="{{item.thumbUrl || item.url}}"
+            mode="widthFix"
+            data-url="{{item.url}}"
+            lazy-load
+            bindtap="preview"
+          ></image>
           <view class="result-number">{{index + 1}} / {{job.results.length}}</view>
           <!-- 暂时隐藏单张保存/分享操作
           <view class="result-actions">
@@ -73,7 +79,7 @@
               data-url="{{item.url}}"
               bindtap="previewOriginal"
             >
-              <image class="original-card__image" src="{{item.url}}" mode="aspectFill"></image>
+              <image class="original-card__image" src="{{item.thumbUrl || item.url}}" mode="aspectFill" lazy-load></image>
               <view class="original-card__label">原图 {{item.index}}</view>
             </view>
           </view>
@@ -124,6 +130,9 @@
       <view class="job-row-actions__cell">
         <button class="ghost-button job-row-btn" bindtap="createAgain">换个风格</button>
       </view>
+    </view>
+    <view wx:if="{{job.status === 'failed'}}" class="job-delete-wrap">
+      <button class="job-delete-btn" loading="{{deleting}}" disabled="{{deleting}}" bindtap="deleteFailedJob">删除这条失败记录</button>
     </view>
 
     <!-- 生成中 / 失败：查看作品 + 返回首页；完成：仅返回首页（作品已在本页展示） -->

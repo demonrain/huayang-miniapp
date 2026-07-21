@@ -3,8 +3,8 @@
 
   <view wx:if="{{!user}}" class="guest-panel">
     <view class="guest-title">登录后管理个人主页</view>
-    <view class="guest-sub">游客可浏览模板；签到、创作与作品需要登录。</view>
-    <button class="primary-button guest-login" bindtap="doLogin">微信登录</button>
+    <view class="guest-sub">游客可浏览模板；签到、创作与作品需要登录。登录后可一键授权微信头像与昵称。</view>
+    <button class="primary-button guest-login" bindtap="doLogin">微信快捷登录</button>
   </view>
 
   <block wx:else>
@@ -16,7 +16,7 @@
             <text class="avatar-initial">{{avatarInitial}}</text>
           </view>
         </view>
-        <view class="avatar-edit">换</view>
+        <view class="avatar-edit">{{avatarUrl ? '改' : '授权'}}</view>
       </button>
       <view class="profile-copy">
         <view class="profile-kicker">MY XIANGHUI</view>
@@ -24,7 +24,7 @@
           class="nickname-input"
           type="nickname"
           value="{{nickname}}"
-          placeholder="点击填写微信昵称"
+          placeholder="点此使用微信昵称"
           bindinput="nicknameInput"
           bindblur="nicknameBlur"
           bindnicknamereview="nicknameReview"
@@ -33,9 +33,24 @@
       </view>
     </view>
 
-    <view wx:if="{{!profileComplete}}" class="profile-tip">
-      <view class="profile-tip__title">完善微信资料</view>
-      <view class="profile-tip__text">点击头像选择微信头像，点击昵称栏使用微信昵称，授权后会保存到你的账号。</view>
+    <view wx:if="{{!profileComplete}}" class="profile-setup">
+      <view class="profile-setup__title">完善微信资料（约 10 秒）</view>
+      <view class="profile-setup__text">
+        微信政策要求：头像与昵称需你主动授权，无法在登录时静默读取。请按下面两步完成，完成后会自动显示在个人主页。
+      </view>
+      <view class="profile-setup__steps">
+        <view class="profile-setup__step">
+          <text class="profile-setup__num">1</text>
+          <text>点左侧圆形头像 → 选择「用微信头像」</text>
+        </view>
+        <view class="profile-setup__step">
+          <text class="profile-setup__num">2</text>
+          <text>点昵称输入框 → 选择微信昵称并确认</text>
+        </view>
+      </view>
+      <button class="primary-button profile-setup__btn" open-type="chooseAvatar" bindchooseavatar="chooseAvatar">
+        立即授权微信头像
+      </button>
     </view>
 
     <view class="stats-grid">
@@ -46,12 +61,13 @@
 
     <view class="menu-list">
       <button bindtap="openHelp"><view class="menu-label"><view class="menu-icon menu-icon--help">?</view><text>使用帮助</text></view><text class="menu-arrow">›</text></button>
-      <button bindtap="openPrivacy"><view class="menu-label"><view class="menu-icon menu-icon--privacy">i</view><text>隐私说明</text></view><text class="menu-arrow">›</text></button>
+      <button bindtap="openPrivacy"><view class="menu-label"><view class="menu-icon menu-icon--privacy">i</view><text>用户隐私说明</text></view><text class="menu-arrow">›</text></button>
+      <button bindtap="openUserAgreement"><view class="menu-label"><view class="menu-icon menu-icon--agree">约</view><text>用户服务协议</text></view><text class="menu-arrow">›</text></button>
     </view>
 
     <view class="account-note">
       <view class="account-note__title">微信快捷登录已开启</view>
-      <view>你的作品与积分会跟随当前微信账号保存。头像与昵称需在本页主动授权后才会写入资料。</view>
+      <view>账号与积分绑定当前微信。头像、昵称仅在你授权后写入资料；你可随时在本页修改。</view>
     </view>
   </block>
 </view>

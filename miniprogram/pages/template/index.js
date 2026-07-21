@@ -78,6 +78,7 @@ Page({
         key,
         name: item.shortName || item.name || '',
         coverUrl: item.coverUrl || '',
+        coverFullUrl: item.coverFullUrl || item.coverUrl || '',
         palette: item.palette || 'linear-gradient(145deg, #f2c5cc, #e9f7f2)'
       })
     }
@@ -96,6 +97,7 @@ Page({
         key: `placeholder-${samples.length}`,
         name: current.shortName || '参考',
         coverUrl: current.coverUrl || '',
+        coverFullUrl: current.coverFullUrl || current.coverUrl || '',
         palette: current.palette || 'linear-gradient(145deg, #f2c5cc, #e9f7f2)'
       })
     }
@@ -105,14 +107,18 @@ Page({
 
   previewCover() {
     const template = this.data.template
-    if (!template?.coverUrl) return
-    wx.previewImage({ current: template.coverUrl, urls: [template.coverUrl] })
+    if (!template) return
+    const full = template.coverFullUrl || template.coverUrl
+    if (!full) return
+    wx.previewImage({ current: full, urls: [full] })
   },
 
   previewSample(event) {
     const url = event.currentTarget.dataset.url
     if (!url) return
-    const urls = this.data.samples.map(item => item.coverUrl).filter(Boolean)
+    const urls = this.data.samples
+      .map(item => item.coverFullUrl || item.coverUrl)
+      .filter(Boolean)
     if (!urls.length) return
     wx.previewImage({ current: url, urls })
   },

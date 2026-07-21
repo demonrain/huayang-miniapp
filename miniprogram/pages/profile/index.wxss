@@ -1,22 +1,60 @@
-.profile-tip {
+.profile-setup {
   margin-top: 18rpx;
-  padding: 20rpx 22rpx;
-  background: #fff8e7;
+  padding: 24rpx 22rpx;
+  background: linear-gradient(180deg, #fff8e7 0%, #fffdf8 100%);
   border: 2rpx solid #f3ead1;
-  border-radius: 14rpx;
+  border-radius: 16rpx;
 }
 
-.profile-tip__title {
+.profile-setup__title {
   color: #9b7b3f;
-  font-size: 24rpx;
-  font-weight: 650;
+  font-size: 28rpx;
+  font-weight: 700;
 }
 
-.profile-tip__text {
-  margin-top: 8rpx;
+.profile-setup__text {
+  margin-top: 10rpx;
   color: #84775c;
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+
+.profile-setup__steps {
+  margin: 18rpx 0 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.profile-setup__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  color: #6f6550;
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.profile-setup__num {
+  width: 36rpx;
+  height: 36rpx;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 50%;
+  color: var(--coral);
+  font-weight: 700;
   font-size: 20rpx;
-  line-height: 1.55;
+  line-height: 36rpx;
+  text-align: center;
+}
+
+.profile-setup__btn {
+  width: 100%;
+  height: 84rpx;
+  line-height: 84rpx;
 }
 
 .guest-panel {
@@ -168,6 +206,7 @@
 .menu-icon { width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-family: Georgia, serif; font-size: 22rpx; font-weight: 700; line-height: 44rpx; }
 .menu-icon--help { background: var(--pink-soft); color: var(--coral); }
 .menu-icon--privacy { background: var(--mint-soft); color: var(--green); }
+.menu-icon--agree { background: #f3eef8; color: var(--lavender); }
 .menu-arrow { color: #c5b7bc; font-size: 36rpx; font-weight: 300; }
 
 .account-note { margin-top: 24rpx; padding: 22rpx; background: #fff8e7; border: 2rpx solid #f3ead1; border-radius: 14rpx; color: #84775c; font-size: 20rpx; line-height: 1.65; }

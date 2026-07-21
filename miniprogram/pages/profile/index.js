@@ -46,8 +46,8 @@ Page({
       user,
       stats: stats || this.data.stats,
       avatarUrl: user.avatarUrl || '',
-      nickname,
-      avatarInitial: (nickname || '画').slice(0, 1),
+      nickname: nickname === '微信用户' ? '' : nickname,
+      avatarInitial: (nickname && nickname !== '微信用户' ? nickname : '画').slice(0, 1),
       profileComplete: Boolean(user.profileComplete)
     })
   },
@@ -56,9 +56,6 @@ Page({
     try {
       await getApp().requireLogin('登录后可管理个人资料与作品数据')
       await this.loadProfile()
-      if (!this.data.profileComplete) {
-        wx.showToast({ title: '请设置头像和昵称', icon: 'none' })
-      }
     } catch (error) {}
   },
 
@@ -71,12 +68,7 @@ Page({
     const avatarUrl = event.detail.avatarUrl
     if (!avatarUrl) return
     this.setData({ avatarUrl })
-    // Temp file from WeChat: upload then bind asset. HTTPS CDN url: save directly.
-    if (/^https:\/\//i.test(avatarUrl)) {
-      await this.saveProfile({ avatarUrl })
-      return
-    }
-    await this.saveProfile({ avatarUrl })
+    await this.saveProfile({ avatarUrl }, { silent: false })
   },
 
   nicknameInput(event) {
@@ -84,7 +76,6 @@ Page({
   },
 
   nicknameReview(event) {
-    // WeChat nickname review callback (pass / fail)
     if (event.detail && event.detail.pass === false) {
       wx.showToast({ title: '昵称未通过审核', icon: 'none' })
     }
@@ -98,12 +89,11 @@ Page({
     await this.saveProfile({ nickname })
   },
 
-  async saveProfile(changes) {
+  async saveProfile(changes, options = {}) {
     try {
       await getApp().requireLogin('登录后可更新资料')
       let payload = { ...changes }
       const avatarUrl = changes.avatarUrl || ''
-      // chooseAvatar usually returns a local temp path that must be uploaded
       const isLocalTemp =
         avatarUrl.startsWith('wxfile://') ||
         avatarUrl.startsWith('http://tmp/') ||
@@ -122,7 +112,9 @@ Page({
       const { user } = await api.patch('/api/me', payload)
       getApp().setUser(user)
       this.applyUser(user)
-      wx.showToast({ title: '资料已更新', icon: 'success' })
+      if (!options.silent) {
+        wx.showToast({ title: '资料已更新', icon: 'success' })
+      }
     } catch (error) {
       if (error.code === 'LOGIN_CANCELLED') return
       wx.showToast({ title: error.message, icon: 'none' })
@@ -132,16 +124,16 @@ Page({
   openHelp() {
     wx.showModal({
       title: '使用帮助',
-      content: '选择风格后上传清晰照片即可生成。任务失败时积分会自动退回。头像请点左侧圆形按钮授权微信头像，昵称请点输入框授权微信昵称。',
+      content: '1. 在首页选择风格\n2. 上传 1–6 张清晰照片\n3. 消耗积分生成作品（约 2–5 分钟）\n\n失败任务积分会自动退回。头像请点圆形按钮授权微信头像，昵称请点输入框使用微信昵称（微信要求用户主动授权，无法静默获取）。',
       showCancel: false
     })
   },
 
   openPrivacy() {
-    wx.showModal({
-      title: '隐私说明',
-      content: '上传的照片仅用于完成本次图片生成。微信头像与昵称仅在你主动授权后才会保存到账号资料中。',
-      showCancel: false
-    })
+    wx.navigateTo({ url: '/pages/privacy/index?type=privacy' })
+  },
+
+  openUserAgreement() {
+    wx.navigateTo({ url: '/pages/privacy/index?type=agreement' })
   }
 })

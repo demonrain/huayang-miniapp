@@ -39,10 +39,10 @@
           wx:key="key"
           class="sample-card"
           style="background: {{item.palette}}"
-          data-url="{{item.coverUrl}}"
+          data-url="{{item.coverFullUrl || item.coverUrl}}"
           bindtap="previewSample"
         >
-          <image wx:if="{{item.coverUrl}}" src="{{item.coverUrl}}" mode="aspectFill"></image>
+          <image wx:if="{{item.coverUrl}}" src="{{item.coverUrl}}" mode="aspectFill" lazy-load></image>
           <text wx:else class="sample-card__label">{{item.name}}</text>
         </view>
       </view>

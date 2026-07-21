@@ -3,11 +3,13 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
+  z-index: 10000;
   pointer-events: none;
   background: #fff9f8;
   border-bottom: 1rpx solid rgba(240, 227, 229, 0.9);
   box-shadow: 0 6rpx 20rpx rgba(116, 83, 96, 0.04);
+  /* Keep solid so page content never shows through while scrolling */
+  backdrop-filter: none;
 }
 
 .custom-nav__row {

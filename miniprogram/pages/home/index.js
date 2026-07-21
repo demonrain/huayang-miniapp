@@ -28,7 +28,8 @@ Page({
       { id: 'art', name: '艺术' }
     ],
     activeCategory: 'all',
-    navSpacer: 176
+    navSpacer: 176,
+    showOnboarding: false
   },
 
   onLoad() {
@@ -89,6 +90,7 @@ Page({
         ? [{ id: 'all', name: '全部' }, ...config.templateCategories.map(item => ({ id: item.id, name: item.name }))]
         : this.data.categories
       this.stopLoadingTips()
+      const showOnboarding = !wx.getStorageSync('huayang_onboarding_done')
       this.setData({
         user: app.isLoggedIn() ? user : null,
         banners,
@@ -98,7 +100,8 @@ Page({
         filteredTemplates: this.data.activeCategory === 'all'
           ? displayTemplates
           : displayTemplates.filter(item => item.category === this.data.activeCategory),
-        loading: false
+        loading: false,
+        showOnboarding
       })
     } catch (error) {
       this.stopLoadingTips()
@@ -130,6 +133,7 @@ Page({
 
   startCreate(event) {
     const id = event.currentTarget.dataset.id
+    this.markOnboardingDone()
     wx.navigateTo({ url: `/pages/template/index?id=${id}` })
   },
 
@@ -139,5 +143,26 @@ Page({
     const tabPages = ['/pages/home/index', '/pages/history/index', '/pages/wallet/index', '/pages/profile/index']
     if (tabPages.includes(path)) wx.switchTab({ url: path })
     else wx.navigateTo({ url: path })
-  }
+  },
+
+  markOnboardingDone() {
+    wx.setStorageSync('huayang_onboarding_done', '1')
+    if (this.data.showOnboarding) this.setData({ showOnboarding: false })
+  },
+
+  finishOnboarding() {
+    this.markOnboardingDone()
+    const first = this.data.filteredTemplates[0] || this.data.templates[0]
+    if (first) {
+      wx.navigateTo({ url: `/pages/template/index?id=${first.id}` })
+      return
+    }
+    wx.showToast({ title: '请选择一个风格', icon: 'none' })
+  },
+
+  skipOnboarding() {
+    this.markOnboardingDone()
+  },
+
+  noop() {}
 })

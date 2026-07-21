@@ -28,7 +28,7 @@
     <view
       wx:for="{{jobs}}"
       wx:key="id"
-      class="work-item"
+      class="work-item {{item.status === 'failed' ? 'work-item--failed' : ''}}"
       data-id="{{item.id}}"
       bindtap="openJob"
     >
@@ -37,11 +37,18 @@
         class="work-item__cover"
         src="{{item.coverUrl}}"
         mode="widthFix"
+        lazy-load
       ></image>
       <view wx:else class="work-item__placeholder" style="background: {{item.templatePalette}}">
         <text>{{item.templateShortName}}</text>
       </view>
       <view class="work-item__badge status status--{{item.status}}">{{item.statusLabel}}</view>
+      <view
+        wx:if="{{item.status === 'failed'}}"
+        class="work-item__delete"
+        data-id="{{item.id}}"
+        catchtap="deleteFailedJob"
+      >删除</view>
       <view class="work-item__meta">
         <text class="work-item__name">{{item.templateName}}</text>
         <text class="work-item__sub">{{item.relativeTime}} · {{item.assetIds.length}} 张</text>

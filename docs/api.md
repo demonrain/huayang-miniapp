@@ -15,6 +15,7 @@
 | `POST` | `/api/jobs` | 创建生成任务 |
 | `GET` | `/api/jobs` | 当前用户任务列表 |
 | `GET` | `/api/jobs/:id` | 任务状态与结果 |
+| `DELETE` | `/api/jobs/:id` | 删除失败任务记录（仅 `failed`） |
 | `GET` | `/api/wallet` | 余额、套餐和积分明细 |
 | `POST` | `/api/checkins` | 每日签到并领取后台配置的积分 |
 | `POST` | `/api/payments/orders` | 创建充值订单 |

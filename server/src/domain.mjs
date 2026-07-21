@@ -1,5 +1,6 @@
 import { config } from './config.mjs'
 import { templates as defaultTemplates, creditPackages as defaultPackages } from './catalog.mjs'
+import { thumbStoragePath } from './thumbs.mjs'
 
 const statusLabels = { queued: '排队中', processing: '生成中', succeeded: '已完成', failed: '失败' }
 
@@ -81,8 +82,19 @@ export function mediaUrl(storagePath) {
   return `${config.publicBaseUrl}/media/${storagePath.split('/').map(encodeURIComponent).join('/')}`
 }
 
+/** Thumbnail URL for list/grid; falls back to full image URL if no storage path. */
+export function mediaThumbUrl(storagePath) {
+  if (!storagePath) return ''
+  const thumb = thumbStoragePath(storagePath)
+  return thumb ? mediaUrl(thumb) : mediaUrl(storagePath)
+}
+
 export function assetUrl(asset) {
   return asset ? mediaUrl(asset.storagePath) : ''
+}
+
+export function assetThumbUrl(asset) {
+  return asset ? mediaThumbUrl(asset.storagePath) : ''
 }
 
 export function findTemplate(state, templateId, includeDisabled = false) {
@@ -98,6 +110,7 @@ const CATEGORY_LABELS = {
 
 export function publicTemplate(template, state, admin = false) {
   const cover = template.coverAssetId ? state.assets.find(item => item.id === template.coverAssetId) : null
+  const fullCover = assetUrl(cover)
   const value = {
     id: template.id,
     name: template.name,
@@ -110,7 +123,9 @@ export function publicTemplate(template, state, admin = false) {
     tags: Array.isArray(template.tags) ? template.tags : [],
     popularity: Number(template.popularity || 0),
     palette: template.palette,
-    coverUrl: assetUrl(cover),
+    // Lists load thumb first; full cover available for detail/preview
+    coverUrl: assetThumbUrl(cover) || fullCover,
+    coverFullUrl: fullCover,
     enabled: template.enabled !== false,
     sortOrder: Number(template.sortOrder || 0)
   }
@@ -123,6 +138,7 @@ export function publicTemplate(template, state, admin = false) {
 
 export function publicBanner(item, state, admin = false) {
   const image = item.imageAssetId ? state.assets.find(asset => asset.id === item.imageAssetId) : null
+  const fullImage = assetUrl(image)
   const value = {
     id: item.id,
     title: item.title,
@@ -130,7 +146,8 @@ export function publicBanner(item, state, admin = false) {
     badge: item.badge || '',
     palette: item.palette || '#e9f7f2',
     targetPath: item.targetPath || '',
-    imageUrl: assetUrl(image),
+    imageUrl: assetThumbUrl(image) || fullImage,
+    imageFullUrl: fullImage,
     enabled: item.enabled !== false,
     sortOrder: Number(item.sortOrder || 0)
   }
@@ -175,21 +192,30 @@ export function publicPackages(state, admin = false) {
 
 export function publicJob(job, state) {
   const template = findTemplate(state, job.templateId, true)
-  const results = (job.results || []).map(result => ({
-    id: result.id,
-    mime: result.mime,
-    url: mediaUrl(result.storagePath)
-  }))
+  const results = (job.results || []).map(result => {
+    const full = mediaUrl(result.storagePath)
+    const thumb = mediaThumbUrl(result.storagePath)
+    return {
+      id: result.id,
+      mime: result.mime,
+      url: full,
+      thumbUrl: thumb || full
+    }
+  })
   const originals = (job.assetIds || []).map((assetId, index) => {
     const asset = state.assets.find(item => item.id === assetId)
     if (!asset) return null
+    const full = assetUrl(asset)
     return {
       id: asset.id,
       mime: asset.mime,
-      url: assetUrl(asset),
+      url: full,
+      thumbUrl: assetThumbUrl(asset) || full,
       index: index + 1
     }
   }).filter(Boolean)
+  const coverFull = results[0]?.url || originals[0]?.url || ''
+  const coverThumb = results[0]?.thumbUrl || originals[0]?.thumbUrl || coverFull
   return {
     id: job.id,
     templateId: job.templateId,
@@ -207,7 +233,9 @@ export function publicJob(job, state) {
     statusLabel: statusLabels[job.status] || job.status,
     results,
     originals,
-    coverUrl: results[0]?.url || originals[0]?.url || ''
+    // List / grid uses thumb; keep full for preview / share
+    coverUrl: coverThumb,
+    coverFullUrl: coverFull
   }
 }
 
@@ -224,6 +252,14 @@ export function publicShare(share, state) {
     qrcodeUrl: mediaUrl(share.qrcodeStoragePath),
     templateName: template?.name || '花漾相绘作品',
     templatePalette: template?.palette || '#f2c5cc',
-    results: (job.results || []).map(result => ({ id: result.id, mime: result.mime, url: mediaUrl(result.storagePath) }))
+    results: (job.results || []).map(result => {
+      const full = mediaUrl(result.storagePath)
+      return {
+        id: result.id,
+        mime: result.mime,
+        url: full,
+        thumbUrl: mediaThumbUrl(result.storagePath) || full
+      }
+    })
   }
 }

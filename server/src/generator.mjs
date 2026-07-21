@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises'
+import { ensureThumb } from './thumbs.mjs'
 import path from 'node:path'
 import { Blob } from 'node:buffer'
 import { config } from './config.mjs'
@@ -80,8 +81,10 @@ async function mockGenerate(job, assets) {
     const asset = assets[index]
     const extension = path.extname(asset.storagePath) || extensionForMime(asset.mime)
     const relativePath = path.join('outputs', job.userId, `${job.id}-${index + 1}${extension}`)
+    const storagePath = relativePath.replaceAll('\\', '/')
     await copyFile(path.join(config.mediaDir, asset.storagePath), path.join(config.mediaDir, relativePath))
-    results.push({ id: `${job.id}-${index + 1}`, storagePath: relativePath.replaceAll('\\', '/'), mime: asset.mime })
+    ensureThumb(storagePath).catch(error => console.warn('[thumbs] mock result', error.message))
+    results.push({ id: `${job.id}-${index + 1}`, storagePath, mime: asset.mime })
   }
   return results
 }
@@ -211,8 +214,10 @@ async function compatibleGenerate(job, template, assets) {
     }
 
     const relativePath = path.join('outputs', job.userId, `${job.id}-${index + 1}${extensionForMime(mime)}`)
+    const storagePath = relativePath.replaceAll('\\', '/')
     await writeFile(path.join(config.mediaDir, relativePath), output)
-    results.push({ id: `${job.id}-${index + 1}`, storagePath: relativePath.replaceAll('\\', '/'), mime })
+    ensureThumb(storagePath).catch(error => console.warn('[thumbs] result', error.message))
+    results.push({ id: `${job.id}-${index + 1}`, storagePath, mime })
     console.log(
       `[image:compatible] job=${job.id} image ${index + 1}/${assets.length} ok in ${Date.now() - startedAt}ms ` +
       `bytes=${output.length} revised=${item.revised_prompt ? 'yes' : 'no'}`

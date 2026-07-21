@@ -105,5 +105,5 @@ export async function serveFile(response, filename, cache = true) {
 export function setCors(response) {
   response.setHeader('access-control-allow-origin', '*')
   response.setHeader('access-control-allow-headers', 'authorization, content-type')
-  response.setHeader('access-control-allow-methods', 'GET, POST, PATCH, OPTIONS')
+  response.setHeader('access-control-allow-methods', 'GET, POST, PATCH, DELETE, OPTIONS')
 }
