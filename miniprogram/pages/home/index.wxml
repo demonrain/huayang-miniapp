@@ -45,6 +45,15 @@
     </view>
   </view>
 
+  <view wx:if="{{latestAnnouncement}}" class="announcement-entry" bindtap="openLatestAnnouncement" hover-class="announcement-entry--hover">
+    <view class="announcement-entry__badge">公告</view>
+    <view class="announcement-entry__copy">
+      <view class="announcement-entry__title">{{latestAnnouncement.title}}</view>
+      <view class="announcement-entry__content">{{latestAnnouncement.content}}</view>
+    </view>
+    <view class="announcement-entry__arrow">›</view>
+  </view>
+
   <view class="section-title">
     <view>
       <view class="section-title__main">挑一款心动风格</view>
@@ -145,39 +154,39 @@
   <!-- First-time onboarding: invite into interactive fake-gen tour -->
   <view wx:if="{{showOnboarding}}" class="onboard-mask" catchtouchmove="noop">
     <view class="onboard-sheet">
-      <view class="onboard-kicker">新手互动练习</view>
-      <view class="onboard-title">用真实模板走一遍生成</view>
+      <view class="onboard-kicker">游客模拟创作</view>
+      <view class="onboard-title">不登录，也能先体验一次生图</view>
       <view class="onboard-lead">
-        界面与正式创作相同（模板详情 → 选图 → 作品页），仅提交与出图为演示，不扣积分、不上传。
+        我们已经准备好示例照片，接下来会带你走过模板详情、选图、生成进度和结果页。全程不登录、不上传、不扣积分。
       </view>
       <view class="onboard-steps onboard-steps--compact">
         <view class="onboard-step">
           <view class="onboard-step__num">1</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">真实风格</view>
+            <view class="onboard-step__title">看模板</view>
           </view>
         </view>
         <view class="onboard-step">
           <view class="onboard-step__num">2</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">选照片</view>
+            <view class="onboard-step__title">用示例图</view>
           </view>
         </view>
         <view class="onboard-step">
           <view class="onboard-step__num">3</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">演示提交</view>
+            <view class="onboard-step__title">看进度</view>
           </view>
         </view>
         <view class="onboard-step">
           <view class="onboard-step__num">4</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">演示出图</view>
+            <view class="onboard-step__title">看结果</view>
           </view>
         </view>
       </view>
       <view class="onboard-gift">新用户赠送 {{welcomeCredits}} 积分 · 练习不消耗</view>
-      <button class="primary-button onboard-cta" bindtap="finishOnboarding">开始练习</button>
+      <button class="primary-button onboard-cta" bindtap="finishOnboarding">开始模拟生图</button>
       <view class="onboard-skip" bindtap="skipOnboarding">我先随便看看</view>
     </view>
   </view>

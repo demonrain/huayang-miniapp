@@ -2,6 +2,8 @@ const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
 const { isDemoQuery, buildDemoJob, saveDemoJob, delay } = require('../../utils/demo')
 
+const DEMO_SAMPLE = { path: '/assets/demo/demo-photo.jpg', size: 0, demoSample: true }
+
 Page({
   data: {
     templateId: '',
@@ -38,6 +40,8 @@ Page({
       if (!template) throw new Error('模板不存在或已下架')
       this.setData({
         template,
+        files: demo ? [DEMO_SAMPLE] : this.data.files,
+        totalCost: demo ? Number(template.cost || 0) : this.data.totalCost,
         credits: app.isLoggedIn() ? (user?.credits ?? null) : null,
         subscribeEnabled: Boolean(config.subscribeEnabled && config.subscribeTemplateId),
         subscribeTemplateId: config.subscribeTemplateId || ''
@@ -60,7 +64,8 @@ Page({
       sizeType: ['compressed'],
       success: ({ tempFiles }) => {
         const next = tempFiles.map(file => ({ path: file.tempFilePath, size: file.size }))
-        const files = this.data.files.concat(next)
+        const current = this.data.demo && this.data.files.every(file => file.demoSample) ? [] : this.data.files
+        const files = current.concat(next)
         this.setData({ files, totalCost: files.length * this.data.template.cost })
       }
     })

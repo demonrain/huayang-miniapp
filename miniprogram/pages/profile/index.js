@@ -250,8 +250,8 @@ Page({
   openHelp() {
     wx.showModal({
       title: '使用帮助',
-      content: '真实流程：首页选风格 → 上传 1–6 张照片 → 确认积分生成（约 2–5 分钟）。失败任务积分自动退回。\n\n可进入「互动练习」走一遍假生成（不扣积分）。',
-      confirmText: '互动练习',
+      content: '真实流程：首页选风格 → 上传 1–6 张照片 → 确认积分生成（约 2–5 分钟）。失败任务积分自动退回。\n\n可进入「模拟生图」使用本地示例照片走完整流程，不登录、不上传、不扣积分。',
+      confirmText: '模拟生图',
       cancelText: '知道了',
       success: (res) => {
         if (res.confirm) {

@@ -33,6 +33,8 @@ Page({
     activeCategory: 'all',
     navSpacer: 176,
     showOnboarding: false,
+    announcements: [],
+    latestAnnouncement: null,
     announcement: null,
     showAnnouncement: false
   },
@@ -51,10 +53,11 @@ Page({
     if (!this.data.loading) this.refreshUser()
     // Sync sheet if guide page completed/skipped while we were away
     const done = !!wx.getStorageSync('huayang_onboarding_done')
-    if (done && this.data.showOnboarding) {
+    const guestTourPending = !getApp().isLoggedIn() && !done
+    if (!guestTourPending && this.data.showOnboarding) {
       this.setData({ showOnboarding: false })
     }
-    if (!done) return
+    if (guestTourPending) return
     this.maybeShowAnnouncement()
   },
 
@@ -86,10 +89,14 @@ Page({
       const app = getApp()
       // Guest can browse templates; only restore session if already logged in
       const user = await app.ensureSession()
-      const [{ templates }, { banners }, config] = await Promise.all([
+      const [{ templates }, { banners }, config, announcementResult] = await Promise.all([
         api.get('/api/templates'),
         api.get('/api/banners'),
-        api.get('/api/config')
+        api.get('/api/config'),
+        api.get('/api/announcements').catch(error => {
+          console.warn('[announcement] load failed', error && error.message)
+          return { announcements: [] }
+        })
       ])
       const displayTemplates = templates.map(item => ({
         ...item,
@@ -107,7 +114,8 @@ Page({
       const bannerInterval = Math.min(30000, Math.max(1500, Number(carousel.intervalMs) || 4500))
       const bannerCircular = multiBanner && carousel.circular !== false
       this.stopLoadingTips()
-      const showOnboarding = !wx.getStorageSync('huayang_onboarding_done')
+      const announcements = Array.isArray(announcementResult.announcements) ? announcementResult.announcements : []
+      const showOnboarding = !app.isLoggedIn() && !wx.getStorageSync('huayang_onboarding_done')
       this.setData({
         user: app.isLoggedIn() ? user : null,
         banners,
@@ -121,7 +129,9 @@ Page({
           ? displayTemplates
           : displayTemplates.filter(item => item.category === this.data.activeCategory),
         loading: false,
-        showOnboarding
+        showOnboarding,
+        announcements,
+        latestAnnouncement: announcements[0] || null
       })
       if (!showOnboarding) this.maybeShowAnnouncement()
     } catch (error) {
@@ -172,21 +182,31 @@ Page({
   },
 
   finishOnboarding() {
-    // Keep sheet open until user enters guide; guide marks done on completion
-    const credits = this.data.welcomeCredits || 20
-    wx.navigateTo({ url: `/pages/guide/index?credits=${credits}` })
+    const recommended = this.data.templates.find(item => Array.isArray(item.tags) && item.tags.includes('热门')) || this.data.templates[0]
+    if (!recommended) {
+      wx.showToast({ title: '模板还在准备中，请稍后再试', icon: 'none' })
+      return
+    }
+    wx.navigateTo({
+      url: `/pages/template/index?id=${encodeURIComponent(recommended.id)}&demo=1&tour=1`
+    })
   },
 
   skipOnboarding() {
-    this.markOnboardingDone()
+    wx.setStorageSync('huayang_onboarding_done', '1')
+    this.setData({ showOnboarding: false }, () => this.maybeShowAnnouncement())
   },
 
   async maybeShowAnnouncement() {
     // Don't stack onboarding + announcement
     if (this.data.showOnboarding || this.data.showAnnouncement) return
     try {
-      const { announcements } = await api.get('/api/announcements')
-      const list = Array.isArray(announcements) ? announcements : []
+      let list = Array.isArray(this.data.announcements) ? this.data.announcements : []
+      if (!list.length) {
+        const result = await api.get('/api/announcements')
+        list = Array.isArray(result.announcements) ? result.announcements : []
+        this.setData({ announcements: list, latestAnnouncement: list[0] || null })
+      }
       if (!list.length) return
       let dismissed = []
       try {
@@ -201,7 +221,15 @@ Page({
         announcement: next,
         showAnnouncement: true
       })
-    } catch (error) {}
+    } catch (error) {
+      console.warn('[announcement] show failed', error && error.message)
+    }
+  },
+
+  openLatestAnnouncement() {
+    const announcement = this.data.latestAnnouncement
+    if (!announcement) return
+    this.setData({ announcement, showAnnouncement: true })
   },
 
   dismissAnnouncementOnce() {

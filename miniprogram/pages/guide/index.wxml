@@ -1,102 +1,17 @@
-<view class="page guide-page page-enter home-page" style="padding-top: {{navSpacer}}rpx">
-  <custom-nav show-back title="新手练习" show-credit="{{false}}"></custom-nav>
+<view class="page guide-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav show-back title="游客模拟生图" show-credit="{{false}}"></custom-nav>
 
-  <!-- Intro: explain real UI + fake submit -->
-  <block wx:if="{{phase === 'intro'}}">
-    <view class="demo-banner">练习模式 · 走真实界面，提交与出图为演示（不扣积分）</view>
-    <view class="guide-intro soft-card">
-      <view class="guide-intro__kicker">和正式创作同一条路</view>
-      <view class="guide-intro__title">用真实模板走一遍生成流程</view>
-      <view class="guide-intro__desc">
-        接下来你会看到和首页一样的风格列表，点进真实模板详情 → 上传照片页 → 作品进度页。
-        只有「提交 / 出图」是假的，不会上传服务器、也不会扣积分。
-      </view>
-      <view class="guide-intro__steps">
-        <view class="guide-intro__step"><text class="n">1</text>挑风格（真实模板）</view>
-        <view class="guide-intro__step"><text class="n">2</text>选照片（相册/拍摄）</view>
-        <view class="guide-intro__step"><text class="n">3</text>确认生成（演示提交）</view>
-        <view class="guide-intro__step"><text class="n">4</text>看演示结果（模板效果图）</view>
-      </view>
-      <view class="guide-intro__gift">新用户赠送 {{welcomeCredits}} 积分 · 练习不消耗</view>
-      <button class="primary-button" bindtap="startPick">开始：选一个真实风格</button>
-      <view class="guide-skip" bindtap="skipAll">我先随便看看</view>
+  <view class="guide-loading">
+    <view class="guide-flower">
+      <view class="guide-petal guide-petal--1"></view>
+      <view class="guide-petal guide-petal--2"></view>
+      <view class="guide-petal guide-petal--3"></view>
+      <view class="guide-petal guide-petal--4"></view>
+      <view class="guide-dot"></view>
     </view>
-  </block>
-
-  <!-- Pick: same template grid UI as home -->
-  <block wx:else>
-    <view class="demo-banner">练习 · 点下方卡片进入真实模板页（后续不扣积分）</view>
-
-    <view class="section-title">
-      <view>
-        <view class="section-title__main">挑一款心动风格</view>
-        <view class="section-kicker">与首页相同的模板，练习不会扣费</view>
-      </view>
-      <view class="section-title__sub" bindtap="backIntro">说明</view>
-    </view>
-
-    <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="false">
-      <view class="category-row">
-        <view
-          wx:for="{{categories}}"
-          wx:key="id"
-          class="category {{activeCategory === item.id ? 'category--active' : ''}}"
-          data-id="{{item.id}}"
-          bindtap="selectCategory"
-          hover-class="category--hover"
-        >{{item.name}}</view>
-      </view>
-    </scroll-view>
-
-    <view wx:if="{{loading}}" class="home-loading">
-      <view class="home-loading__title">风格正在开花</view>
-      <view class="home-loading__tip">{{loadingTip}}</view>
-      <view class="template-grid home-loading__grid">
-        <view wx:for="{{[1,2,3,4]}}" wx:key="*this" class="template-card skeleton"></view>
-      </view>
-    </view>
-
-    <view wx:else class="template-grid">
-      <view
-        wx:for="{{filteredTemplates}}"
-        wx:key="id"
-        class="template-card"
-        data-id="{{item.id}}"
-        bindtap="openTemplate"
-      >
-        <view class="template-art" style="background: {{item.palette}}">
-          <image
-            wx:if="{{item.coverUrl}}"
-            class="template-cover"
-            src="{{item.coverUrl}}"
-            mode="aspectFit"
-            lazy-load
-          ></image>
-          <block wx:else>
-            <view class="art-paper">
-              <view class="art-window">
-                <view class="art-land"></view>
-                <view class="art-light"></view>
-              </view>
-            </view>
-            <view class="art-tape"></view>
-          </block>
-          <view class="art-title">{{item.shortName}}</view>
-          <view wx:if="{{item.badge}}" class="art-badge">{{item.badge}}</view>
-        </view>
-        <view class="template-meta">
-          <view class="template-copy">
-            <view class="template-name">{{item.name}}</view>
-            <view class="template-desc">{{item.description}}</view>
-          </view>
-          <view class="template-side">
-            <view class="template-cost">{{item.cost}} 积分</view>
-            <view class="template-popularity">人气 {{item.popularityText}}</view>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view wx:if="{{!loading && !filteredTemplates.length}}" class="empty">模板还在准备中，请稍后再试</view>
-  </block>
+    <view class="guide-title">{{error ? '暂时无法开始模拟' : '正在准备示例照片与推荐风格'}}</view>
+    <view class="guide-desc">{{error || '即将进入真实模板、选图、生成进度与结果页面，全程不登录、不上传、不扣积分。'}}</view>
+    <button wx:if="{{error}}" class="primary-button guide-button" bindtap="startDemoTour">重新尝试</button>
+    <button wx:if="{{error}}" class="ghost-button guide-button" bindtap="goHome">返回首页</button>
+  </view>
 </view>

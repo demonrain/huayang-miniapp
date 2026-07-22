@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --watch server/src/index.mjs",
     "start": "node server/src/index.mjs",
-    "test": "node --test server/test/*.test.mjs",
+    "test": "node --test server/test/*.test.mjs miniprogram/test/*.test.mjs",
     "check": "node scripts/validate.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "brand-assets": "node scripts/generate-brand-assets.mjs"

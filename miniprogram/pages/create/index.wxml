@@ -29,7 +29,7 @@
     <view class="section-title">
       <view>
         <view class="section-title__main">选几张喜欢的照片</view>
-        <view class="photo-subtitle">清晰自然的原图会更好看 · 最多 {{maxFiles}} 张</view>
+        <view class="photo-subtitle">{{demo ? '已放入示例照片，可直接继续或替换' : '清晰自然的原图会更好看 · 最多 ' + maxFiles + ' 张'}}</view>
       </view>
       <view class="section-title__sub">{{files.length}} / {{maxFiles}}</view>
     </view>
@@ -55,7 +55,7 @@
 
     <view class="photo-note">
       <view class="note-mark">{{demo ? '练习说明' : '隐私保护'}}</view>
-      <view wx:if="{{demo}}">练习不会上传照片到服务器，也不会扣积分。正式创作时才会真实提交。</view>
+      <view wx:if="{{demo}}">当前是本地示例照片。你也可以换成自己的照片；练习过程始终不会上传服务器或扣除积分。</view>
       <view wx:else>照片仅用于本次创作。原图与生成结果由你管理，不会出现在公开广场。</view>
     </view>
 

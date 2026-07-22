@@ -38,6 +38,61 @@
   line-height: 1.5;
 }
 
+.announcement-entry {
+  min-height: 84rpx;
+  margin-top: 20rpx;
+  padding: 14rpx 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 14rpx;
+  box-shadow: 0 8rpx 22rpx rgba(107, 80, 90, 0.05);
+}
+
+.announcement-entry--hover { background: #fff7f8; }
+
+.announcement-entry__badge {
+  padding: 7rpx 10rpx;
+  flex: none;
+  background: var(--pink-soft);
+  border-radius: 8rpx;
+  color: var(--coral);
+  font-size: 19rpx;
+  font-weight: 700;
+}
+
+.announcement-entry__copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.announcement-entry__title {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 24rpx;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.announcement-entry__content {
+  margin-top: 4rpx;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 19rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.announcement-entry__arrow {
+  flex: none;
+  color: var(--muted);
+  font-size: 34rpx;
+  line-height: 1;
+}
+
 .welcome-card {
   position: relative;
   height: 220rpx;
