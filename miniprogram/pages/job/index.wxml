@@ -2,10 +2,11 @@
   <custom-nav show-back credits="{{credits}}"></custom-nav>
 
   <block wx:if="{{job}}">
+    <view wx:if="{{demo}}" class="demo-banner">练习模式 · 真实进度界面 · 演示出图不扣积分、不写入作品库</view>
     <view class="job-meta">
       <view><text>风格</text><text class="job-meta__value">{{job.templateName}}</text></view>
       <view><text>数量</text><text class="job-meta__value">{{job.assetIds.length}} 张</text></view>
-      <view><text>消耗</text><text class="job-meta__value">{{job.cost}} 积分</text></view>
+      <view><text>消耗</text><text class="job-meta__value">{{demo ? '0（演示）' : (job.cost + ' 积分')}}</text></view>
     </view>
 
     <view wx:if="{{isWaiting}}" class="generating">
@@ -17,13 +18,14 @@
         <view class="progress-dot"></view>
       </view>
       <view class="generating-title">正在让照片开花</view>
-      <view class="generating-status">{{statusText}} · 预计 2–5 分钟</view>
+      <view class="generating-status">{{statusText}} · {{demo ? '演示约数秒' : '预计 2–5 分钟'}}</view>
       <view class="generating-tip">{{waitingTip}}</view>
       <view class="progress-track">
         <view class="progress-track__bar"></view>
       </view>
       <view class="generating-note">
-        生成大约需要 2–5 分钟，你可以先去做别的事情。完成后会通过微信消息提醒你；也可随时在「作品」里查看进度。
+        <block wx:if="{{demo}}">练习加速演示排队与出图过程。真实创作大约 2–5 分钟，完成后可在「作品」查看，也可开启微信提醒。</block>
+        <block wx:else>生成大约需要 2–5 分钟，你可以先去做别的事情。完成后会通过微信消息提醒你；也可随时在「作品」里查看进度。</block>
       </view>
     </view>
 
@@ -37,8 +39,8 @@
 
     <view wx:if="{{job.status === 'succeeded'}}">
       <view class="section-title">
-        <view class="section-title__main">你的作品</view>
-        <view class="section-title__sub">{{job.results.length}} 张已完成 · 点击查看大图</view>
+        <view class="section-title__main">{{demo ? '演示作品' : '你的作品'}}</view>
+        <view class="section-title__sub">{{job.results.length}} 张已完成 · {{demo ? '效果图为风格封面演示' : '点击查看大图'}}</view>
       </view>
       <view class="result-list">
         <view wx:for="{{job.results}}" wx:key="id" class="result-item">
@@ -86,16 +88,16 @@
         </scroll-view>
       </view>
 
-      <view class="job-row-actions {{job.results.length > 1 ? '' : 'job-row-actions--single'}}">
-        <view wx:if="{{job.results.length > 1}}" class="job-row-actions__cell">
+      <view class="job-row-actions {{!demo && job.results.length > 1 ? '' : 'job-row-actions--single'}}">
+        <view wx:if="{{!demo && job.results.length > 1}}" class="job-row-actions__cell">
           <button class="primary-button job-row-btn" loading="{{saving}}" disabled="{{saving}}" bindtap="saveAll">保存全部作品</button>
         </view>
         <view class="job-row-actions__cell">
-          <button class="{{job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">继续创作</button>
+          <button class="{{!demo && job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">{{demo ? '再练一次' : '继续创作'}}</button>
         </view>
       </view>
 
-      <view wx:if="{{shareRewardEnabled && (shareFriendTip || shareTimelineTip)}}" class="share-reward-panel">
+      <view wx:if="{{!demo && shareRewardEnabled && (shareFriendTip || shareTimelineTip)}}" class="share-reward-panel">
         <view class="share-reward-panel__title">分享领积分</view>
         <view wx:if="{{shareFriendTip}}" class="share-reward-panel__row">
           <text class="share-reward-panel__channel">微信好友</text>
@@ -107,7 +109,7 @@
         </view>
         <view class="share-reward-panel__note">同一作品同一渠道每天最多领 1 次；好友打开链接并登录/完成首作，你还可获得邀请奖励</view>
       </view>
-      <view class="share-actions">
+      <view wx:if="{{!demo}}" class="share-actions">
         <view class="share-action-cell">
           <button class="share-action" open-type="share" disabled="{{!share}}">
             <image class="share-action__icon" src="/assets/icons/share.png" mode="aspectFit"></image>
@@ -135,6 +137,7 @@
           </view>
         </view>
       </view>
+      <view wx:elif="{{demo}}" class="demo-banner" style="margin-top: 20rpx">演示结果使用风格封面示意。返回首页后可对真实模板正式生成。</view>
     </view>
 
     <view wx:if="{{job.status === 'failed'}}" class="job-actions job-row-actions">
@@ -160,7 +163,7 @@
     </view>
     <view wx:elif="{{job.status === 'succeeded'}}" class="job-footer-actions job-row-actions job-row-actions--single">
       <view class="job-row-actions__cell">
-        <button class="primary-button job-row-btn" bindtap="goHome">返回首页</button>
+        <button class="primary-button job-row-btn" bindtap="goHome">{{demo ? '结束练习，去首页正式创作' : '返回首页'}}</button>
       </view>
     </view>
 

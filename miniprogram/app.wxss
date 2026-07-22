@@ -95,6 +95,20 @@ button::after {
   animation: pulse 1.2s ease-in-out infinite alternate;
 }
 
+/* Practice-mode strip on real create/template/job pages */
+.demo-banner {
+  margin: 0 0 16rpx;
+  padding: 14rpx 18rpx;
+  background: var(--mint-soft);
+  border: 2rpx solid #c8e8dc;
+  border-radius: 12rpx;
+  color: var(--green);
+  font-size: 22rpx;
+  text-align: center;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
 .soft-card {
   background: var(--surface);
   border: 2rpx solid rgba(240, 227, 229, 0.9);

@@ -1,5 +1,5 @@
 .redeem-page {
-  padding-bottom: 48rpx;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 48rpx);
 }
 
 .redeem-hero {
@@ -88,3 +88,88 @@
   font-size: 40rpx;
   font-weight: 700;
 }
+
+.ledger-title {
+  margin-top: 36rpx;
+}
+
+.ledger-guest {
+  padding: 28rpx 24rpx;
+  text-align: center;
+}
+
+.ledger-guest__text {
+  color: var(--muted);
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.ledger-guest__btn {
+  margin-top: 20rpx;
+  width: 100%;
+}
+
+.ledger-loading {
+  padding: 40rpx 16rpx;
+  text-align: center;
+  color: var(--muted);
+  font-size: 22rpx;
+}
+
+.transaction-list {
+  overflow: hidden;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 16rpx;
+  box-shadow: 0 8rpx 24rpx rgba(108, 82, 92, 0.04);
+}
+
+.transaction-row {
+  min-height: 108rpx;
+  padding: 20rpx 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  border-bottom: 2rpx solid var(--line);
+}
+
+.transaction-row:last-child {
+  border-bottom: 0;
+}
+
+.transaction-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.transaction-name {
+  font-size: 24rpx;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-time {
+  margin-top: 7rpx;
+  color: var(--muted);
+  font-size: 18rpx;
+}
+
+.transaction-amount {
+  flex: none;
+  color: var(--coral);
+  font-family: Georgia, serif;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.transaction-amount--plus {
+  color: var(--green);
+}
+
+.ledger-empty {
+  padding: 48rpx 24rpx;
+}
+

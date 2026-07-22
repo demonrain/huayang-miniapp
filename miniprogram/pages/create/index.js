@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
+const { isDemoQuery, buildDemoJob, saveDemoJob, delay } = require('../../utils/demo')
 
 Page({
   data: {
@@ -12,26 +13,32 @@ Page({
     credits: null,
     navSpacer: 176,
     subscribeEnabled: false,
-    subscribeTemplateId: ''
+    subscribeTemplateId: '',
+    demo: false
   },
 
   async onLoad(query) {
-    this.setData({ ...getNavMetrics(), templateId: query.templateId || '' })
+    const demo = isDemoQuery(query)
+    this.setData({
+      ...getNavMetrics(),
+      templateId: query.templateId || '',
+      demo
+    })
     try {
       const app = getApp()
       let user = await app.ensureSession()
-      if (!app.isLoggedIn()) {
+      if (!demo && !app.isLoggedIn()) {
         user = await app.requireLogin('登录后即可上传照片并开始创作')
       }
       const [{ templates }, config] = await Promise.all([
         api.get('/api/templates'),
-        api.get('/api/config')
+        api.get('/api/config').catch(() => ({}))
       ])
       const template = templates.find(item => item.id === this.data.templateId)
       if (!template) throw new Error('模板不存在或已下架')
       this.setData({
         template,
-        credits: user?.credits ?? null,
+        credits: app.isLoggedIn() ? (user?.credits ?? null) : null,
         subscribeEnabled: Boolean(config.subscribeEnabled && config.subscribeTemplateId),
         subscribeTemplateId: config.subscribeTemplateId || ''
       })
@@ -89,8 +96,40 @@ Page({
     })
   },
 
+  /** Practice path: same UI timing, local fake job, no upload/API. */
+  async generateDemo() {
+    this.setData({ busy: true })
+    wx.showLoading({ title: '演示：准备提交', mask: true })
+    try {
+      await delay(500)
+      for (let index = 0; index < this.data.files.length; index += 1) {
+        wx.showLoading({ title: `演示上传 ${index + 1}/${this.data.files.length}`, mask: true })
+        await delay(350)
+      }
+      wx.showLoading({ title: '演示提交创作', mask: true })
+      await delay(450)
+      const job = buildDemoJob({
+        template: this.data.template,
+        files: this.data.files
+      })
+      saveDemoJob(job)
+      wx.hideLoading()
+      wx.redirectTo({ url: `/pages/job/index?id=${encodeURIComponent(job.id)}&demo=1` })
+    } catch (error) {
+      wx.hideLoading()
+      wx.showModal({ title: '演示失败', content: error.message || '请重试', showCancel: false })
+      this.setData({ busy: false })
+    }
+  },
+
   async generate() {
     if (!this.data.files.length || this.data.busy) return
+
+    if (this.data.demo) {
+      await this.generateDemo()
+      return
+    }
+
     try {
       await getApp().requireLogin('登录后即可生成作品')
     } catch (error) {

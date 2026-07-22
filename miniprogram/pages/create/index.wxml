@@ -2,6 +2,7 @@
   <custom-nav show-back credits="{{credits}}"></custom-nav>
 
   <block wx:if="{{template}}">
+    <view wx:if="{{demo}}" class="demo-banner">练习模式 · 界面与正式一致 · 确认生成不会上传、不扣积分</view>
     <view class="step-line">
       <text class="step-line__item step-line__item--active">选择照片</text>
       <text class="step-line__item">确认效果</text>
@@ -53,14 +54,15 @@
     </view>
 
     <view class="photo-note">
-      <view class="note-mark">隐私保护</view>
-      <view>照片仅用于本次创作。原图与生成结果由你管理，不会出现在公开广场。</view>
+      <view class="note-mark">{{demo ? '练习说明' : '隐私保护'}}</view>
+      <view wx:if="{{demo}}">练习不会上传照片到服务器，也不会扣积分。正式创作时才会真实提交。</view>
+      <view wx:else>照片仅用于本次创作。原图与生成结果由你管理，不会出现在公开广场。</view>
     </view>
 
     <view class="bottom-bar">
       <view>
-        <view class="cost-label">预计消耗</view>
-        <view class="cost-value">{{totalCost}} <text>积分</text></view>
+        <view class="cost-label">{{demo ? '演示消耗' : '预计消耗'}}</view>
+        <view class="cost-value">{{demo ? 0 : totalCost}} <text>积分</text></view>
       </view>
       <button
         class="generate-button"
@@ -69,7 +71,7 @@
         bindtap="generate"
       >
         <image wx:if="{{!busy}}" class="generate-button__icon" src="/assets/icons/wand-sparkles.png" mode="aspectFit"></image>
-        <text>{{busy ? '正在提交' : (files.length ? '确认生成 · ' + totalCost + ' 积分' : '确认生成')}}</text>
+        <text>{{busy ? (demo ? '演示提交中' : '正在提交') : (files.length ? (demo ? '演示生成 · 不扣费' : ('确认生成 · ' + totalCost + ' 积分')) : '确认生成')}}</text>
       </button>
     </view>
   </block>

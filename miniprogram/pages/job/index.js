@@ -1,5 +1,13 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
+const {
+  isDemoQuery,
+  isDemoJobId,
+  loadDemoJob,
+  saveDemoJob,
+  markOnboardingDone,
+  delay
+} = require('../../utils/demo')
 
 const STATUS_TEXT = {
   queued: '正在排队',
@@ -45,19 +53,26 @@ Page({
     shareFriendRemaining: null,
     shareTimelineRemaining: null,
     shareRewardEnabled: false,
-    navSpacer: 176
+    navSpacer: 176,
+    demo: false
   },
 
   onLoad(query) {
-    this.setData({ ...getNavMetrics(), id: query.id })
-    wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
+    const demo = isDemoQuery(query) || isDemoJobId(query.id)
+    this.setData({ ...getNavMetrics(), id: query.id, demo })
     this.tipIndex = 0
     this.shareRewardLocks = {}
+    if (demo) {
+      this.runDemoJob()
+      return
+    }
+    wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
     this.loadJob()
     this.loadShareRewardConfig()
   },
 
   onUnload() {
+    this._demoCancelled = true
     this.clearTimers()
   },
 
@@ -74,6 +89,71 @@ Page({
       clearInterval(this.tipTimer)
       this.tipTimer = null
     }
+    if (this.demoTimers) {
+      this.demoTimers.forEach(id => {
+        clearTimeout(id)
+        clearInterval(id)
+      })
+      this.demoTimers = []
+    }
+  },
+
+  /**
+   * Practice mode: reuse real job UI, simulate queued → processing → succeeded.
+   * Fake results are the template cover (stored on demo job).
+   */
+  async runDemoJob() {
+    this._demoCancelled = false
+    this.demoTimers = []
+    const job = loadDemoJob(this.data.id)
+    if (!job) {
+      wx.showModal({
+        title: '练习会话已失效',
+        content: '请从新手练习重新选一个风格再试。',
+        showCancel: false,
+        success: () => wx.navigateTo({
+          url: '/pages/guide/index',
+          fail: () => wx.switchTab({ url: '/pages/home/index' })
+        })
+      })
+      return
+    }
+
+    const apply = (next) => {
+      if (this._demoCancelled || !next) return
+      const isWaiting = next.status === 'queued' || next.status === 'processing'
+      this.setData({
+        job: next,
+        statusText: STATUS_TEXT[next.status] || '处理中',
+        isWaiting,
+        credits: getApp().globalData.user?.credits ?? null,
+        share: null,
+        shareRewardEnabled: false,
+        shareFriendTip: '',
+        shareTimelineTip: ''
+      })
+      if (isWaiting) this.startTipRotation()
+      else this.stopTipRotation()
+      saveDemoJob(next)
+    }
+
+    apply({ ...job, status: 'queued', results: [] })
+    await delay(900)
+    if (this._demoCancelled) return
+
+    const mid = loadDemoJob(this.data.id) || job
+    apply({ ...mid, status: 'processing', results: [] })
+    await delay(2200)
+    if (this._demoCancelled) return
+
+    const latest = loadDemoJob(this.data.id) || job
+    apply({
+      ...latest,
+      status: 'succeeded',
+      results: latest._pendingResults || []
+    })
+    markOnboardingDone()
+    wx.showToast({ title: '演示完成', icon: 'success' })
   },
 
   startTipRotation() {
@@ -272,6 +352,10 @@ Page({
   },
 
   async saveAll() {
+    if (this.data.demo) {
+      wx.showToast({ title: '练习结果无需保存', icon: 'none' })
+      return
+    }
     if (this.data.saving) return
     this.setData({ saving: true })
     wx.showLoading({ title: '正在保存', mask: true })
@@ -379,7 +463,10 @@ Page({
   },
 
   createAgain() {
-    wx.redirectTo({ url: `/pages/template/index?id=${this.data.job.templateId}` })
+    const id = this.data.job && this.data.job.templateId
+    if (!id) return
+    const demoQ = this.data.demo ? '&demo=1' : ''
+    wx.redirectTo({ url: `/pages/template/index?id=${encodeURIComponent(id)}${demoQ}` })
   },
 
   async retryJob() {
@@ -453,10 +540,15 @@ Page({
   },
 
   goWorks() {
+    if (this.data.demo) {
+      wx.showToast({ title: '练习结果不写入作品库', icon: 'none' })
+      return
+    }
     wx.switchTab({ url: '/pages/history/index' })
   },
 
   goHome() {
+    if (this.data.demo) markOnboardingDone()
     wx.switchTab({ url: '/pages/home/index' })
   }
 })

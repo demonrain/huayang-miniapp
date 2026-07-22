@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
+const { isDemoQuery } = require('../../utils/demo')
 
 const CATEGORY_LABELS = {
   portrait: '人像',
@@ -17,13 +18,15 @@ Page({
     displayTags: [],
     popularityText: '',
     credits: null,
-    navSpacer: 176
+    navSpacer: 176,
+    demo: false
   },
 
   async onLoad(query) {
     this.setData({
       ...getNavMetrics(),
-      templateId: query.id || query.templateId || ''
+      templateId: query.id || query.templateId || '',
+      demo: isDemoQuery(query)
     })
     await this.loadTemplate()
   },
@@ -125,6 +128,13 @@ Page({
 
   async useStyle() {
     if (!this.data.template) return
+    const demoQ = this.data.demo ? '&demo=1' : ''
+    if (this.data.demo) {
+      wx.navigateTo({
+        url: `/pages/create/index?templateId=${encodeURIComponent(this.data.template.id)}${demoQ}`
+      })
+      return
+    }
     try {
       await getApp().requireLogin('登录后即可使用该风格创作')
       wx.navigateTo({

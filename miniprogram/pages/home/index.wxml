@@ -146,15 +146,15 @@
   <view wx:if="{{showOnboarding}}" class="onboard-mask" catchtouchmove="noop">
     <view class="onboard-sheet">
       <view class="onboard-kicker">新手互动练习</view>
-      <view class="onboard-title">跟着做一遍，学会生成图片</view>
+      <view class="onboard-title">用真实模板走一遍生成</view>
       <view class="onboard-lead">
-        全程演示、不扣积分：选风格 → 选照片 → 确认 → 假生成出图，和真实创作同路径。
+        界面与正式创作相同（模板详情 → 选图 → 作品页），仅提交与出图为演示，不扣积分、不上传。
       </view>
       <view class="onboard-steps onboard-steps--compact">
         <view class="onboard-step">
           <view class="onboard-step__num">1</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">选风格</view>
+            <view class="onboard-step__title">真实风格</view>
           </view>
         </view>
         <view class="onboard-step">
@@ -166,18 +166,18 @@
         <view class="onboard-step">
           <view class="onboard-step__num">3</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">确认生成</view>
+            <view class="onboard-step__title">演示提交</view>
           </view>
         </view>
         <view class="onboard-step">
           <view class="onboard-step__num">4</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">看演示结果</view>
+            <view class="onboard-step__title">演示出图</view>
           </view>
         </view>
       </view>
       <view class="onboard-gift">新用户赠送 {{welcomeCredits}} 积分 · 练习不消耗</view>
-      <button class="primary-button onboard-cta" bindtap="finishOnboarding">开始互动练习</button>
+      <button class="primary-button onboard-cta" bindtap="finishOnboarding">开始练习</button>
       <view class="onboard-skip" bindtap="skipOnboarding">我先随便看看</view>
     </view>
   </view>

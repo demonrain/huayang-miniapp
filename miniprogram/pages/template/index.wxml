@@ -2,6 +2,7 @@
   <custom-nav show-back credits="{{credits}}"></custom-nav>
 
   <block wx:if="{{template}}">
+    <view wx:if="{{demo}}" class="demo-banner">练习模式 · 真实模板界面 · 提交与出图为演示，不扣积分</view>
     <view class="detail-cover" style="background: {{template.palette}}" bindtap="previewCover">
       <image wx:if="{{template.coverUrl}}" class="detail-cover__image" src="{{template.coverUrl}}" mode="aspectFill"></image>
       <view wx:else class="detail-cover__fallback">
@@ -55,7 +56,7 @@
       </view>
       <button class="detail-action__button" bindtap="useStyle">
         <image class="detail-action__icon" src="/assets/icons/sparkles.png" mode="aspectFit"></image>
-        <text>用这个风格</text>
+        <text>{{demo ? '用这个风格（练习）' : '用这个风格'}}</text>
       </button>
     </view>
   </block>

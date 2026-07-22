@@ -5,6 +5,9 @@ Page({
   data: {
     code: '',
     credits: null,
+    transactions: [],
+    loadingLedger: false,
+    isLoggedIn: false,
     redeeming: false,
     navSpacer: 176
   },
@@ -14,27 +17,59 @@ Page({
   },
 
   onShow() {
-    this.refreshCredits()
+    this.loadPage()
   },
 
-  async refreshCredits() {
+  async loadPage() {
     try {
       const app = getApp()
       const user = await app.ensureSession()
-      if (app.isLoggedIn() && user) {
-        this.setData({ credits: user.credits })
+      if (!app.isLoggedIn() || !user) {
+        this.setData({
+          isLoggedIn: false,
+          credits: null,
+          transactions: [],
+          loadingLedger: false
+        })
         return
       }
-      this.setData({ credits: null })
+      this.setData({ isLoggedIn: true, loadingLedger: true })
+      const { user: walletUser, transactions } = await api.get('/api/wallet')
+      if (walletUser) app.setUser(walletUser)
+      this.setData({
+        credits: walletUser?.credits ?? user.credits ?? null,
+        transactions: Array.isArray(transactions) ? transactions : [],
+        loadingLedger: false
+      })
     } catch (error) {
-      this.setData({ credits: null })
+      this.setData({ loadingLedger: false })
+      // Still show credits from session if wallet fails
+      try {
+        const app = getApp()
+        if (app.isLoggedIn() && app.globalData.user) {
+          this.setData({
+            isLoggedIn: true,
+            credits: app.globalData.user.credits
+          })
+        }
+      } catch (e) {}
     }
+  },
+
+  async refreshCredits() {
+    await this.loadPage()
   },
 
   onCodeInput(event) {
     const raw = String(event.detail.value || '').toUpperCase()
-    // Allow letters/numbers/hyphen while typing
     this.setData({ code: raw.replace(/[^A-Z0-9-]/g, '') })
+  },
+
+  async doLogin() {
+    try {
+      await getApp().requireLogin('登录后可兑换积分并查看明细')
+      this.loadPage()
+    } catch (error) {}
   },
 
   async doRedeem() {
@@ -64,6 +99,8 @@ Page({
         title: result.message || `兑换成功 +${result.credits}`,
         icon: 'success'
       })
+      // Reload ledger so CDK redeem appears immediately
+      await this.loadPage()
     } catch (error) {
       wx.hideLoading()
       wx.showToast({ title: error.message || '兑换失败', icon: 'none' })

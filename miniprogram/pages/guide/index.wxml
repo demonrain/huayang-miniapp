@@ -1,261 +1,102 @@
-<view class="page guide-page page-enter" style="padding-top: {{navSpacer}}rpx">
+<view class="page guide-page page-enter home-page" style="padding-top: {{navSpacer}}rpx">
   <custom-nav show-back title="新手练习" show-credit="{{false}}"></custom-nav>
 
-  <!-- Step progress (hidden on welcome / generating) -->
-  <view wx:if="{{step >= 1 && step !== 4}}" class="guide-progress">
-    <view
-      wx:for="{{stepLabels}}"
-      wx:key="*this"
-      class="guide-progress__item {{visualIndex > index ? 'is-done' : ''}} {{visualIndex === index + 1 ? 'is-active' : ''}}"
-    >
-      <view class="guide-progress__dot">{{visualIndex > index ? '✓' : index + 1}}</view>
-      <text>{{item}}</text>
-    </view>
-  </view>
-
-  <!-- 0 Welcome -->
-  <view wx:if="{{step === 0}}" class="guide-panel guide-welcome">
-    <view class="welcome-hero">
-      <view class="welcome-flower">
-        <view class="welcome-petal welcome-petal--1"></view>
-        <view class="welcome-petal welcome-petal--2"></view>
-        <view class="welcome-petal welcome-petal--3"></view>
-        <view class="welcome-petal welcome-petal--4"></view>
-        <view class="welcome-center"></view>
+  <!-- Intro: explain real UI + fake submit -->
+  <block wx:if="{{phase === 'intro'}}">
+    <view class="demo-banner">练习模式 · 走真实界面，提交与出图为演示（不扣积分）</view>
+    <view class="guide-intro soft-card">
+      <view class="guide-intro__kicker">和正式创作同一条路</view>
+      <view class="guide-intro__title">用真实模板走一遍生成流程</view>
+      <view class="guide-intro__desc">
+        接下来你会看到和首页一样的风格列表，点进真实模板详情 → 上传照片页 → 作品进度页。
+        只有「提交 / 出图」是假的，不会上传服务器、也不会扣积分。
       </view>
-      <view class="welcome-badge">互动演示 · 不扣积分</view>
-    </view>
-    <view class="welcome-title">跟着点 4 步，学会生成一张图</view>
-    <view class="welcome-desc">
-      这是一次「假生成」练习：流程和真实创作一样——选风格、选照片、确认、出图。
-      不会上传、不会消耗积分，做完你就知道怎么真正开画了。
-    </view>
-    <view class="welcome-flow">
-      <view class="welcome-flow__item">
-        <view class="welcome-flow__num">1</view>
-        <text>选风格</text>
+      <view class="guide-intro__steps">
+        <view class="guide-intro__step"><text class="n">1</text>挑风格（真实模板）</view>
+        <view class="guide-intro__step"><text class="n">2</text>选照片（相册/拍摄）</view>
+        <view class="guide-intro__step"><text class="n">3</text>确认生成（演示提交）</view>
+        <view class="guide-intro__step"><text class="n">4</text>看演示结果（模板效果图）</view>
       </view>
-      <view class="welcome-flow__arrow">›</view>
-      <view class="welcome-flow__item">
-        <view class="welcome-flow__num">2</view>
-        <text>选照片</text>
+      <view class="guide-intro__gift">新用户赠送 {{welcomeCredits}} 积分 · 练习不消耗</view>
+      <button class="primary-button" bindtap="startPick">开始：选一个真实风格</button>
+      <view class="guide-skip" bindtap="skipAll">我先随便看看</view>
+    </view>
+  </block>
+
+  <!-- Pick: same template grid UI as home -->
+  <block wx:else>
+    <view class="demo-banner">练习 · 点下方卡片进入真实模板页（后续不扣积分）</view>
+
+    <view class="section-title">
+      <view>
+        <view class="section-title__main">挑一款心动风格</view>
+        <view class="section-kicker">与首页相同的模板，练习不会扣费</view>
       </view>
-      <view class="welcome-flow__arrow">›</view>
-      <view class="welcome-flow__item">
-        <view class="welcome-flow__num">3</view>
-        <text>确认生成</text>
-      </view>
-      <view class="welcome-flow__arrow">›</view>
-      <view class="welcome-flow__item">
-        <view class="welcome-flow__num">4</view>
-        <text>看结果</text>
-      </view>
-    </view>
-    <view class="welcome-gift">新用户赠送 {{welcomeCredits}} 积分，练习结束后可真正试几张</view>
-    <button class="primary-button guide-cta" bindtap="startGuide">开始跟着做</button>
-    <view class="guide-skip" bindtap="skipAll">我先随便看看</view>
-  </view>
-
-  <!-- 1 Pick style -->
-  <view wx:elif="{{step === 1}}" class="guide-panel">
-    <view class="panel-tip">
-      <view class="panel-tip__kicker">第 1 步 · 和首页一样</view>
-      <view class="panel-tip__title">先挑一个喜欢的风格</view>
-      <view class="panel-tip__text">真实创作时，你会在首页点进模板卡片；这里用演示风格练手。</view>
-    </view>
-    <view class="style-list">
-      <view
-        wx:for="{{styles}}"
-        wx:key="id"
-        class="style-card {{selectedStyleId === item.id ? 'is-selected' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="selectStyle"
-      >
-        <view class="style-card__cover" style="background: {{item.palette}}">
-          <text class="style-card__short">{{item.shortName}}</text>
-          <view class="style-card__badge">{{item.badge}}</view>
-        </view>
-        <view class="style-card__body">
-          <view class="style-card__name">{{item.name}}</view>
-          <view class="style-card__desc">{{item.description}}</view>
-          <view class="style-card__cost">{{item.cost}} 积分/张</view>
-        </view>
-        <view wx:if="{{selectedStyleId === item.id}}" class="style-card__check">已选</view>
-      </view>
-    </view>
-    <view class="guide-actions">
-      <button class="ghost-button guide-actions__half" bindtap="backStep">上一步</button>
-      <button class="primary-button guide-actions__half" bindtap="nextFromStyle">下一步：选照片</button>
-    </view>
-  </view>
-
-  <!-- 2 Pick photo -->
-  <view wx:elif="{{step === 2}}" class="guide-panel">
-    <view class="panel-tip">
-      <view class="panel-tip__kicker">第 2 步 · 和创作页一样</view>
-      <view class="panel-tip__title">选一张要加工的照片</view>
-      <view class="panel-tip__text">真实流程支持相册/拍摄、最多 6 张。这里先选 1 张即可。</view>
+      <view class="section-title__sub" bindtap="backIntro">说明</view>
     </view>
 
-    <view class="section-label">一键用示例（推荐）</view>
-    <view class="demo-photo-row">
-      <view
-        wx:for="{{demoPhotos}}"
-        wx:key="id"
-        class="demo-photo {{selectedPhotoId === item.id ? 'is-selected' : ''}}"
-        style="background: {{item.tone}}"
-        data-id="{{item.id}}"
-        bindtap="selectDemoPhoto"
-      >
-        <view class="demo-photo__emoji">{{item.emoji}}</view>
-        <view class="demo-photo__label">{{item.label}}</view>
-        <view class="demo-photo__hint">{{item.hint}}</view>
-      </view>
-    </view>
-
-    <view class="section-label">或从相册选一张（更接近真实）</view>
-    <view class="real-photo-box {{selectedPhotoId === 'real' ? 'is-selected' : ''}}" bindtap="chooseRealPhoto">
-      <block wx:if="{{photoPath}}">
-        <image class="real-photo-box__img" src="{{photoPath}}" mode="aspectFill"></image>
-        <view class="real-photo-box__mask">点击可重选</view>
-      </block>
-      <block wx:else>
-        <view class="real-photo-box__camera">
-          <view class="real-photo-box__lens"></view>
-        </view>
-        <view class="real-photo-box__title">打开相册 / 拍摄</view>
-        <view class="real-photo-box__sub">仅本机演示，不会上传服务器</view>
-      </block>
-    </view>
-
-    <view wx:if="{{selectedPhotoId}}" class="picked-hint">
-      已选：{{photoLabel}} · 下一步会看到「确认生成」
-    </view>
-
-    <view class="guide-actions">
-      <button class="ghost-button guide-actions__half" bindtap="backStep">上一步</button>
-      <button class="primary-button guide-actions__half" bindtap="nextFromPhoto">下一步：确认</button>
-    </view>
-  </view>
-
-  <!-- 3 Confirm -->
-  <view wx:elif="{{step === 3}}" class="guide-panel">
-    <view class="panel-tip">
-      <view class="panel-tip__kicker">第 3 步 · 和创作页底部一样</view>
-      <view class="panel-tip__title">确认风格、照片与积分</view>
-      <view class="panel-tip__text">真实生成会扣积分；本练习只演示，点「确认生成」不会扣费。</view>
-    </view>
-
-    <view class="confirm-card">
-      <view class="confirm-row">
-        <view class="confirm-swatch" style="background: {{selectedStyle.palette}}">
-          <text>{{selectedStyle.shortName}}</text>
-        </view>
-        <view class="confirm-copy">
-          <view class="confirm-label">风格</view>
-          <view class="confirm-value">{{selectedStyle.name}}</view>
-          <view class="confirm-sub">{{selectedStyle.description}}</view>
-        </view>
-      </view>
-      <view class="confirm-divider"></view>
-      <view class="confirm-row">
+    <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="false">
+      <view class="category-row">
         <view
-          class="confirm-photo"
-          style="background: {{photoIsDemo ? photoTone : '#f4eaec'}}"
-        >
-          <image wx:if="{{photoPath}}" src="{{photoPath}}" mode="aspectFill" class="confirm-photo__img"></image>
-          <text wx:else class="confirm-photo__emoji">{{photoEmoji}}</text>
+          wx:for="{{categories}}"
+          wx:key="id"
+          class="category {{activeCategory === item.id ? 'category--active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="selectCategory"
+          hover-class="category--hover"
+        >{{item.name}}</view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{loading}}" class="home-loading">
+      <view class="home-loading__title">风格正在开花</view>
+      <view class="home-loading__tip">{{loadingTip}}</view>
+      <view class="template-grid home-loading__grid">
+        <view wx:for="{{[1,2,3,4]}}" wx:key="*this" class="template-card skeleton"></view>
+      </view>
+    </view>
+
+    <view wx:else class="template-grid">
+      <view
+        wx:for="{{filteredTemplates}}"
+        wx:key="id"
+        class="template-card"
+        data-id="{{item.id}}"
+        bindtap="openTemplate"
+      >
+        <view class="template-art" style="background: {{item.palette}}">
+          <image
+            wx:if="{{item.coverUrl}}"
+            class="template-cover"
+            src="{{item.coverUrl}}"
+            mode="aspectFit"
+            lazy-load
+          ></image>
+          <block wx:else>
+            <view class="art-paper">
+              <view class="art-window">
+                <view class="art-land"></view>
+                <view class="art-light"></view>
+              </view>
+            </view>
+            <view class="art-tape"></view>
+          </block>
+          <view class="art-title">{{item.shortName}}</view>
+          <view wx:if="{{item.badge}}" class="art-badge">{{item.badge}}</view>
         </view>
-        <view class="confirm-copy">
-          <view class="confirm-label">照片</view>
-          <view class="confirm-value">{{photoLabel}} · 1 张</view>
-          <view class="confirm-sub">真实时可传 1–6 张</view>
-        </view>
-      </view>
-      <view class="confirm-divider"></view>
-      <view class="confirm-cost">
-        <view>
-          <view class="confirm-label">预计消耗</view>
-          <view class="confirm-cost__value">{{totalCost}} <text>积分</text></view>
-        </view>
-        <view class="confirm-cost__tag">演示 · 不扣费</view>
-      </view>
-    </view>
-
-    <view class="guide-actions">
-      <button class="ghost-button guide-actions__half" bindtap="backStep">上一步</button>
-      <button class="primary-button guide-actions__half guide-gen-btn" bindtap="confirmGenerate">
-        <image class="guide-gen-btn__icon" src="/assets/icons/wand-sparkles.png" mode="aspectFit"></image>
-        <text>确认生成 · 演示</text>
-      </button>
-    </view>
-  </view>
-
-  <!-- 4 Generating -->
-  <view wx:elif="{{step === 4}}" class="guide-panel">
-    <view class="generating">
-      <view class="progress-flower">
-        <view class="progress-petal progress-petal--1"></view>
-        <view class="progress-petal progress-petal--2"></view>
-        <view class="progress-petal progress-petal--3"></view>
-        <view class="progress-petal progress-petal--4"></view>
-        <view class="progress-dot"></view>
-      </view>
-      <view class="generating-title">正在让照片开花</view>
-      <view class="generating-status">演示生成中 · {{genProgress}}%</view>
-      <view class="generating-tip">{{genTip}}</view>
-      <view class="progress-track">
-        <view class="progress-track__bar" style="width: {{genProgress}}%; animation: none;"></view>
-      </view>
-      <view class="generating-note">
-        真实生成大约 2–5 分钟，可去做别的事；完成后在「作品」查看，也可开微信提醒。
-      </view>
-    </view>
-  </view>
-
-  <!-- 5 Result -->
-  <view wx:elif="{{step === 5}}" class="guide-panel">
-    <view class="panel-tip panel-tip--success">
-      <view class="panel-tip__kicker">完成 · 恭喜</view>
-      <view class="panel-tip__title">这就是「生成」的完整路径</view>
-      <view class="panel-tip__text">下方是演示效果（非 AI 真出图）。真实创作会按你的照片与风格出成片。</view>
-    </view>
-
-    <view class="result-compare">
-      <view class="result-col">
-        <view class="result-col__label">原图</view>
-        <view class="result-frame result-frame--orig" style="background: {{photoIsDemo ? photoTone : '#f4eaec'}}">
-          <image wx:if="{{photoPath}}" src="{{photoPath}}" mode="aspectFill" class="result-frame__img"></image>
-          <view wx:else class="result-frame__demo">
-            <text class="result-frame__emoji">{{photoEmoji}}</text>
-            <text class="result-frame__name">{{photoLabel}}</text>
+        <view class="template-meta">
+          <view class="template-copy">
+            <view class="template-name">{{item.name}}</view>
+            <view class="template-desc">{{item.description}}</view>
+          </view>
+          <view class="template-side">
+            <view class="template-cost">{{item.cost}} 积分</view>
+            <view class="template-popularity">人气 {{item.popularityText}}</view>
           </view>
         </view>
       </view>
-      <view class="result-arrow">→</view>
-      <view class="result-col">
-        <view class="result-col__label">生成结果 · 演示</view>
-        <view class="result-frame result-frame--out" style="background: {{selectedStyle.palette}}">
-          <image wx:if="{{photoPath}}" src="{{photoPath}}" mode="aspectFill" class="result-frame__img result-frame__img--styled"></image>
-          <view wx:else class="result-frame__demo">
-            <text class="result-frame__emoji">{{photoEmoji}}</text>
-            <text class="result-frame__name">{{selectedStyle.shortName}}效果</text>
-          </view>
-          <view class="result-frame__overlay">
-            <text>{{selectedStyle.shortName}}</text>
-          </view>
-          <view class="result-frame__tag">演示</view>
-        </view>
-      </view>
     </view>
 
-    <view class="result-checklist">
-      <view class="result-check">✓ 首页选风格模板</view>
-      <view class="result-check">✓ 上传照片并确认积分</view>
-      <view class="result-check">✓ 在「作品」等成片 / 收提醒</view>
-    </view>
-
-    <button class="primary-button guide-cta" bindtap="goRealCreate">去首页，真正生成一张</button>
-    <view class="guide-skip" bindtap="replay">再练一遍</view>
-  </view>
+    <view wx:if="{{!loading && !filteredTemplates.length}}" class="empty">模板还在准备中，请稍后再试</view>
+  </block>
 </view>
