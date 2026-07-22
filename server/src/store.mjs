@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const initialState = {
-  version: 4,
+  version: 5,
   users: [],
   transactions: [],
   assets: [],
@@ -13,6 +13,8 @@ const initialState = {
   banners: [],
   packages: [],
   shares: [],
+  shareEvents: [],
+  invites: [],
   settings: null
 }
 
@@ -29,7 +31,7 @@ export class JsonStore {
     try {
       const saved = JSON.parse(await readFile(this.filename, 'utf8'))
       this.state = { ...structuredClone(initialState), ...saved, version: initialState.version }
-      for (const key of ['users', 'transactions', 'assets', 'jobs', 'orders', 'templates', 'templateCategories', 'banners', 'packages', 'shares']) {
+      for (const key of ['users', 'transactions', 'assets', 'jobs', 'orders', 'templates', 'templateCategories', 'banners', 'packages', 'shares', 'shareEvents', 'invites']) {
         if (!Array.isArray(this.state[key])) this.state[key] = []
       }
     } catch (error) {

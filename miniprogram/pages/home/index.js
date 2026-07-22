@@ -151,7 +151,7 @@ Page({
   openBanner(event) {
     const path = event.currentTarget.dataset.path
     if (!path) return
-    const tabPages = ['/pages/home/index', '/pages/history/index', '/pages/wallet/index', '/pages/profile/index']
+    const tabPages = ['/pages/home/index', '/pages/history/index', '/pages/profile/index']
     if (tabPages.includes(path)) wx.switchTab({ url: path })
     else wx.navigateTo({ url: path })
   },

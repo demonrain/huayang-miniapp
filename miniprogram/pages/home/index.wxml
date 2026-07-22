@@ -27,10 +27,7 @@
   <view wx:else class="welcome-card">
     <view class="welcome-copy">
       <view class="welcome-kicker">今日灵感</view>
-      <view class="welcome-title">
-        <view>把喜欢的瞬间，</view>
-        <view>做成专属画报</view>
-      </view>
+      <view class="welcome-title">把喜欢的瞬间，做成专属画报</view>
       <view class="welcome-gift">
         <text>新用户礼遇</text>
         <text class="welcome-gift__value">{{welcomeCredits}} 积分</text>

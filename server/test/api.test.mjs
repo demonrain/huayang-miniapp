@@ -233,6 +233,72 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     const publicShare = await api(`/api/shares/${createdShare.body.share.token}`)
     assert.equal(publicShare.response.status, 200)
     assert.equal(publicShare.body.share.results.length, 1)
+    assert.ok(publicShare.body.share.inviterId)
+
+    // Share-for-credits: friend channel
+    const shareReward = await api('/api/share-rewards', {
+      method: 'POST',
+      token,
+      json: { jobId: created.body.job.id, channel: 'friend', clientRequestId: 'share-friend-1' }
+    })
+    assert.equal(shareReward.response.status, 200)
+    assert.equal(shareReward.body.rewarded, true)
+    assert.equal(shareReward.body.reward, 2)
+
+    const shareRewardDup = await api('/api/share-rewards', {
+      method: 'POST',
+      token,
+      json: { jobId: created.body.job.id, channel: 'friend', clientRequestId: 'share-friend-2' }
+    })
+    assert.equal(shareRewardDup.body.rewarded, false)
+    assert.equal(shareRewardDup.body.reason, 'already_shared_job')
+
+    // Invite login reward for inviter when new user registers via share token
+    const inviteeLogin = await api('/api/auth/wechat', {
+      method: 'POST',
+      json: { code: 'invitee-user-code', inviteToken: createdShare.body.share.token }
+    })
+    assert.equal(inviteeLogin.response.status, 200)
+    assert.equal(inviteeLogin.body.user.isNew, true)
+    assert.ok(inviteeLogin.body.invite)
+    assert.equal(inviteeLogin.body.invite.loginReward, 5)
+
+    const inviterAfterInvite = await api('/api/me', { token })
+    // 30 after checkin + 2 share + 5 invite login = 37
+    assert.equal(inviterAfterInvite.body.user.credits, 37)
+
+    // Invite first-job reward when invitee completes first succeeded job
+    const inviteeToken = inviteeLogin.body.token
+    const inviteeUploadForm = new FormData()
+    inviteeUploadForm.append('image', new Blob([tinyPng], { type: 'image/png' }), 'pixel.png')
+    const inviteeUpload = await api('/api/assets', { method: 'POST', token: inviteeToken, body: inviteeUploadForm })
+    assert.equal(inviteeUpload.response.status, 201)
+    const inviteeJob = await api('/api/jobs', {
+      method: 'POST',
+      token: inviteeToken,
+      json: {
+        templateId: 'film-diary',
+        assetIds: [inviteeUpload.body.asset.id],
+        clientRequestId: 'invitee-first-job'
+      }
+    })
+    assert.equal(inviteeJob.response.status, 201)
+    let inviteeCompleted
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      inviteeCompleted = await api(`/api/jobs/${inviteeJob.body.job.id}`, { token: inviteeToken })
+      if (inviteeCompleted.body.job.status === 'succeeded') break
+      await new Promise(resolve => setTimeout(resolve, 20))
+    }
+    assert.equal(inviteeCompleted.body.job.status, 'succeeded')
+
+    const inviterAfterFirstJob = await api('/api/me', { token })
+    // 37 + 10 first-job invite = 47
+    assert.equal(inviterAfterFirstJob.body.user.credits, 47)
+
+    const shareStats = await api('/api/admin/share-stats', { token: adminToken })
+    assert.equal(shareStats.response.status, 200)
+    assert.ok(shareStats.body.summary.shareEventsTotal >= 1)
+    assert.ok(shareStats.body.summary.invitesTotal >= 1)
 
     const qrCode = await api(`/api/jobs/${created.body.job.id}/share/qrcode`, {
       method: 'POST', token, json: {}
@@ -246,12 +312,13 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(recharge.response.status, 201)
     assert.equal(recharge.body.payment.mode, 'mock')
     assert.equal(recharge.body.order.credits, 90)
-    assert.equal(recharge.body.user.credits, 120)
+    assert.equal(recharge.body.user.credits, 137)
 
     const wallet = await api('/api/wallet', { token })
     assert.equal(wallet.body.checkin.claimedToday, true)
     assert.equal(wallet.body.packages.find(item => item.id === 'popular').totalCredits, 90)
-    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [90, 7, 5, -2, 20])
+    // Newest first: recharge 90, invite first job 10, invite login 5, share friend 2, checkin 7, admin 5, job -2, welcome 20
+    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [90, 10, 5, 2, 7, 5, -2, 20])
   } finally {
     await new Promise(resolve => application.server.close(resolve))
     config.dataDir = original.dataDir

@@ -24,7 +24,10 @@
     </view>
 
     <view class="share-footer">
-      <view><view class="share-footer__title">也来制作你的专属作品</view><view class="share-footer__sub">更多清新风格尽在花漾相绘</view></view>
+      <view>
+        <view class="share-footer__title">也来制作你的专属作品</view>
+        <view class="share-footer__sub">登录创作可获得新用户礼遇；你的好友也可能因邀请获得积分</view>
+      </view>
       <button class="share-create-button" bindtap="goCreate">去创作</button>
     </view>
   </view>

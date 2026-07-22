@@ -26,7 +26,6 @@
     "list": [
       { "pagePath": "pages/home/index", "text": "创作", "iconPath": "assets/icons/create.png", "selectedIconPath": "assets/icons/create-active.png" },
       { "pagePath": "pages/history/index", "text": "作品", "iconPath": "assets/icons/works.png", "selectedIconPath": "assets/icons/works-active.png" },
-      { "pagePath": "pages/wallet/index", "text": "积分", "iconPath": "assets/icons/wallet.png", "selectedIconPath": "assets/icons/wallet-active.png" },
       { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "assets/icons/profile.png", "selectedIconPath": "assets/icons/profile-active.png" }
     ]
   },

@@ -20,6 +20,7 @@ import {
   publicJob,
   publicPackages,
   publicShare,
+  publicShareRewardSettings,
   publicTemplates,
   seedConfig
 } from './domain.mjs'
@@ -215,7 +216,106 @@ const transactionLabels = {
   recharge: '充值到账',
   job_charge: '作品生成',
   job_refund: '失败退回',
-  admin_adjust: '后台调整'
+  admin_adjust: '后台调整',
+  share_friend: '分享作品到好友',
+  share_timeline: '分享作品到朋友圈',
+  invite_login: '邀请新用户登录',
+  invite_first_job: '邀请新用户完成首作'
+}
+
+const shareChannelLabels = {
+  friend: '微信好友',
+  timeline: '朋友圈'
+}
+
+function creditUser(draft, userId, amount, type, title, externalRef = '') {
+  if (!amount || amount <= 0) return null
+  const target = draft.users.find(item => item.id === userId)
+  if (!target) return null
+  target.credits += amount
+  target.updatedAt = now()
+  const tx = {
+    id: randomUUID(),
+    userId,
+    type,
+    title,
+    amount,
+    balanceAfter: target.credits,
+    externalRef: String(externalRef || ''),
+    createdAt: now()
+  }
+  draft.transactions.push(tx)
+  return tx
+}
+
+function applyInviteLoginReward(draft, invitee, inviteToken) {
+  const settings = publicShareRewardSettings(draft.settings)
+  if (!settings.inviteRewardEnabled || !inviteToken || !invitee?.isNew) return null
+  if (!Array.isArray(draft.invites)) draft.invites = []
+  if (draft.invites.some(item => item.inviteeId === invitee.id)) return null
+
+  const share = draft.shares.find(item => item.token === inviteToken)
+  if (!share?.userId || share.userId === invitee.id) return null
+  const inviter = draft.users.find(item => item.id === share.userId)
+  if (!inviter || inviter.enabled === false) return null
+
+  const invite = {
+    id: randomUUID(),
+    inviterId: inviter.id,
+    inviteeId: invitee.id,
+    shareToken: share.token,
+    jobId: share.jobId || '',
+    loginRewarded: false,
+    firstJobRewarded: false,
+    createdAt: now()
+  }
+
+  let loginReward = 0
+  if (settings.inviteLoginCredits > 0) {
+    creditUser(
+      draft,
+      inviter.id,
+      settings.inviteLoginCredits,
+      'invite_login',
+      '邀请新用户登录奖励',
+      invitee.id
+    )
+    invite.loginRewarded = true
+    invite.loginRewardedAt = now()
+    loginReward = settings.inviteLoginCredits
+  }
+  draft.invites.push(invite)
+  return { invite, loginReward, inviterId: inviter.id }
+}
+
+function applyInviteFirstJobReward(draft, inviteeUserId) {
+  const settings = publicShareRewardSettings(draft.settings)
+  if (!settings.inviteRewardEnabled || settings.inviteFirstJobCredits <= 0) return null
+  if (!Array.isArray(draft.invites)) return null
+  const invite = draft.invites.find(item => item.inviteeId === inviteeUserId && !item.firstJobRewarded)
+  if (!invite) return null
+  const inviter = draft.users.find(item => item.id === invite.inviterId)
+  if (!inviter || inviter.enabled === false) {
+    invite.firstJobRewarded = true
+    invite.firstJobSkipped = true
+    return null
+  }
+  // Called after current job is marked succeeded — first work only when total succeeded === 1
+  const succeededCount = draft.jobs.filter(
+    item => item.userId === inviteeUserId && item.status === 'succeeded'
+  ).length
+  if (succeededCount !== 1) return null
+  creditUser(
+    draft,
+    inviter.id,
+    settings.inviteFirstJobCredits,
+    'invite_first_job',
+    '邀请新用户完成首作奖励',
+    inviteeUserId
+  )
+  invite.firstJobRewarded = true
+  invite.firstJobRewardedAt = now()
+  return { invite, reward: settings.inviteFirstJobCredits, inviterId: inviter.id }
 }
 
 function applyPackageFields(target, body, creating = false) {
@@ -311,6 +411,8 @@ export async function createApplication() {
         job.status = 'succeeded'
         job.completedAt = now()
         job.updatedAt = now()
+        // Invite first-job reward for inviter (when invitee completes first succeeded work)
+        applyInviteFirstJobReward(draft, job.userId)
       })
       console.log(`[job:${jobId}] succeeded results=${results.length}`)
       await notifyJobResult(jobId)
@@ -413,7 +515,8 @@ export async function createApplication() {
           subscribeEnabled: isSubscribeNotifyConfigured(),
           subscribeTemplateId: config.wechat.subscribeTemplateId || '',
           templateCategories: listTemplateCategories(state).map(item => ({ id: item.id, name: item.name })),
-          bannerCarousel: publicBannerSettings(state.settings)
+          bannerCarousel: publicBannerSettings(state.settings),
+          shareRewards: publicShareRewardSettings(state.settings)
         })
         return
       }
@@ -461,15 +564,17 @@ export async function createApplication() {
       }
 
       if (request.method === 'POST' && pathname === '/api/auth/wechat') {
-        const { code } = await readJson(request)
+        const body = await readJson(request)
+        const { code } = body
+        const inviteToken = String(body.inviteToken || body.shareToken || '').trim()
         const identity = await exchangeWechatCode(code)
-        const user = await store.transaction(draft => {
+        const created = await store.transaction(draft => {
           let found = draft.users.find(item => item.openid === identity.openid)
           if (found) {
             if (found.enabled === false) throw new HttpError(403, 'USER_DISABLED', '账号已被停用，请联系管理员')
             found.lastLoginAt = now()
             found.isNew = false
-            return found
+            return { user: found, invite: null }
           }
           found = {
             id: randomUUID(), openid: identity.openid, unionid: identity.unionid, nickname: '微信用户', avatarAssetId: '',
@@ -480,10 +585,17 @@ export async function createApplication() {
             id: randomUUID(), userId: found.id, type: 'welcome', title: '新用户体验积分', amount: draft.settings.welcomeCredits,
             balanceAfter: found.credits, externalRef: '', createdAt: now()
           })
-          return found
+          const invite = applyInviteLoginReward(draft, found, inviteToken)
+          return { user: found, invite }
         })
         const state = store.read()
-        json(response, 200, { token: createToken(user.id), user: publicUser(user, state) })
+        json(response, 200, {
+          token: createToken(created.user.id),
+          user: publicUser(created.user, state),
+          invite: created.invite
+            ? { loginReward: created.invite.loginReward, inviterId: created.invite.inviterId }
+            : null
+        })
         return
       }
 
@@ -542,9 +654,111 @@ export async function createApplication() {
               draft.settings.bannerSwitchIntervalMs = boundedInteger(body.bannerSwitchIntervalMs, 'Banner 切换间隔', 1500, 30000)
             }
             if ('bannerCircular' in body) draft.settings.bannerCircular = Boolean(body.bannerCircular)
+            if ('shareRewardEnabled' in body) draft.settings.shareRewardEnabled = Boolean(body.shareRewardEnabled)
+            if ('shareFriendCredits' in body) draft.settings.shareFriendCredits = boundedInteger(body.shareFriendCredits, '分享好友积分', 0, 100000)
+            if ('shareTimelineCredits' in body) draft.settings.shareTimelineCredits = boundedInteger(body.shareTimelineCredits, '分享朋友圈积分', 0, 100000)
+            if ('shareFriendDailyLimit' in body) draft.settings.shareFriendDailyLimit = boundedInteger(body.shareFriendDailyLimit, '分享好友每日上限', 0, 100)
+            if ('shareTimelineDailyLimit' in body) draft.settings.shareTimelineDailyLimit = boundedInteger(body.shareTimelineDailyLimit, '分享朋友圈每日上限', 0, 100)
+            if ('inviteRewardEnabled' in body) draft.settings.inviteRewardEnabled = Boolean(body.inviteRewardEnabled)
+            if ('inviteLoginCredits' in body) draft.settings.inviteLoginCredits = boundedInteger(body.inviteLoginCredits, '邀请登录积分', 0, 100000)
+            if ('inviteFirstJobCredits' in body) draft.settings.inviteFirstJobCredits = boundedInteger(body.inviteFirstJobCredits, '邀请首作积分', 0, 100000)
             return draft.settings
           })
-          json(response, 200, { settings, bannerCarousel: publicBannerSettings(settings) })
+          json(response, 200, {
+            settings,
+            bannerCarousel: publicBannerSettings(settings),
+            shareRewards: publicShareRewardSettings(settings)
+          })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/share-stats') {
+          const state = store.read()
+          const events = Array.isArray(state.shareEvents) ? state.shareEvents : []
+          const invites = Array.isArray(state.invites) ? state.invites : []
+          const today = chinaDateKey()
+          const todayEvents = events.filter(item => item.dateKey === today)
+          const friendToday = todayEvents.filter(item => item.channel === 'friend')
+          const timelineToday = todayEvents.filter(item => item.channel === 'timeline')
+          const shareRewardSum = events.reduce((sum, item) => sum + Number(item.reward || 0), 0)
+          const inviteLoginCount = invites.filter(item => item.loginRewarded).length
+          const inviteFirstJobCount = invites.filter(item => item.firstJobRewarded && !item.firstJobSkipped).length
+          const inviteLoginRewardSum = state.transactions
+            .filter(item => item.type === 'invite_login')
+            .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+          const inviteFirstJobRewardSum = state.transactions
+            .filter(item => item.type === 'invite_first_job')
+            .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+          json(response, 200, {
+            summary: {
+              shareEventsTotal: events.length,
+              shareFriendTotal: events.filter(item => item.channel === 'friend').length,
+              shareTimelineTotal: events.filter(item => item.channel === 'timeline').length,
+              shareRewardCredits: shareRewardSum,
+              shareTodayFriend: friendToday.length,
+              shareTodayTimeline: timelineToday.length,
+              shareTodayRewardCredits: todayEvents.reduce((sum, item) => sum + Number(item.reward || 0), 0),
+              invitesTotal: invites.length,
+              inviteLoginRewarded: inviteLoginCount,
+              inviteFirstJobRewarded: inviteFirstJobCount,
+              inviteLoginCredits: inviteLoginRewardSum,
+              inviteFirstJobCredits: inviteFirstJobRewardSum
+            },
+            shareRewards: publicShareRewardSettings(state.settings)
+          })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/share-events') {
+          const state = store.read()
+          const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
+          const channel = String(url.searchParams.get('channel') || 'all')
+          const events = (Array.isArray(state.shareEvents) ? state.shareEvents : [])
+            .filter(item => channel === 'all' || item.channel === channel)
+            .filter(item => {
+              if (!query) return true
+              const owner = state.users.find(user => user.id === item.userId)
+              return item.userId.toLowerCase().includes(query)
+                || String(owner?.nickname || '').toLowerCase().includes(query)
+                || String(item.jobId || '').toLowerCase().includes(query)
+            })
+            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+            .slice(0, 500)
+            .map(item => {
+              const owner = state.users.find(user => user.id === item.userId)
+              return {
+                id: item.id,
+                channel: item.channel,
+                channelLabel: shareChannelLabels[item.channel] || item.channel,
+                reward: Number(item.reward || 0),
+                jobId: item.jobId,
+                dateKey: item.dateKey,
+                createdAt: item.createdAt,
+                createdTime: displayTime(item.createdAt),
+                userNickname: owner?.nickname || '未知用户',
+                userMaskedId: item.userId.slice(0, 8)
+              }
+            })
+          const invites = (Array.isArray(state.invites) ? state.invites : [])
+            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+            .slice(0, 500)
+            .map(item => {
+              const inviter = state.users.find(user => user.id === item.inviterId)
+              const invitee = state.users.find(user => user.id === item.inviteeId)
+              return {
+                id: item.id,
+                createdAt: item.createdAt,
+                createdTime: displayTime(item.createdAt),
+                inviterNickname: inviter?.nickname || '未知',
+                inviterMaskedId: item.inviterId.slice(0, 8),
+                inviteeNickname: invitee?.nickname || '未知',
+                inviteeMaskedId: item.inviteeId.slice(0, 8),
+                loginRewarded: Boolean(item.loginRewarded),
+                firstJobRewarded: Boolean(item.firstJobRewarded && !item.firstJobSkipped),
+                shareToken: item.shareToken || ''
+              }
+            })
+          json(response, 200, { events, invites, totalEvents: events.length, totalInvites: invites.length })
           return
         }
 
@@ -990,6 +1204,9 @@ export async function createApplication() {
             id: randomUUID(), userId: user.id, type: 'job_charge', title: `${currentTemplate.name} · ${body.assetIds.length} 张`,
             amount: -cost, balanceAfter: target.credits, externalRef: job.id, createdAt: now()
           })
+          // Accumulate template popularity when user creates a job (per image)
+          const popularityBump = body.assetIds.length
+          currentTemplate.popularity = Number(currentTemplate.popularity || 0) + popularityBump
           return { job, created: true }
         })
         if (created.created) setTimeout(() => processJob(created.job.id), 10)
@@ -1082,6 +1299,166 @@ export async function createApplication() {
         const state = store.read()
         const current = state.shares.find(item => item.id === share.id)
         json(response, 200, { share: publicShare(current, state), wechatShareReady: isWechatShareConfigured() })
+        return
+      }
+
+      // Report share action and optionally grant credits
+      if (request.method === 'POST' && pathname === '/api/share-rewards') {
+        const body = await readJson(request)
+        const jobId = String(body.jobId || '').trim()
+        const channel = String(body.channel || '').trim()
+        const clientRequestId = String(body.clientRequestId || '').slice(0, 80)
+        if (!jobId) throw new HttpError(400, 'INVALID_FIELD', '缺少作品任务 ID')
+        if (!['friend', 'timeline'].includes(channel)) {
+          throw new HttpError(400, 'INVALID_CHANNEL', '分享渠道需为 friend 或 timeline')
+        }
+
+        const result = await store.transaction(draft => {
+          if (!Array.isArray(draft.shareEvents)) draft.shareEvents = []
+          const settings = publicShareRewardSettings(draft.settings)
+          const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
+          if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+          if (job.status !== 'succeeded') throw new HttpError(409, 'JOB_NOT_READY', '作品完成后才能分享领奖')
+
+          const dateKey = chinaDateKey()
+          if (clientRequestId) {
+            const existingByClient = draft.shareEvents.find(
+              item => item.userId === user.id && item.clientRequestId === clientRequestId
+            )
+            if (existingByClient) {
+              return {
+                rewarded: existingByClient.reward > 0,
+                reward: existingByClient.reward,
+                reason: 'duplicate',
+                event: existingByClient,
+                user: draft.users.find(item => item.id === user.id)
+              }
+            }
+          }
+
+          // One reward per job + channel + day
+          const alreadyToday = draft.shareEvents.find(
+            item => item.userId === user.id
+              && item.jobId === jobId
+              && item.channel === channel
+              && item.dateKey === dateKey
+              && item.reward > 0
+          )
+          if (alreadyToday) {
+            return {
+              rewarded: false,
+              reward: 0,
+              reason: 'already_shared_job',
+              message: '该作品今日已领取过该渠道分享奖励',
+              event: alreadyToday,
+              user: draft.users.find(item => item.id === user.id)
+            }
+          }
+
+          let reward = 0
+          let reason = 'ok'
+          let message = ''
+          if (!settings.shareRewardEnabled) {
+            reason = 'disabled'
+            message = '分享奖励暂未开启'
+          } else {
+            const dailyLimit = channel === 'friend' ? settings.shareFriendDailyLimit : settings.shareTimelineDailyLimit
+            const creditAmount = channel === 'friend' ? settings.shareFriendCredits : settings.shareTimelineCredits
+            const rewardedToday = draft.shareEvents.filter(
+              item => item.userId === user.id && item.channel === channel && item.dateKey === dateKey && item.reward > 0
+            ).length
+            if (creditAmount <= 0) {
+              reason = 'zero_reward'
+              message = '当前渠道分享积分为 0'
+            } else if (dailyLimit <= 0) {
+              reason = 'limit_zero'
+              message = '当前渠道每日分享奖励已关闭'
+            } else if (rewardedToday >= dailyLimit) {
+              reason = 'daily_limit'
+              message = '今日该渠道分享奖励次数已用完'
+            } else {
+              reward = creditAmount
+            }
+          }
+
+          if (reward > 0) {
+            creditUser(
+              draft,
+              user.id,
+              reward,
+              channel === 'friend' ? 'share_friend' : 'share_timeline',
+              channel === 'friend' ? '分享作品到好友' : '分享作品到朋友圈',
+              jobId
+            )
+          }
+
+          const event = {
+            id: randomUUID(),
+            userId: user.id,
+            jobId,
+            channel,
+            reward,
+            dateKey,
+            clientRequestId: clientRequestId || '',
+            reason,
+            createdAt: now()
+          }
+          draft.shareEvents.push(event)
+          return {
+            rewarded: reward > 0,
+            reward,
+            reason,
+            message: reward > 0 ? `分享成功，积分 +${reward}` : message,
+            event,
+            user: draft.users.find(item => item.id === user.id),
+            remainingToday: (() => {
+              const s = publicShareRewardSettings(draft.settings)
+              const limit = channel === 'friend' ? s.shareFriendDailyLimit : s.shareTimelineDailyLimit
+              const used = draft.shareEvents.filter(
+                item => item.userId === user.id && item.channel === channel && item.dateKey === dateKey && item.reward > 0
+              ).length
+              return Math.max(0, limit - used)
+            })()
+          }
+        })
+
+        const state = store.read()
+        json(response, 200, {
+          rewarded: result.rewarded,
+          reward: result.reward,
+          reason: result.reason,
+          message: result.message || '',
+          remainingToday: result.remainingToday,
+          user: publicUser(result.user, state),
+          shareRewards: publicShareRewardSettings(state.settings)
+        })
+        return
+      }
+
+      if (request.method === 'GET' && pathname === '/api/share-rewards/me') {
+        const state = store.read()
+        const settings = publicShareRewardSettings(state.settings)
+        const dateKey = chinaDateKey()
+        const events = (Array.isArray(state.shareEvents) ? state.shareEvents : []).filter(item => item.userId === user.id)
+        const friendUsed = events.filter(item => item.channel === 'friend' && item.dateKey === dateKey && item.reward > 0).length
+        const timelineUsed = events.filter(item => item.channel === 'timeline' && item.dateKey === dateKey && item.reward > 0).length
+        const invites = (Array.isArray(state.invites) ? state.invites : []).filter(item => item.inviterId === user.id)
+        json(response, 200, {
+          shareRewards: settings,
+          today: {
+            friendUsed,
+            friendRemaining: Math.max(0, settings.shareFriendDailyLimit - friendUsed),
+            timelineUsed,
+            timelineRemaining: Math.max(0, settings.shareTimelineDailyLimit - timelineUsed)
+          },
+          totals: {
+            shareCount: events.length,
+            shareRewardCredits: events.reduce((sum, item) => sum + Number(item.reward || 0), 0),
+            inviteCount: invites.length,
+            inviteLoginCount: invites.filter(item => item.loginRewarded).length,
+            inviteFirstJobCount: invites.filter(item => item.firstJobRewarded && !item.firstJobSkipped).length
+          }
+        })
         return
       }
 

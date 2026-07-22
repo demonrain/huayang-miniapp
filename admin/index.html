@@ -9,7 +9,7 @@
 <body>
   <section id="loginView" class="login-shell">
     <form id="loginForm" class="login-panel">
-      <div class="brand-mark">花</div>
+      <div class="brand-mark"><img src="/admin/assets/app-avatar.png" alt="花漾相绘"></div>
       <div>
         <h1>花漾相绘管理后台</h1>
         <p>用户、作品、积分与内容运营</p>
@@ -26,7 +26,7 @@
   <div id="appView" class="app-shell" hidden>
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <div class="brand-mark brand-mark--small">花</div>
+        <div class="brand-mark brand-mark--small"><img src="/admin/assets/app-avatar.png" alt="花漾相绘"></div>
         <div><strong>花漾相绘</strong><span>运营工作台</span></div>
       </div>
       <nav class="nav-list" aria-label="后台导航">
@@ -62,8 +62,40 @@
             <label>每日签到积分<input name="checkinCredits" type="number" min="0" max="100000" required></label>
             <label class="field-wide">默认分享标题<input name="shareTitle" maxlength="60" required></label>
           </div>
+          <div class="panel-heading" style="margin-top:20px">
+            <div><h3>分享 / 邀请奖励</h3><p>分享给分刺激发出；邀请成功给分奖励真正带来新用户。</p></div>
+          </div>
+          <div class="form-grid">
+            <label class="toggle-field"><input name="shareRewardEnabled" type="checkbox"><span>开启分享给分</span></label>
+            <label>分享到好友积分<input name="shareFriendCredits" type="number" min="0" max="100000" required></label>
+            <label>好友每日上限次数<input name="shareFriendDailyLimit" type="number" min="0" max="100" required></label>
+            <label>分享到朋友圈积分<input name="shareTimelineCredits" type="number" min="0" max="100000" required></label>
+            <label>朋友圈每日上限次数<input name="shareTimelineDailyLimit" type="number" min="0" max="100" required></label>
+            <label class="toggle-field"><input name="inviteRewardEnabled" type="checkbox"><span>开启邀请成功给分</span></label>
+            <label>邀请登录奖励积分<input name="inviteLoginCredits" type="number" min="0" max="100000" required></label>
+            <label>邀请首作奖励积分<input name="inviteFirstJobCredits" type="number" min="0" max="100000" required></label>
+          </div>
           <div class="form-actions"><button class="button button--primary" type="submit">保存规则</button></div>
         </form>
+
+        <div class="content-panel" style="margin-top:16px">
+          <div class="panel-heading">
+            <div><h3>分享与邀请数据</h3><p id="shareStatsHint">加载中…</p></div>
+            <button id="refreshShareStats" class="button button--quiet" type="button">刷新</button>
+          </div>
+          <div id="shareStatsGrid" class="stats-grid"></div>
+          <div class="toolbar" style="margin-top:12px">
+            <div><h3 style="margin:0;font-size:15px">分享明细</h3></div>
+            <form id="shareEventFilterForm" class="filter-bar">
+              <input name="query" placeholder="用户昵称 / ID / 任务">
+              <select name="channel"><option value="all">全部渠道</option><option value="friend">微信好友</option><option value="timeline">朋友圈</option></select>
+              <button class="button button--quiet" type="submit">查询</button>
+            </form>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>时间</th><th>用户</th><th>渠道</th><th>奖励</th><th>作品任务</th></tr></thead><tbody id="shareEventRows"></tbody></table></div>
+          <div class="toolbar" style="margin-top:16px"><div><h3 style="margin:0;font-size:15px">邀请关系</h3></div></div>
+          <div class="table-wrap"><table><thead><tr><th>时间</th><th>邀请人</th><th>被邀请人</th><th>登录奖</th><th>首作奖</th></tr></thead><tbody id="inviteRows"></tbody></table></div>
+        </div>
       </section>
 
       <section id="usersView" class="view-panel" hidden>
@@ -83,7 +115,7 @@
           <div><h3>充值与消费记录</h3><p>包含充值、作品消费、签到、赠送、退款和后台调整。</p></div>
           <form id="transactionFilterForm" class="filter-bar">
             <input name="query" placeholder="昵称、用户 ID 或摘要">
-            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="admin_adjust">后台调整</option></select>
+            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="share_friend">分享好友</option><option value="share_timeline">分享朋友圈</option><option value="invite_login">邀请登录</option><option value="invite_first_job">邀请首作</option><option value="admin_adjust">后台调整</option></select>
             <button class="button button--quiet" type="submit">查询</button>
           </form>
         </div>
@@ -168,7 +200,7 @@
           <select name="category" id="templateCategorySelect" required></select>
         </label>
         <label>每张积分<input name="cost" type="number" min="0" max="10000" required></label>
-        <label>人气值<input name="popularity" type="number" min="0" max="100000000" required></label>
+        <label>人气值（用户每次使用模板按张数自动 +1，也可手调）<input name="popularity" type="number" min="0" max="100000000" required></label>
         <label>排序值<input name="sortOrder" type="number" min="0" max="100000" required></label>
         <label>角标<input name="badge" maxlength="12"></label>
         <label class="field-wide">标签<input name="tags" maxlength="100" placeholder="人气，热门，新上架（逗号分隔）"></label>

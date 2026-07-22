@@ -3,7 +3,9 @@ import { config } from './config.mjs'
 export async function exchangeWechatCode(code) {
   if (!code) throw Object.assign(new Error('微信登录 code 不能为空'), { statusCode: 400, code: 'INVALID_CODE' })
   if (config.wechat.mockLogin) {
-    return { openid: 'dev-openid-local-user', unionid: null }
+    // Derive openid from code so multi-user invite tests can create distinct accounts
+    const suffix = String(code).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'local'
+    return { openid: `dev-openid-${suffix}`, unionid: null }
   }
 
   const query = new URLSearchParams({

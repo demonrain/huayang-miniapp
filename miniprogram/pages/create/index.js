@@ -100,10 +100,10 @@ Page({
     if (user && user.credits < this.data.totalCost) {
       wx.showModal({
         title: '积分不够了',
-        content: `本次需要 ${this.data.totalCost} 积分，去充值后即可继续。`,
-        confirmText: '去充值',
+        content: `本次需要 ${this.data.totalCost} 积分。可到「我的」领取每日签到积分。`,
+        confirmText: '去我的',
         success: result => {
-          if (result.confirm) wx.switchTab({ url: '/pages/wallet/index' })
+          if (result.confirm) wx.switchTab({ url: '/pages/profile/index' })
         }
       })
       return

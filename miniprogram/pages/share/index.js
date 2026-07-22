@@ -13,6 +13,9 @@ Page({
   onLoad(query) {
     const token = query.token || decodeURIComponent(query.scene || '')
     this.setData({ ...getNavMetrics(), token })
+    // Attribute invite when visitor later logs in
+    if (token) getApp().setInviteToken(token)
+    getApp().captureInviteFromQuery(query)
     wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
     this.loadShare()
   },
@@ -21,6 +24,7 @@ Page({
     try {
       const { share } = await api.get(`/api/shares/${encodeURIComponent(this.data.token)}`)
       this.setData({ share, loading: false })
+      if (share && share.token) getApp().setInviteToken(share.token)
     } catch (error) {
       this.setData({ loading: false })
       wx.showModal({ title: '作品暂时无法查看', content: error.message, showCancel: false })
@@ -92,7 +96,15 @@ Page({
     })
   },
 
-  goCreate() {
+  async goCreate() {
+    if (this.data.token) getApp().setInviteToken(this.data.token)
+    // Prompt guest to login so invite can be attributed
+    try {
+      const app = getApp()
+      if (!app.isLoggedIn()) {
+        await app.requireLogin('登录后即可开始创作，并记录邀请关系')
+      }
+    } catch (error) {}
     wx.switchTab({ url: '/pages/home/index' })
   }
 })

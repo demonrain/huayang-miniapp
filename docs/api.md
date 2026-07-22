@@ -26,6 +26,10 @@
 | `POST` | `/api/jobs/:id/share/qrcode` | 生成微信小程序码 |
 | `POST` | `/api/jobs/:id/share/url-link` | 生成微信 URL Link |
 | `GET` | `/api/shares/:token` | 匿名读取公开分享作品 |
+| `POST` | `/api/share-rewards` | 上报分享并发放分享积分（需登录） |
+| `GET` | `/api/share-rewards/me` | 当前用户分享/邀请统计 |
+| `GET` | `/api/admin/share-stats` | 分享与邀请汇总 |
+| `GET` | `/api/admin/share-events` | 分享明细与邀请关系 |
 
 管理接口使用独立管理员令牌：
 

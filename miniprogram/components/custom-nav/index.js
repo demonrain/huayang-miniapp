@@ -35,7 +35,8 @@ Component({
 
   methods: {
     openWallet() {
-      wx.switchTab({ url: '/pages/wallet/index' })
+      // Credits tab hidden; show balance & check-in on profile
+      wx.switchTab({ url: '/pages/profile/index' })
     },
 
     goBack() {

@@ -95,17 +95,31 @@
         </view>
       </view>
 
+      <view wx:if="{{shareRewardEnabled && (shareFriendTip || shareTimelineTip)}}" class="share-reward-panel">
+        <view class="share-reward-panel__title">分享领积分</view>
+        <view wx:if="{{shareFriendTip}}" class="share-reward-panel__row">
+          <text class="share-reward-panel__channel">微信好友</text>
+          <text class="share-reward-panel__detail">{{shareFriendTip}}</text>
+        </view>
+        <view wx:if="{{shareTimelineTip}}" class="share-reward-panel__row">
+          <text class="share-reward-panel__channel">朋友圈</text>
+          <text class="share-reward-panel__detail">{{shareTimelineTip}}</text>
+        </view>
+        <view class="share-reward-panel__note">同一作品同一渠道每天最多领 1 次；好友打开链接并登录/完成首作，你还可获得邀请奖励</view>
+      </view>
       <view class="share-actions">
         <view class="share-action-cell">
           <button class="share-action" open-type="share" disabled="{{!share}}">
             <image class="share-action__icon" src="/assets/icons/share.png" mode="aspectFit"></image>
             <text class="share-action__label">微信好友</text>
+            <text wx:if="{{shareFriendCredits > 0}}" class="share-action__sub">+{{shareFriendCredits}}分</text>
           </button>
         </view>
         <view class="share-action-cell">
           <view class="share-action" data-url="{{job.results[0].url}}" bindtap="shareImage">
             <image class="share-action__icon" src="/assets/icons/moments.png" mode="aspectFit"></image>
             <text class="share-action__label">朋友圈</text>
+            <text wx:if="{{shareTimelineCredits > 0}}" class="share-action__sub">+{{shareTimelineCredits}}分</text>
           </view>
         </view>
         <view class="share-action-cell">

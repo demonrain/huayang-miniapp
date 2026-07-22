@@ -5,11 +5,36 @@ App({
   globalData: {
     user: null,
     isLoggedIn: false,
-    apiBase: API_BASE_URL
+    apiBase: API_BASE_URL,
+    inviteToken: ''
   },
 
-  onLaunch() {
+  onLaunch(options) {
+    this.captureInviteFromQuery(options && options.query)
     this.restorePromise = this.tryRestoreSession()
+  },
+
+  /** Persist invite/share token for attribution after login */
+  captureInviteFromQuery(query) {
+    if (!query) return
+    const token = query.token || query.inviteToken || query.shareToken || ''
+    if (token) this.setInviteToken(decodeURIComponent(String(token)))
+  },
+
+  setInviteToken(token) {
+    const value = String(token || '').trim()
+    if (!value) return
+    this.globalData.inviteToken = value
+    wx.setStorageSync('huayang_invite_token', value)
+  },
+
+  getInviteToken() {
+    return this.globalData.inviteToken || wx.getStorageSync('huayang_invite_token') || ''
+  },
+
+  clearInviteToken() {
+    this.globalData.inviteToken = ''
+    wx.removeStorageSync('huayang_invite_token')
   },
 
   isLoggedIn() {
@@ -44,10 +69,15 @@ App({
       const code = await new Promise((resolve, reject) => {
         wx.login({ success: ({ code }) => resolve(code), fail: reject })
       })
-      const { token: nextToken, user } = await api.post('/api/auth/wechat', { code })
+      const inviteToken = this.getInviteToken()
+      const payload = { code }
+      if (inviteToken) payload.inviteToken = inviteToken
+      const { token: nextToken, user } = await api.post('/api/auth/wechat', payload)
       wx.setStorageSync('huayang_token', nextToken)
       this.globalData.user = user
       this.globalData.isLoggedIn = true
+      // Invite is applied only for brand-new accounts; clear either way after login
+      this.clearInviteToken()
       return user
     })()
     try {

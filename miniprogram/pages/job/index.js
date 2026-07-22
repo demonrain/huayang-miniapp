@@ -37,6 +37,14 @@ Page({
     credits: null,
     retrying: false,
     deleting: false,
+    shareRewards: null,
+    shareFriendTip: '',
+    shareTimelineTip: '',
+    shareFriendCredits: 0,
+    shareTimelineCredits: 0,
+    shareFriendRemaining: null,
+    shareTimelineRemaining: null,
+    shareRewardEnabled: false,
     navSpacer: 176
   },
 
@@ -44,7 +52,9 @@ Page({
     this.setData({ ...getNavMetrics(), id: query.id })
     wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
     this.tipIndex = 0
+    this.shareRewardLocks = {}
     this.loadJob()
+    this.loadShareRewardConfig()
   },
 
   onUnload() {
@@ -138,19 +148,113 @@ Page({
     })
   },
 
+  async loadShareRewardConfig() {
+    try {
+      const config = await api.get('/api/config')
+      const shareRewards = config.shareRewards || null
+      let friendRemaining = null
+      let timelineRemaining = null
+      try {
+        const me = await api.get('/api/share-rewards/me')
+        if (me && me.today) {
+          friendRemaining = me.today.friendRemaining
+          timelineRemaining = me.today.timelineRemaining
+        }
+        if (me && me.shareRewards) {
+          // Prefer live settings from authenticated endpoint
+          Object.assign(shareRewards || {}, me.shareRewards)
+        }
+      } catch (error) {}
+      this.applyShareRewardTips(shareRewards, friendRemaining, timelineRemaining)
+    } catch (error) {}
+  },
+
+  applyShareRewardTips(shareRewards, friendRemaining, timelineRemaining) {
+    const enabled = Boolean(shareRewards && shareRewards.shareRewardEnabled)
+    const friendCredits = enabled ? Number(shareRewards.shareFriendCredits || 0) : 0
+    const timelineCredits = enabled ? Number(shareRewards.shareTimelineCredits || 0) : 0
+    const fRem = friendRemaining == null ? null : Number(friendRemaining)
+    const tRem = timelineRemaining == null ? null : Number(timelineRemaining)
+
+    let shareFriendTip = ''
+    let shareTimelineTip = ''
+    if (enabled && friendCredits > 0) {
+      shareFriendTip = fRem == null
+        ? `本次分享好友可获得 ${friendCredits} 积分`
+        : `本次分享好友可获得 ${friendCredits} 积分 · 今日还可 ${fRem} 次`
+    }
+    if (enabled && timelineCredits > 0) {
+      shareTimelineTip = tRem == null
+        ? `本次分享朋友圈可获得 ${timelineCredits} 积分`
+        : `本次分享朋友圈可获得 ${timelineCredits} 积分 · 今日还可 ${tRem} 次`
+    }
+    this.setData({
+      shareRewards,
+      shareRewardEnabled: enabled,
+      shareFriendCredits: friendCredits,
+      shareTimelineCredits: timelineCredits,
+      shareFriendRemaining: fRem,
+      shareTimelineRemaining: tRem,
+      shareFriendTip,
+      shareTimelineTip
+    })
+  },
+
   onShareAppMessage() {
+    this.claimShareReward('friend')
+    const share = this.data.share
     return {
-      title: this.data.share?.title || '来看看我用花漾相绘制作的作品',
-      path: this.data.share?.path || '/pages/home/index',
-      imageUrl: this.data.job?.results?.[0]?.url || ''
+      title: (share && share.title) || '来看看我用花漾相绘制作的作品',
+      path: (share && share.path) || '/pages/home/index',
+      imageUrl: (this.data.job && this.data.job.results && this.data.job.results[0] && this.data.job.results[0].url) || ''
     }
   },
 
   onShareTimeline() {
+    this.claimShareReward('timeline')
+    const share = this.data.share
     return {
-      title: this.data.share?.title || '来看看我用花漾相绘制作的作品',
-      query: this.data.share ? `token=${encodeURIComponent(this.data.share.token)}` : '',
-      imageUrl: this.data.job?.results?.[0]?.url || ''
+      title: (share && share.title) || '来看看我用花漾相绘制作的作品',
+      query: share ? `token=${encodeURIComponent(share.token)}` : '',
+      imageUrl: (this.data.job && this.data.job.results && this.data.job.results[0] && this.data.job.results[0].url) || ''
+    }
+  },
+
+  async claimShareReward(channel) {
+    if (!this.data.id || !this.data.job || this.data.job.status !== 'succeeded') return
+    if (this.shareRewardLocks[channel]) return
+    this.shareRewardLocks[channel] = true
+    try {
+      await this.ensureShare()
+      const result = await api.post('/api/share-rewards', {
+        jobId: this.data.id,
+        channel,
+        clientRequestId: `share-${this.data.id}-${channel}-${Date.now()}`
+      })
+      if (result.user) {
+        getApp().setUser(result.user)
+        this.setData({ credits: result.user.credits })
+      }
+      // Refresh remaining counts for UI
+      if (result.shareRewards || result.remainingToday != null) {
+        const sr = result.shareRewards || this.data.shareRewards
+        let fRem = this.data.shareFriendRemaining
+        let tRem = this.data.shareTimelineRemaining
+        if (channel === 'friend' && result.remainingToday != null) fRem = result.remainingToday
+        if (channel === 'timeline' && result.remainingToday != null) tRem = result.remainingToday
+        this.applyShareRewardTips(sr, fRem, tRem)
+      }
+      if (result.rewarded && result.reward > 0) {
+        wx.showToast({ title: `分享成功 +${result.reward} 积分`, icon: 'success' })
+      } else if (result.message && (result.reason === 'daily_limit' || result.reason === 'already_shared_job')) {
+        wx.showToast({ title: result.message, icon: 'none' })
+      }
+    } catch (error) {
+      // Share still works even if reward fails
+    } finally {
+      setTimeout(() => {
+        this.shareRewardLocks[channel] = false
+      }, 1500)
     }
   },
 
@@ -206,8 +310,14 @@ Page({
       const tempFilePath = await this.download(url)
       wx.hideLoading()
       if (wx.showShareImageMenu) {
-        wx.showShareImageMenu({ path: tempFilePath })
+        wx.showShareImageMenu({
+          path: tempFilePath,
+          success: () => this.claimShareReward('timeline'),
+          fail: () => {}
+        })
       } else {
+        // Fallback: menu share to timeline still available via top-right; count as timeline intent
+        this.claimShareReward('timeline')
         wx.previewImage({ current: url, urls: [url] })
       }
     } catch (error) {

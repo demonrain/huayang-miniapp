@@ -50,6 +50,11 @@ const elements = {
   packageForm: document.querySelector('#packageForm'),
   coverInput: document.querySelector('#coverInput'),
   bannerImageInput: document.querySelector('#bannerImageInput'),
+  shareStatsGrid: document.querySelector('#shareStatsGrid'),
+  shareStatsHint: document.querySelector('#shareStatsHint'),
+  shareEventRows: document.querySelector('#shareEventRows'),
+  inviteRows: document.querySelector('#inviteRows'),
+  shareEventFilterForm: document.querySelector('#shareEventFilterForm'),
   toast: document.querySelector('#toast')
 }
 
@@ -134,10 +139,70 @@ function renderOverview() {
     <div class="stat-card"><span>${escapeHtml(label)}</span><strong>${Number(value)}</strong></div>
   `).join('')
 
-  elements.settingsForm.elements.welcomeCredits.value = settings.welcomeCredits
-  elements.settingsForm.elements.checkinCredits.value = settings.checkinCredits
-  elements.settingsForm.elements.shareTitle.value = settings.shareTitle
+  const form = elements.settingsForm.elements
+  form.welcomeCredits.value = settings.welcomeCredits
+  form.checkinCredits.value = settings.checkinCredits
+  form.shareTitle.value = settings.shareTitle
+  if (form.shareRewardEnabled) form.shareRewardEnabled.checked = settings.shareRewardEnabled !== false
+  if (form.shareFriendCredits) form.shareFriendCredits.value = Number(settings.shareFriendCredits ?? 2)
+  if (form.shareFriendDailyLimit) form.shareFriendDailyLimit.value = Number(settings.shareFriendDailyLimit ?? 3)
+  if (form.shareTimelineCredits) form.shareTimelineCredits.value = Number(settings.shareTimelineCredits ?? 1)
+  if (form.shareTimelineDailyLimit) form.shareTimelineDailyLimit.value = Number(settings.shareTimelineDailyLimit ?? 1)
+  if (form.inviteRewardEnabled) form.inviteRewardEnabled.checked = settings.inviteRewardEnabled !== false
+  if (form.inviteLoginCredits) form.inviteLoginCredits.value = Number(settings.inviteLoginCredits ?? 5)
+  if (form.inviteFirstJobCredits) form.inviteFirstJobCredits.value = Number(settings.inviteFirstJobCredits ?? 10)
   fillBannerCarouselForm()
+  loadShareGrowth().catch(() => {})
+}
+
+async function loadShareGrowth() {
+  if (!elements.shareStatsGrid) return
+  const [statsResult, listResult] = await Promise.all([
+    api('/api/admin/share-stats'),
+    api(`/api/admin/share-events?${new URLSearchParams({
+      query: elements.shareEventFilterForm?.elements?.query?.value || '',
+      channel: elements.shareEventFilterForm?.elements?.channel?.value || 'all'
+    })}`)
+  ])
+  const s = statsResult.summary || {}
+  const cards = [
+    ['今日分享(好友)', s.shareTodayFriend],
+    ['今日分享(朋友圈)', s.shareTodayTimeline],
+    ['今日分享发奖积分', s.shareTodayRewardCredits],
+    ['累计分享次数', s.shareEventsTotal],
+    ['累计邀请关系', s.invitesTotal],
+    ['邀请登录已奖', s.inviteLoginRewarded],
+    ['邀请首作已奖', s.inviteFirstJobRewarded],
+    ['邀请发奖积分', Number(s.inviteLoginCredits || 0) + Number(s.inviteFirstJobCredits || 0)]
+  ]
+  elements.shareStatsGrid.innerHTML = cards.map(([label, value]) => `
+    <div class="stat-card"><span>${escapeHtml(label)}</span><strong>${Number(value || 0)}</strong></div>
+  `).join('')
+  if (elements.shareStatsHint) {
+    elements.shareStatsHint.textContent = `分享发奖累计 ${Number(s.shareRewardCredits || 0)} 积分 · 邀请登录奖 ${Number(s.inviteLoginCredits || 0)} · 首作奖 ${Number(s.inviteFirstJobCredits || 0)}`
+  }
+  if (elements.shareEventRows) {
+    elements.shareEventRows.innerHTML = (listResult.events || []).map(item => `
+      <tr>
+        <td>${escapeHtml(item.createdTime)}</td>
+        <td><strong>${escapeHtml(item.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.userMaskedId)}</span></td>
+        <td>${escapeHtml(item.channelLabel)}</td>
+        <td class="${item.reward > 0 ? 'amount-positive' : 'muted'}">${item.reward > 0 ? '+' : ''}${Number(item.reward)}</td>
+        <td title="${escapeHtml(item.jobId)}">${escapeHtml(shortId(item.jobId, 10))}</td>
+      </tr>
+    `).join('') || emptyRow(5, '暂无分享记录')
+  }
+  if (elements.inviteRows) {
+    elements.inviteRows.innerHTML = (listResult.invites || []).map(item => `
+      <tr>
+        <td>${escapeHtml(item.createdTime)}</td>
+        <td><strong>${escapeHtml(item.inviterNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.inviterMaskedId)}</span></td>
+        <td><strong>${escapeHtml(item.inviteeNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.inviteeMaskedId)}</span></td>
+        <td>${item.loginRewarded ? '已发' : '—'}</td>
+        <td>${item.firstJobRewarded ? '已发' : '—'}</td>
+      </tr>
+    `).join('') || emptyRow(5, '暂无邀请关系')
+  }
 }
 
 function categoryList() {
@@ -321,13 +386,16 @@ async function loadJobs() {
     <tr>
       <td>
         <div class="job-media">
-          <div class="job-media-group">
-            <span class="job-media-label">原图</span>
-            ${mediaThumbs(job.originals, '无原图')}
-          </div>
-          <div class="job-media-group">
-            <span class="job-media-label">生成</span>
-            ${mediaThumbs(job.results, job.status === 'succeeded' ? '无结果' : '未生成')}
+          <div class="job-media-line">
+            <div class="job-media-group">
+              <span class="job-media-label">原图</span>
+              ${mediaThumbs(job.originals, '无')}
+            </div>
+            <span class="job-media-sep">→</span>
+            <div class="job-media-group">
+              <span class="job-media-label">生成</span>
+              ${mediaThumbs(job.results, job.status === 'succeeded' ? '无' : '未出')}
+            </div>
           </div>
         </div>
         <span class="cell-subtitle">${escapeHtml(shortId(job.id, 12))}</span>
@@ -502,18 +570,37 @@ document.querySelector('#logoutButton').addEventListener('click', logout)
 elements.settingsForm.addEventListener('submit', async event => {
   event.preventDefault()
   const values = new FormData(elements.settingsForm)
+  const form = elements.settingsForm.elements
   try {
     const result = await api('/api/admin/settings', {
       method: 'PATCH',
       json: {
         welcomeCredits: Number(values.get('welcomeCredits')),
         checkinCredits: Number(values.get('checkinCredits')),
-        shareTitle: String(values.get('shareTitle'))
+        shareTitle: String(values.get('shareTitle')),
+        shareRewardEnabled: Boolean(form.shareRewardEnabled?.checked),
+        shareFriendCredits: Number(values.get('shareFriendCredits')),
+        shareFriendDailyLimit: Number(values.get('shareFriendDailyLimit')),
+        shareTimelineCredits: Number(values.get('shareTimelineCredits')),
+        shareTimelineDailyLimit: Number(values.get('shareTimelineDailyLimit')),
+        inviteRewardEnabled: Boolean(form.inviteRewardEnabled?.checked),
+        inviteLoginCredits: Number(values.get('inviteLoginCredits')),
+        inviteFirstJobCredits: Number(values.get('inviteFirstJobCredits'))
       }
     })
     state.data.settings = result.settings
     showToast('规则已保存')
+    loadShareGrowth().catch(() => {})
   } catch (error) { showToast(error.message, true) }
+})
+
+document.querySelector('#refreshShareStats')?.addEventListener('click', () => {
+  loadShareGrowth().then(() => showToast('分享数据已刷新')).catch(error => showToast(error.message, true))
+})
+
+elements.shareEventFilterForm?.addEventListener('submit', event => {
+  event.preventDefault()
+  loadShareGrowth().catch(error => showToast(error.message, true))
 })
 
 if (elements.bannerCarouselForm) {

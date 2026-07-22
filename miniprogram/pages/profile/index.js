@@ -1,14 +1,48 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
 
+function emptyStats() {
+  return { completedJobs: 0, generatedImages: 0 }
+}
+
+function buildCheckinView(checkin) {
+  if (!checkin) {
+    return {
+      checkinInfo: null,
+      checkinTitle: '每日花签',
+      checkinSub: '登录后可领取今日积分',
+      checkinBtnText: '加载中',
+      checkinDone: false,
+      checkinReady: false
+    }
+  }
+  const claimed = Boolean(checkin.claimedToday)
+  const reward = Number(checkin.reward) || 0
+  return {
+    checkinInfo: checkin,
+    checkinTitle: claimed ? '今日花签已领取' : '每日花签',
+    checkinSub: claimed ? '明天再来收集新的灵感' : `今天可领取 ${reward} 积分`,
+    checkinBtnText: claimed ? '已签到' : `+${reward} 领取`,
+    checkinDone: claimed,
+    checkinReady: true
+  }
+}
+
 Page({
   data: {
     user: null,
-    stats: null,
+    stats: emptyStats(),
     avatarUrl: '',
     nickname: '',
     avatarInitial: '画',
     profileComplete: false,
+    checking: false,
+    checkinInfo: null,
+    checkinTitle: '每日花签',
+    checkinSub: '今天可领取积分',
+    checkinBtnText: '加载中',
+    checkinDone: false,
+    checkinReady: false,
     navSpacer: 176
   },
 
@@ -25,18 +59,38 @@ Page({
       const app = getApp()
       await app.ensureSession()
       if (!app.isLoggedIn()) {
-        this.setData({ user: null, stats: null, profileComplete: false })
+        this.setData({
+          user: null,
+          stats: emptyStats(),
+          profileComplete: false,
+          ...buildCheckinView(null)
+        })
         return
       }
+
+      // Load profile first (critical path); wallet only for check-in status
       const { user, stats } = await api.get('/api/profile')
       app.setUser(user)
       this.applyUser(user, stats)
+
+      try {
+        const wallet = await api.get('/api/wallet')
+        this.setData(buildCheckinView(wallet.checkin || null))
+      } catch (error) {
+        // Keep page usable even if wallet/check-in fails
+        this.setData(buildCheckinView({ reward: 3, claimedToday: false }))
+      }
     } catch (error) {
       if (error.statusCode === 401) {
-        this.setData({ user: null, stats: null, profileComplete: false })
+        this.setData({
+          user: null,
+          stats: emptyStats(),
+          profileComplete: false,
+          ...buildCheckinView(null)
+        })
         return
       }
-      wx.showToast({ title: error.message, icon: 'none' })
+      wx.showToast({ title: error.message || '加载失败', icon: 'none' })
     }
   },
 
@@ -44,7 +98,7 @@ Page({
     const nickname = user.nickname || ''
     this.setData({
       user,
-      stats: stats || this.data.stats,
+      stats: stats || this.data.stats || emptyStats(),
       avatarUrl: user.avatarUrl || '',
       nickname: nickname === '微信用户' ? '' : nickname,
       avatarInitial: (nickname && nickname !== '微信用户' ? nickname : '画').slice(0, 1),
@@ -52,11 +106,45 @@ Page({
     })
   },
 
+  /**
+   * Intentional login from profile guest panel (not a feature-gate prompt).
+   * Other pages use requireLogin() with “需要登录 / 再逛逛” when a feature needs auth.
+   */
   async doLogin() {
-    try {
-      await getApp().requireLogin('登录后可管理个人资料与作品数据')
+    const app = getApp()
+    if (app.isLoggedIn()) {
       await this.loadProfile()
-    } catch (error) {}
+      return
+    }
+    await app.ensureSession()
+    if (app.isLoggedIn()) {
+      await this.loadProfile()
+      return
+    }
+
+    const confirmed = await new Promise(resolve => {
+      wx.showModal({
+        title: '微信快捷登录',
+        content: '使用当前微信账号登录花漾相绘，同步作品、积分与个人主页。登录后可签到领积分、管理资料与创作记录。',
+        confirmText: '立即登录',
+        cancelText: '取消',
+        success: res => resolve(Boolean(res.confirm)),
+        fail: () => resolve(false)
+      })
+    })
+    if (!confirmed) return
+
+    wx.showLoading({ title: '登录中', mask: true })
+    try {
+      const user = await app.login()
+      wx.hideLoading()
+      wx.showToast({ title: '登录成功', icon: 'success' })
+      app.maybePromptProfileSetup(user)
+      await this.loadProfile()
+    } catch (error) {
+      wx.hideLoading()
+      wx.showToast({ title: error.message || '登录失败', icon: 'none' })
+    }
   },
 
   async chooseAvatar(event) {
@@ -65,7 +153,7 @@ Page({
     } catch (error) {
       return
     }
-    const avatarUrl = event.detail.avatarUrl
+    const avatarUrl = event.detail && event.detail.avatarUrl
     if (!avatarUrl) return
     this.setData({ avatarUrl })
     await this.saveProfile({ avatarUrl }, { silent: false })
@@ -89,42 +177,76 @@ Page({
     await this.saveProfile({ nickname })
   },
 
-  async saveProfile(changes, options = {}) {
+  async saveProfile(changes, options) {
+    options = options || {}
     try {
       await getApp().requireLogin('登录后可更新资料')
-      let payload = { ...changes }
+      let payload = Object.assign({}, changes)
       const avatarUrl = changes.avatarUrl || ''
       const isLocalTemp =
-        avatarUrl.startsWith('wxfile://') ||
-        avatarUrl.startsWith('http://tmp/') ||
-        avatarUrl.startsWith('http://usr/') ||
-        (avatarUrl.startsWith('https://') && /\/tmp\//i.test(avatarUrl))
+        avatarUrl.indexOf('wxfile://') === 0 ||
+        avatarUrl.indexOf('http://tmp/') === 0 ||
+        avatarUrl.indexOf('http://usr/') === 0 ||
+        (avatarUrl.indexOf('https://') === 0 && /\/tmp\//i.test(avatarUrl))
       if (isLocalTemp) {
         wx.showLoading({ title: '上传头像', mask: true })
         try {
-          const { asset } = await api.upload(avatarUrl)
-          payload = { avatarAssetId: asset.id }
+          const result = await api.upload(avatarUrl)
+          payload = { avatarAssetId: result.asset.id }
         } finally {
           wx.hideLoading()
         }
       }
 
-      const { user } = await api.patch('/api/me', payload)
-      getApp().setUser(user)
-      this.applyUser(user)
+      const result = await api.patch('/api/me', payload)
+      getApp().setUser(result.user)
+      this.applyUser(result.user)
       if (!options.silent) {
         wx.showToast({ title: '资料已更新', icon: 'success' })
       }
     } catch (error) {
       if (error.code === 'LOGIN_CANCELLED') return
-      wx.showToast({ title: error.message, icon: 'none' })
+      wx.showToast({ title: error.message || '保存失败', icon: 'none' })
     }
+  },
+
+  async doCheckin() {
+    if (this.data.checking || this.data.checkinDone) return
+    try {
+      await getApp().requireLogin('登录后可每日签到领取积分')
+    } catch (error) {
+      return
+    }
+    this.setData({ checking: true })
+    try {
+      const result = await api.post('/api/checkins', {})
+      getApp().setUser(result.user)
+      this.applyUser(result.user)
+      this.setData(buildCheckinView({
+        reward: result.reward,
+        claimedToday: true
+      }))
+      wx.showToast({
+        title: result.claimed ? `签到成功 +${result.reward}` : '今天已经签到',
+        icon: 'success'
+      })
+    } catch (error) {
+      wx.showToast({ title: error.message || '签到失败', icon: 'none' })
+    } finally {
+      this.setData({ checking: false })
+    }
+  },
+
+  noop() {},
+
+  goWorks() {
+    wx.switchTab({ url: '/pages/history/index' })
   },
 
   openHelp() {
     wx.showModal({
       title: '使用帮助',
-      content: '1. 在首页选择风格\n2. 上传 1–6 张清晰照片\n3. 消耗积分生成作品（约 2–5 分钟）\n\n失败任务积分会自动退回。头像请点圆形按钮授权微信头像，昵称请点输入框使用微信昵称（微信要求用户主动授权，无法静默获取）。',
+      content: '1. 在首页选择风格\n2. 上传 1–6 张清晰照片\n3. 消耗积分生成作品（约 2–5 分钟）\n\n失败任务积分会自动退回。每日可在本页领取签到积分。头像与昵称需主动授权后才会保存。',
       showCancel: false
     })
   },

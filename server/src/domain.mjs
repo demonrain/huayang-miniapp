@@ -32,6 +32,30 @@ export function categoryLabelFromState(state, categoryId) {
   return found?.name || categoryId || ''
 }
 
+export const DEFAULT_SHARE_REWARD_SETTINGS = {
+  shareRewardEnabled: true,
+  shareFriendCredits: 2,
+  shareTimelineCredits: 1,
+  shareFriendDailyLimit: 3,
+  shareTimelineDailyLimit: 1,
+  inviteRewardEnabled: true,
+  inviteLoginCredits: 5,
+  inviteFirstJobCredits: 10
+}
+
+export function publicShareRewardSettings(settings = {}) {
+  return {
+    shareRewardEnabled: settings.shareRewardEnabled !== false,
+    shareFriendCredits: Number(settings.shareFriendCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.shareFriendCredits),
+    shareTimelineCredits: Number(settings.shareTimelineCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.shareTimelineCredits),
+    shareFriendDailyLimit: Number(settings.shareFriendDailyLimit ?? DEFAULT_SHARE_REWARD_SETTINGS.shareFriendDailyLimit),
+    shareTimelineDailyLimit: Number(settings.shareTimelineDailyLimit ?? DEFAULT_SHARE_REWARD_SETTINGS.shareTimelineDailyLimit),
+    inviteRewardEnabled: settings.inviteRewardEnabled !== false,
+    inviteLoginCredits: Number(settings.inviteLoginCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.inviteLoginCredits),
+    inviteFirstJobCredits: Number(settings.inviteFirstJobCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.inviteFirstJobCredits)
+  }
+}
+
 export function seedConfig(draft) {
   let changed = false
   if (!draft.settings) {
@@ -41,7 +65,8 @@ export function seedConfig(draft) {
       shareTitle: '来看看我用花漾相绘制作的作品',
       bannerSwitchMode: 'auto',
       bannerSwitchIntervalMs: 4500,
-      bannerCircular: true
+      bannerCircular: true,
+      ...DEFAULT_SHARE_REWARD_SETTINGS
     }
     changed = true
   } else {
@@ -51,7 +76,8 @@ export function seedConfig(draft) {
       shareTitle: '来看看我用花漾相绘制作的作品',
       bannerSwitchMode: 'auto',
       bannerSwitchIntervalMs: 4500,
-      bannerCircular: true
+      bannerCircular: true,
+      ...DEFAULT_SHARE_REWARD_SETTINGS
     }
     for (const [key, value] of Object.entries(defaults)) {
       if (draft.settings[key] === undefined) {
@@ -63,6 +89,14 @@ export function seedConfig(draft) {
       draft.settings.shareTitle = '来看看我用花漾相绘制作的作品'
       changed = true
     }
+  }
+  if (!Array.isArray(draft.shareEvents)) {
+    draft.shareEvents = []
+    changed = true
+  }
+  if (!Array.isArray(draft.invites)) {
+    draft.invites = []
+    changed = true
   }
   if (!Array.isArray(draft.templateCategories) || !draft.templateCategories.length) {
     draft.templateCategories = DEFAULT_TEMPLATE_CATEGORIES.map(item => ({ ...item }))
@@ -278,6 +312,7 @@ export function publicShare(share, state) {
     token: share.token,
     title: share.title || state.settings.shareTitle,
     createdAt: share.createdAt,
+    inviterId: share.userId || '',
     path: `/pages/share/index?token=${encodeURIComponent(share.token)}`,
     urlLink: share.urlLink || '',
     qrcodeUrl: mediaUrl(share.qrcodeStoragePath),

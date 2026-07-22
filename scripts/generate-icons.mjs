@@ -18,7 +18,13 @@ const actionIcons = {
   share: 'send',
   moments: 'aperture',
   'qr-code': 'qr-code',
-  link: 'link'
+  link: 'link',
+  pencil: 'pencil'
+}
+
+// White icons for solid badges (avatar camera chip, etc.)
+const solidWhiteIcons = {
+  camera: 'camera'
 }
 
 // White variants used on coral primary buttons
@@ -52,4 +58,8 @@ for (const [name, icon] of Object.entries(buttonIcons)) {
   await render(icon, `${name}.png`, '#ffffff', 72)
 }
 
-console.log(`Generated ${Object.keys(tabIcons).length * 2 + Object.keys(actionIcons).length + Object.keys(buttonIcons).length} Lucide PNG icons.`)
+for (const [name, icon] of Object.entries(solidWhiteIcons)) {
+  await render(icon, `${name}.png`, '#ffffff', 64)
+}
+
+console.log(`Generated ${Object.keys(tabIcons).length * 2 + Object.keys(actionIcons).length + Object.keys(buttonIcons).length + Object.keys(solidWhiteIcons).length} Lucide PNG icons.`)
