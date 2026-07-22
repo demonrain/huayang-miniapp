@@ -159,9 +159,52 @@ textarea { resize: vertical; line-height: 1.55; }
 }
 
 .toolbar { margin-bottom: 16px; }
-.filter-bar { display: flex; align-items: center; gap: 8px; }
-.filter-bar input { width: min(260px, 30vw); }
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.filter-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.filter-bar input { width: min(220px, 28vw); }
 .filter-bar select { width: 132px; }
+.pager {
+  margin-top: 12px;
+  padding: 10px 4px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pager-info {
+  color: var(--muted);
+  font-size: 12px;
+}
+.pager-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pager-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.pager-size select {
+  width: 72px;
+  min-height: 36px;
+  padding: 6px 8px;
+}
+.pager-actions .button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .table-wrap { overflow-x: auto; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { padding: 12px 14px; background: #fafbfb; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 600; text-align: left; white-space: nowrap; }

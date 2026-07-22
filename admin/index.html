@@ -219,10 +219,38 @@
 
       <section id="templatesView" class="view-panel" hidden>
         <div class="toolbar">
-          <div><h3>风格模板</h3><p>封面建议使用 1:1 或 4:5 图片。分类在「模板分类」中维护。</p></div>
-          <button id="addTemplateButton" class="button button--primary" type="button"><span>＋</span>新增模板</button>
+          <div><h3>风格模板</h3><p>封面建议使用 1:1 或 4:5 图片。分类在「模板分类」中维护。列表分页加载，避免模板过多时卡顿。</p></div>
+          <div class="toolbar-actions">
+            <form id="templateFilterForm" class="filter-bar">
+              <input name="query" placeholder="名称 / ID / 标签">
+              <select name="category" id="templateFilterCategory">
+                <option value="all">全部分类</option>
+              </select>
+              <select name="status">
+                <option value="all">全部状态</option>
+                <option value="enabled">已启用</option>
+                <option value="disabled">已停用</option>
+              </select>
+              <button class="button button--quiet" type="submit">查询</button>
+            </form>
+            <button id="addTemplateButton" class="button button--primary" type="button"><span>＋</span>新增模板</button>
+          </div>
         </div>
         <div class="table-wrap"><table><thead><tr><th>模板</th><th>分类</th><th>标签</th><th>人气</th><th>积分/张</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="templateRows"></tbody></table></div>
+        <div class="pager" id="templatePager">
+          <span class="pager-info" id="templatePagerInfo">—</span>
+          <div class="pager-actions">
+            <label class="pager-size">每页
+              <select id="templatePageSize">
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button class="button button--quiet" id="templatePrevPage" type="button">上一页</button>
+            <button class="button button--quiet" id="templateNextPage" type="button">下一页</button>
+          </div>
+        </div>
       </section>
 
       <section id="categoriesView" class="view-panel" hidden>

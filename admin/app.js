@@ -4,6 +4,17 @@ const state = {
   users: [],
   transactions: [],
   jobs: [],
+  templates: [],
+  templateQuery: {
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    pages: 1,
+    query: '',
+    status: 'all',
+    category: 'all'
+  },
+  templatesLoading: false,
   editingTemplateId: '',
   coverTemplateId: '',
   editingBannerId: '',
@@ -32,6 +43,12 @@ const elements = {
   bannerCarouselForm: document.querySelector('#bannerCarouselForm'),
   bannerEnabledHint: document.querySelector('#bannerEnabledHint'),
   templateRows: document.querySelector('#templateRows'),
+  templateFilterForm: document.querySelector('#templateFilterForm'),
+  templateFilterCategory: document.querySelector('#templateFilterCategory'),
+  templatePagerInfo: document.querySelector('#templatePagerInfo'),
+  templatePrevPage: document.querySelector('#templatePrevPage'),
+  templateNextPage: document.querySelector('#templateNextPage'),
+  templatePageSize: document.querySelector('#templatePageSize'),
   categoryRows: document.querySelector('#categoryRows'),
   packageList: document.querySelector('#packageList'),
   templateDialog: document.querySelector('#templateDialog'),
@@ -133,10 +150,89 @@ function logout() {
 async function loadOverview() {
   state.data = await api('/api/admin/overview')
   renderOverview()
-  renderTemplates()
+  fillTemplateFilterCategories()
   renderBanners()
   renderCategories()
   renderPackages()
+}
+
+function fillTemplateFilterCategories() {
+  if (!elements.templateFilterCategory) return
+  const current = elements.templateFilterCategory.value || 'all'
+  const options = ['<option value="all">全部分类</option>']
+    .concat(categoryList().map(item => (
+      `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`
+    )))
+  elements.templateFilterCategory.innerHTML = options.join('')
+  if ([...elements.templateFilterCategory.options].some(option => option.value === current)) {
+    elements.templateFilterCategory.value = current
+  }
+}
+
+async function loadTemplates({ resetPage = false } = {}) {
+  if (!elements.templateRows) return
+  if (resetPage) state.templateQuery.page = 1
+  const q = state.templateQuery
+  if (elements.templateFilterForm) {
+    const values = new FormData(elements.templateFilterForm)
+    q.query = String(values.get('query') || '').trim()
+    q.status = String(values.get('status') || 'all')
+    q.category = String(values.get('category') || 'all')
+  }
+  if (elements.templatePageSize) {
+    const size = Number(elements.templatePageSize.value) || 20
+    q.pageSize = [20, 50, 100].includes(size) ? size : 20
+  }
+
+  state.templatesLoading = true
+  elements.templateRows.innerHTML = emptyRow(8, '加载中...')
+  renderTemplatePager()
+  try {
+    const params = new URLSearchParams({
+      page: String(q.page),
+      pageSize: String(q.pageSize),
+      query: q.query,
+      status: q.status,
+      category: q.category
+    })
+    const result = await api(`/api/admin/templates?${params}`)
+    state.templates = Array.isArray(result.templates) ? result.templates : []
+    q.total = Number(result.total) || 0
+    q.page = Number(result.page) || q.page
+    q.pageSize = Number(result.pageSize) || q.pageSize
+    q.pages = Number(result.pages) || Math.max(1, Math.ceil(q.total / q.pageSize) || 1)
+    if (state.data) state.data.templateCount = q.total
+    renderTemplates()
+    renderTemplatePager()
+  } catch (error) {
+    elements.templateRows.innerHTML = emptyRow(8, error.message || '加载失败')
+    showToast(error.message, true)
+  } finally {
+    state.templatesLoading = false
+    renderTemplatePager()
+  }
+}
+
+function renderTemplatePager() {
+  const q = state.templateQuery
+  if (elements.templatePagerInfo) {
+    if (!q.total) {
+      elements.templatePagerInfo.textContent = state.templatesLoading ? '加载中…' : '共 0 条'
+    } else {
+      const from = (q.page - 1) * q.pageSize + 1
+      const to = Math.min(q.page * q.pageSize, q.total)
+      elements.templatePagerInfo.textContent = `第 ${q.page}/${q.pages} 页 · 显示 ${from}-${to} · 共 ${q.total} 条`
+    }
+  }
+  if (elements.templatePrevPage) {
+    elements.templatePrevPage.disabled = state.templatesLoading || q.page <= 1
+  }
+  if (elements.templateNextPage) {
+    elements.templateNextPage.disabled = state.templatesLoading || q.page >= q.pages || q.total === 0
+  }
+  if (elements.templatePageSize && String(elements.templatePageSize.value) !== String(q.pageSize)) {
+    elements.templatePageSize.value = String(q.pageSize)
+  }
 }
 
 function renderOverview() {
@@ -276,14 +372,15 @@ function mediaThumbs(items, emptyText) {
 }
 
 function renderTemplates() {
-  elements.templateRows.innerHTML = state.data.templates.map(template => `
+  const list = state.templates || []
+  elements.templateRows.innerHTML = list.map(template => `
     <tr>
       <td><div class="template-cell">
         <div class="cover-thumb" style="background:${escapeHtml(template.palette)}">${template.coverUrl ? `<img src="${escapeHtml(template.coverUrl)}" alt="">` : escapeHtml(template.shortName || template.name || '')}</div>
         <div><strong>${escapeHtml(template.name)}</strong><span>${escapeHtml(template.id)}</span></div>
       </div></td>
       <td><span class="tag">${escapeHtml(template.categoryLabel || categoryLabel(template.category))}</span></td>
-      <td><div class="tag-list">${template.tags.length ? template.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('') : '<span class="muted">未设置</span>'}</div></td>
+      <td><div class="tag-list">${(template.tags || []).length ? template.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('') : '<span class="muted">未设置</span>'}</div></td>
       <td>${Number(template.popularity).toLocaleString('zh-CN')}</td>
       <td>${Number(template.cost)}</td>
       <td>${Number(template.sortOrder)}</td>
@@ -320,10 +417,7 @@ function renderBanners() {
 
 function renderCategories() {
   if (!elements.categoryRows || !state.data) return
-  const counts = {}
-  for (const template of state.data.templates || []) {
-    counts[template.category] = (counts[template.category] || 0) + 1
-  }
+  const counts = state.data.templateCategoryCounts || {}
   const categories = categoryList()
   elements.categoryRows.innerHTML = categories.map(category => `
     <tr>
@@ -455,6 +549,7 @@ async function switchView(name) {
     if (name === 'jobs') await loadJobs()
     if (name === 'shares') await loadShareGrowth()
     if (name === 'messages') await loadMessagesPage()
+    if (name === 'templates') await loadTemplates()
     if (name === 'categories') renderCategories()
     if (name === 'banners') fillBannerCarouselForm()
     if (name === 'packages') await loadCdks()
@@ -560,7 +655,7 @@ async function loadSubscribeStats() {
 }
 
 function templateById(id) {
-  return state.data.templates.find(item => item.id === id)
+  return (state.templates || []).find(item => item.id === id)
 }
 
 function openTemplateDialog(template = null) {
@@ -587,7 +682,7 @@ function openTemplateDialog(template = null) {
     form.enabled.checked = true
     form.cost.value = 2
     form.popularity.value = 0
-    form.sortOrder.value = (state.data.templates.length + 1) * 10
+    form.sortOrder.value = ((Number(state.data?.templateCount) || state.templateQuery.total || 0) + 1) * 10
     form.palette.value = 'linear-gradient(145deg, #f7b6c2, #f8dda0, #a8daca)'
     form.shortName.value = ''
   }
@@ -916,6 +1011,10 @@ elements.templateRows.addEventListener('click', async event => {
   const button = event.target.closest('[data-template-action]')
   if (!button) return
   const template = templateById(button.dataset.id)
+  if (!template) {
+    showToast('模板不在当前页，请刷新列表', true)
+    return
+  }
   if (button.dataset.templateAction === 'edit') openTemplateDialog(template)
   if (button.dataset.templateAction === 'cover') {
     state.coverTemplateId = template.id
@@ -924,7 +1023,7 @@ elements.templateRows.addEventListener('click', async event => {
   if (button.dataset.templateAction === 'toggle') {
     try {
       await api(`/api/admin/templates/${encodeURIComponent(template.id)}`, { method: 'PATCH', json: { enabled: !template.enabled } })
-      await loadOverview()
+      await Promise.all([loadTemplates(), loadOverview()])
       showToast(template.enabled ? '模板已停用' : '模板已启用')
     } catch (error) { showToast(error.message, true) }
   }
@@ -942,7 +1041,7 @@ elements.templateForm.addEventListener('submit', async event => {
       await api('/api/admin/templates', { method: 'POST', json: payload })
     }
     elements.templateDialog.close()
-    await loadOverview()
+    await Promise.all([loadTemplates({ resetPage: !state.editingTemplateId }), loadOverview()])
     showToast('模板已保存')
   } catch (error) { showToast(error.message, true) }
 })
@@ -954,10 +1053,37 @@ elements.coverInput.addEventListener('change', async () => {
   form.append('image', file)
   try {
     await api(`/api/admin/templates/${encodeURIComponent(state.coverTemplateId)}/cover`, { method: 'POST', body: form })
-    await loadOverview()
+    await loadTemplates()
     showToast('模板封面已更新')
   } catch (error) { showToast(error.message, true) }
   elements.coverInput.value = ''
+})
+
+if (elements.templateFilterForm) {
+  elements.templateFilterForm.addEventListener('submit', async event => {
+    event.preventDefault()
+    try {
+      await loadTemplates({ resetPage: true })
+    } catch (error) {
+      showToast(error.message, true)
+    }
+  })
+}
+
+elements.templatePrevPage?.addEventListener('click', async () => {
+  if (state.templateQuery.page <= 1 || state.templatesLoading) return
+  state.templateQuery.page -= 1
+  await loadTemplates()
+})
+
+elements.templateNextPage?.addEventListener('click', async () => {
+  if (state.templateQuery.page >= state.templateQuery.pages || state.templatesLoading) return
+  state.templateQuery.page += 1
+  await loadTemplates()
+})
+
+elements.templatePageSize?.addEventListener('change', async () => {
+  await loadTemplates({ resetPage: true })
 })
 
 document.querySelector('#addPackageButton').addEventListener('click', () => {

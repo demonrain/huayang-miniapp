@@ -21,6 +21,7 @@ import {
   publicPackages,
   publicShare,
   publicShareRewardSettings,
+  publicTemplate,
   publicTemplates,
   seedConfig
 } from './domain.mjs'
@@ -739,12 +740,20 @@ export async function createApplication() {
 
         if (request.method === 'GET' && pathname === '/api/admin/overview') {
           const state = store.read()
+          // Templates are loaded via paginated GET /api/admin/templates (avoid shipping full list here)
+          const templateCategoryCounts = {}
+          for (const item of state.templates) {
+            const key = String(item.category || '')
+            if (!key) continue
+            templateCategoryCounts[key] = (templateCategoryCounts[key] || 0) + 1
+          }
           json(response, 200, {
             settings: state.settings,
-            templates: publicTemplates(state, true),
             banners: publicBanners(state, true),
             packages: publicPackages(state, true),
             templateCategories: listTemplateCategories(state, true),
+            templateCount: state.templates.length,
+            templateCategoryCounts,
             bannerCarousel: publicBannerSettings(state.settings),
             stats: {
               users: state.users.length,
@@ -1104,6 +1113,43 @@ export async function createApplication() {
           })
           const state = store.read()
           json(response, 201, { banner: publicBanners(state, true).find(item => item.id === bannerId) })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/templates') {
+          const state = store.read()
+          const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
+          const status = String(url.searchParams.get('status') || 'all')
+          const category = String(url.searchParams.get('category') || 'all')
+          const pageRaw = Number(url.searchParams.get('page') || 1)
+          const pageSizeRaw = Number(url.searchParams.get('pageSize') || 20)
+          const page = Math.max(1, Number.isFinite(pageRaw) ? Math.floor(pageRaw) : 1)
+          const pageSize = Math.min(100, Math.max(1, Number.isFinite(pageSizeRaw) ? Math.floor(pageSizeRaw) : 20))
+
+          let list = state.templates.slice()
+          if (status === 'enabled') list = list.filter(item => item.enabled !== false)
+          else if (status === 'disabled') list = list.filter(item => item.enabled === false)
+          if (category !== 'all') list = list.filter(item => item.category === category)
+          if (query) {
+            list = list.filter(item => {
+              const tags = Array.isArray(item.tags) ? item.tags.join(' ') : ''
+              return [
+                item.id,
+                item.name,
+                item.shortName,
+                item.description,
+                item.badge,
+                tags
+              ].some(field => String(field || '').toLowerCase().includes(query))
+            })
+          }
+          list.sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || String(a.id).localeCompare(String(b.id)))
+          const total = list.length
+          const pages = Math.max(1, Math.ceil(total / pageSize) || 1)
+          const safePage = Math.min(page, pages)
+          const offset = (safePage - 1) * pageSize
+          const templates = list.slice(offset, offset + pageSize).map(item => publicTemplate(item, state, true))
+          json(response, 200, { templates, total, page: safePage, pageSize, pages })
           return
         }
 

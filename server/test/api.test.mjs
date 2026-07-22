@@ -148,8 +148,15 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     const overview = await api('/api/admin/overview', { token: adminToken })
     assert.equal(overview.response.status, 200)
     assert.equal(overview.body.banners.length, 1)
-    assert.deepEqual(overview.body.templates[0].tags, ['人气', '热门'])
+    assert.ok(Number(overview.body.templateCount) >= 1)
     assert.equal(overview.body.settings.shareTitle, '来看看我用花漾相绘制作的作品')
+
+    const adminTemplates = await api('/api/admin/templates?page=1&pageSize=20', { token: adminToken })
+    assert.equal(adminTemplates.response.status, 200)
+    assert.ok(adminTemplates.body.templates.length >= 1)
+    assert.deepEqual(adminTemplates.body.templates[0].tags, ['人气', '热门'])
+    assert.ok(Number(adminTemplates.body.total) >= 1)
+    assert.equal(adminTemplates.body.page, 1)
 
     const settings = await api('/api/admin/settings', {
       method: 'PATCH', token: adminToken, json: { welcomeCredits: 25, checkinCredits: 7, shareTitle: '测试分享标题' }

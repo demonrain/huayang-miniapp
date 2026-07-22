@@ -39,7 +39,7 @@
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `POST` | `/api/admin/login` | 管理员密码登录 |
-| `GET` | `/api/admin/overview` | 统计、设置、Banner、模板和套餐 |
+| `GET` | `/api/admin/overview` | 统计、设置、Banner、套餐与模板数量（不含全量模板） |
 | `PATCH` | `/api/admin/settings` | 修改签到、新用户积分和分享标题 |
 | `GET/PATCH` | `/api/admin/users[/:id]` | 查询用户或修改启用状态 |
 | `POST` | `/api/admin/users/:id/credits` | 调整用户积分并写入流水 |
@@ -47,6 +47,7 @@
 | `GET` | `/api/admin/jobs` | 查询作品任务、状态和生成时间 |
 | `POST/PATCH` | `/api/admin/banners[/:id]` | 新增或修改首页 Banner |
 | `POST` | `/api/admin/banners/:id/image` | 上传 Banner 图片 |
+| `GET` | `/api/admin/templates` | 模板分页列表（`page`/`pageSize`/`query`/`status`/`category`） |
 | `POST/PATCH` | `/api/admin/templates[/:id]` | 新增或修改模板 |
 | `POST` | `/api/admin/templates/:id/cover` | 上传模板封面 |
 | `POST/PATCH` | `/api/admin/packages[/:id]` | 新增或修改充值套餐 |
