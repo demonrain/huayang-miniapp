@@ -21,6 +21,7 @@ const elements = {
   pageTitle: document.querySelector('#pageTitle'),
   statsGrid: document.querySelector('#statsGrid'),
   settingsForm: document.querySelector('#settingsForm'),
+  shareRewardForm: document.querySelector('#shareRewardForm'),
   userRows: document.querySelector('#userRows'),
   userFilterForm: document.querySelector('#userFilterForm'),
   transactionRows: document.querySelector('#transactionRows'),
@@ -143,6 +144,13 @@ function renderOverview() {
   form.welcomeCredits.value = settings.welcomeCredits
   form.checkinCredits.value = settings.checkinCredits
   form.shareTitle.value = settings.shareTitle
+  fillShareRewardForm(settings)
+  fillBannerCarouselForm()
+}
+
+function fillShareRewardForm(settings = {}) {
+  const form = elements.shareRewardForm?.elements
+  if (!form) return
   if (form.shareRewardEnabled) form.shareRewardEnabled.checked = settings.shareRewardEnabled !== false
   if (form.shareFriendCredits) form.shareFriendCredits.value = Number(settings.shareFriendCredits ?? 2)
   if (form.shareFriendDailyLimit) form.shareFriendDailyLimit.value = Number(settings.shareFriendDailyLimit ?? 3)
@@ -151,12 +159,11 @@ function renderOverview() {
   if (form.inviteRewardEnabled) form.inviteRewardEnabled.checked = settings.inviteRewardEnabled !== false
   if (form.inviteLoginCredits) form.inviteLoginCredits.value = Number(settings.inviteLoginCredits ?? 5)
   if (form.inviteFirstJobCredits) form.inviteFirstJobCredits.value = Number(settings.inviteFirstJobCredits ?? 10)
-  fillBannerCarouselForm()
-  loadShareGrowth().catch(() => {})
 }
 
 async function loadShareGrowth() {
   if (!elements.shareStatsGrid) return
+  fillShareRewardForm(state.data?.settings || {})
   const [statsResult, listResult] = await Promise.all([
     api('/api/admin/share-stats'),
     api(`/api/admin/share-events?${new URLSearchParams({
@@ -166,27 +173,28 @@ async function loadShareGrowth() {
   ])
   const s = statsResult.summary || {}
   const cards = [
-    ['今日分享(好友)', s.shareTodayFriend],
-    ['今日分享(朋友圈)', s.shareTodayTimeline],
-    ['今日分享发奖积分', s.shareTodayRewardCredits],
+    ['今日好友分享', s.shareTodayFriend],
+    ['今日朋友圈', s.shareTodayTimeline],
+    ['今日分享发奖', s.shareTodayRewardCredits],
     ['累计分享次数', s.shareEventsTotal],
     ['累计邀请关系', s.invitesTotal],
     ['邀请登录已奖', s.inviteLoginRewarded],
     ['邀请首作已奖', s.inviteFirstJobRewarded],
     ['邀请发奖积分', Number(s.inviteLoginCredits || 0) + Number(s.inviteFirstJobCredits || 0)]
   ]
-  elements.shareStatsGrid.innerHTML = cards.map(([label, value]) => `
-    <div class="stat-card"><span>${escapeHtml(label)}</span><strong>${Number(value || 0)}</strong></div>
+  elements.shareStatsGrid.innerHTML = cards.map(([label, value], index) => `
+    <div class="stat-card stat-card--share"><span>${escapeHtml(label)}</span><strong>${Number(value || 0)}</strong></div>
   `).join('')
   if (elements.shareStatsHint) {
-    elements.shareStatsHint.textContent = `分享发奖累计 ${Number(s.shareRewardCredits || 0)} 积分 · 邀请登录奖 ${Number(s.inviteLoginCredits || 0)} · 首作奖 ${Number(s.inviteFirstJobCredits || 0)}`
+    elements.shareStatsHint.textContent =
+      `分享发奖累计 ${Number(s.shareRewardCredits || 0)} 积分 · 邀请登录奖 ${Number(s.inviteLoginCredits || 0)} · 首作奖 ${Number(s.inviteFirstJobCredits || 0)}`
   }
   if (elements.shareEventRows) {
     elements.shareEventRows.innerHTML = (listResult.events || []).map(item => `
       <tr>
         <td>${escapeHtml(item.createdTime)}</td>
         <td><strong>${escapeHtml(item.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.userMaskedId)}</span></td>
-        <td>${escapeHtml(item.channelLabel)}</td>
+        <td><span class="channel-pill channel-pill--${escapeHtml(item.channel)}">${escapeHtml(item.channelLabel)}</span></td>
         <td class="${item.reward > 0 ? 'amount-positive' : 'muted'}">${item.reward > 0 ? '+' : ''}${Number(item.reward)}</td>
         <td title="${escapeHtml(item.jobId)}">${escapeHtml(shortId(item.jobId, 10))}</td>
       </tr>
@@ -198,8 +206,8 @@ async function loadShareGrowth() {
         <td>${escapeHtml(item.createdTime)}</td>
         <td><strong>${escapeHtml(item.inviterNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.inviterMaskedId)}</span></td>
         <td><strong>${escapeHtml(item.inviteeNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.inviteeMaskedId)}</span></td>
-        <td>${item.loginRewarded ? '已发' : '—'}</td>
-        <td>${item.firstJobRewarded ? '已发' : '—'}</td>
+        <td>${item.loginRewarded ? '<span class="status-pill is-active">已发</span>' : '<span class="muted">—</span>'}</td>
+        <td>${item.firstJobRewarded ? '<span class="status-pill is-active">已发</span>' : '<span class="muted">—</span>'}</td>
       </tr>
     `).join('') || emptyRow(5, '暂无邀请关系')
   }
@@ -414,16 +422,24 @@ async function loadJobs() {
 
 async function switchView(name) {
   const titles = {
-    overview: '概览与规则', users: '用户管理', transactions: '积分流水', jobs: '作品任务',
-    banners: '首页 Banner', templates: '模板管理', categories: '模板分类', packages: '充值套餐'
+    overview: '概览与规则',
+    users: '用户管理',
+    transactions: '积分流水',
+    jobs: '作品任务',
+    shares: '分享与邀请',
+    banners: '首页 Banner',
+    templates: '模板管理',
+    categories: '模板分类',
+    packages: '充值套餐'
   }
   document.querySelectorAll('.view-panel').forEach(view => { view.hidden = view.id !== `${name}View` })
   document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('is-active', item.dataset.view === name))
-  elements.pageTitle.textContent = titles[name]
+  elements.pageTitle.textContent = titles[name] || name
   try {
     if (name === 'users') await loadUsers()
     if (name === 'transactions') await loadTransactions()
     if (name === 'jobs') await loadJobs()
+    if (name === 'shares') await loadShareGrowth()
     if (name === 'categories') renderCategories()
     if (name === 'banners') fillBannerCarouselForm()
   } catch (error) {
@@ -570,14 +586,28 @@ document.querySelector('#logoutButton').addEventListener('click', logout)
 elements.settingsForm.addEventListener('submit', async event => {
   event.preventDefault()
   const values = new FormData(elements.settingsForm)
-  const form = elements.settingsForm.elements
   try {
     const result = await api('/api/admin/settings', {
       method: 'PATCH',
       json: {
         welcomeCredits: Number(values.get('welcomeCredits')),
         checkinCredits: Number(values.get('checkinCredits')),
-        shareTitle: String(values.get('shareTitle')),
+        shareTitle: String(values.get('shareTitle'))
+      }
+    })
+    state.data.settings = result.settings
+    showToast('规则已保存')
+  } catch (error) { showToast(error.message, true) }
+})
+
+elements.shareRewardForm?.addEventListener('submit', async event => {
+  event.preventDefault()
+  const values = new FormData(elements.shareRewardForm)
+  const form = elements.shareRewardForm.elements
+  try {
+    const result = await api('/api/admin/settings', {
+      method: 'PATCH',
+      json: {
         shareRewardEnabled: Boolean(form.shareRewardEnabled?.checked),
         shareFriendCredits: Number(values.get('shareFriendCredits')),
         shareFriendDailyLimit: Number(values.get('shareFriendDailyLimit')),
@@ -588,8 +618,9 @@ elements.settingsForm.addEventListener('submit', async event => {
         inviteFirstJobCredits: Number(values.get('inviteFirstJobCredits'))
       }
     })
-    state.data.settings = result.settings
-    showToast('规则已保存')
+    if (state.data) state.data.settings = { ...state.data.settings, ...result.settings }
+    fillShareRewardForm(state.data?.settings || result.settings)
+    showToast('分享与邀请规则已保存')
     loadShareGrowth().catch(() => {})
   } catch (error) { showToast(error.message, true) }
 })

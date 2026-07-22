@@ -41,7 +41,11 @@ App({
     return Boolean(this.globalData.isLoggedIn && this.globalData.user && wx.getStorageSync('huayang_token'))
   },
 
-  /** Silent restore from local token. Guests stay logged out. */
+  /**
+   * Silent restore from local token (huayang_token in storage).
+   * Token is issued by server on WeChat login and valid ~30 days.
+   * Only clear token on real auth failure (401/403), not network blips.
+   */
   async tryRestoreSession() {
     const token = wx.getStorageSync('huayang_token')
     if (!token) {
@@ -55,7 +59,16 @@ App({
       this.globalData.isLoggedIn = true
       return user
     } catch (error) {
-      wx.removeStorageSync('huayang_token')
+      const status = error && error.statusCode
+      // Token invalid / user gone / account disabled — force re-login
+      if (status === 401 || status === 403) {
+        wx.removeStorageSync('huayang_token')
+        this.globalData.user = null
+        this.globalData.isLoggedIn = false
+        return null
+      }
+      // Network or server error: keep token so next open can restore
+      console.warn('[session] restore failed, keep token', error && error.message)
       this.globalData.user = null
       this.globalData.isLoggedIn = false
       return null
@@ -93,9 +106,12 @@ App({
    */
   async ensureSession() {
     if (this.isLoggedIn()) return this.globalData.user
+    // Always wait for the launch-time restore first (avoids guest flash / re-login)
     if (this.restorePromise) {
-      const restored = await this.restorePromise
-      if (restored) return restored
+      try {
+        const restored = await this.restorePromise
+        if (restored || this.isLoggedIn()) return this.globalData.user || restored
+      } catch (error) {}
     }
     return this.tryRestoreSession()
   },

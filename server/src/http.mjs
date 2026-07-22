@@ -82,7 +82,8 @@ const mimeTypes = {
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
   '.webp': 'image/webp',
-  '.gif': 'image/gif'
+  '.gif': 'image/gif',
+  '.ico': 'image/x-icon'
 }
 
 export async function serveFile(response, filename, cache = true) {

@@ -466,6 +466,13 @@ export async function createApplication() {
         return
       }
 
+      if (request.method === 'GET' && pathname === '/favicon.ico') {
+        if (!(await serveFile(response, path.join(config.rootDir, 'admin', 'favicon.ico'), true))) {
+          throw new HttpError(404, 'NOT_FOUND', 'favicon 不存在')
+        }
+        return
+      }
+
       if (request.method === 'GET' && (pathname === '/admin' || pathname === '/admin/')) {
         await serveFile(response, path.join(config.rootDir, 'admin', 'index.html'), false)
         return
@@ -775,7 +782,7 @@ export async function createApplication() {
           } else {
             id = slugifyTemplateId(body.name || 'category').replace(/^tpl-/, 'cat-')
           }
-          const name = cleanText(body.name, '分类名称', 20, true)
+          const name = cleanText(body.name, '分类名称', 40, true)
           const sortOrder = boundedInteger(body.sortOrder ?? 0, '排序值', 0, 100000)
           const enabled = body.enabled !== false
           await store.transaction(draft => {
@@ -797,7 +804,7 @@ export async function createApplication() {
             if (!Array.isArray(draft.templateCategories)) draft.templateCategories = []
             const item = draft.templateCategories.find(entry => entry.id === categoryId)
             if (!item) throw new HttpError(404, 'CATEGORY_NOT_FOUND', '分类不存在')
-            if ('name' in body) item.name = cleanText(body.name, '分类名称', 20, true)
+            if ('name' in body) item.name = cleanText(body.name, '分类名称', 40, true)
             if ('sortOrder' in body) item.sortOrder = boundedInteger(body.sortOrder, '排序值', 0, 100000)
             if ('enabled' in body) item.enabled = Boolean(body.enabled)
           })

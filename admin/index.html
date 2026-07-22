@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>花漾相绘管理后台</title>
+  <link rel="icon" href="/admin/favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="/admin/favicon.ico" type="image/x-icon">
+  <link rel="icon" type="image/png" sizes="32x32" href="/admin/assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/admin/assets/favicon-16.png">
+  <link rel="apple-touch-icon" href="/admin/assets/app-avatar.png">
   <link rel="stylesheet" href="/admin/styles.css">
 </head>
 <body>
@@ -34,6 +39,7 @@
         <button class="nav-item" data-view="users"><span class="nav-icon">人</span>用户管理</button>
         <button class="nav-item" data-view="transactions"><span class="nav-icon">账</span>积分流水</button>
         <button class="nav-item" data-view="jobs"><span class="nav-icon">作</span>作品任务</button>
+        <button class="nav-item" data-view="shares"><span class="nav-icon">享</span>分享与邀请</button>
         <button class="nav-item" data-view="banners"><span class="nav-icon">图</span>首页 Banner</button>
         <button class="nav-item" data-view="templates"><span class="nav-icon">▦</span>模板管理</button>
         <button class="nav-item" data-view="categories"><span class="nav-icon">分</span>模板分类</button>
@@ -55,46 +61,93 @@
         <div id="statsGrid" class="stats-grid"></div>
         <form id="settingsForm" class="settings-form content-panel">
           <div class="panel-heading">
-            <div><h3>积分与分享规则</h3><p>保存后立即影响新请求，不改动历史账单。</p></div>
+            <div><h3>基础积分规则</h3><p>保存后立即影响新请求，不改动历史账单。分享与邀请奖励请到左侧「分享与邀请」配置。</p></div>
           </div>
           <div class="form-grid">
             <label>新用户赠送积分<input name="welcomeCredits" type="number" min="0" max="100000" required></label>
             <label>每日签到积分<input name="checkinCredits" type="number" min="0" max="100000" required></label>
             <label class="field-wide">默认分享标题<input name="shareTitle" maxlength="60" required></label>
           </div>
-          <div class="panel-heading" style="margin-top:20px">
-            <div><h3>分享 / 邀请奖励</h3><p>分享给分刺激发出；邀请成功给分奖励真正带来新用户。</p></div>
-          </div>
-          <div class="form-grid">
-            <label class="toggle-field"><input name="shareRewardEnabled" type="checkbox"><span>开启分享给分</span></label>
-            <label>分享到好友积分<input name="shareFriendCredits" type="number" min="0" max="100000" required></label>
-            <label>好友每日上限次数<input name="shareFriendDailyLimit" type="number" min="0" max="100" required></label>
-            <label>分享到朋友圈积分<input name="shareTimelineCredits" type="number" min="0" max="100000" required></label>
-            <label>朋友圈每日上限次数<input name="shareTimelineDailyLimit" type="number" min="0" max="100" required></label>
-            <label class="toggle-field"><input name="inviteRewardEnabled" type="checkbox"><span>开启邀请成功给分</span></label>
-            <label>邀请登录奖励积分<input name="inviteLoginCredits" type="number" min="0" max="100000" required></label>
-            <label>邀请首作奖励积分<input name="inviteFirstJobCredits" type="number" min="0" max="100000" required></label>
-          </div>
           <div class="form-actions"><button class="button button--primary" type="submit">保存规则</button></div>
         </form>
+      </section>
 
-        <div class="content-panel" style="margin-top:16px">
-          <div class="panel-heading">
-            <div><h3>分享与邀请数据</h3><p id="shareStatsHint">加载中…</p></div>
-            <button id="refreshShareStats" class="button button--quiet" type="button">刷新</button>
+      <section id="sharesView" class="view-panel" hidden>
+        <div class="toolbar shares-toolbar">
+          <div>
+            <h3>分享与邀请</h3>
+            <p id="shareStatsHint">配置奖励规则，并查看分享次数与邀请转化。</p>
           </div>
-          <div id="shareStatsGrid" class="stats-grid"></div>
-          <div class="toolbar" style="margin-top:12px">
-            <div><h3 style="margin:0;font-size:15px">分享明细</h3></div>
-            <form id="shareEventFilterForm" class="filter-bar">
-              <input name="query" placeholder="用户昵称 / ID / 任务">
-              <select name="channel"><option value="all">全部渠道</option><option value="friend">微信好友</option><option value="timeline">朋友圈</option></select>
-              <button class="button button--quiet" type="submit">查询</button>
-            </form>
+          <button id="refreshShareStats" class="button button--quiet" type="button">刷新数据</button>
+        </div>
+
+        <div id="shareStatsGrid" class="stats-grid stats-grid--shares"></div>
+
+        <div class="shares-layout">
+          <form id="shareRewardForm" class="settings-form content-panel shares-rules">
+            <div class="panel-heading">
+              <div>
+                <h3>奖励规则</h3>
+                <p>分享给分刺激发出；邀请成功给分奖励真正带来新用户。</p>
+              </div>
+            </div>
+            <div class="shares-rule-block">
+              <div class="shares-rule-block__title">分享给分</div>
+              <div class="form-grid form-grid--dense">
+                <label class="toggle-field field-wide"><input name="shareRewardEnabled" type="checkbox"><span>开启分享给分</span></label>
+                <label>分享到好友积分<input name="shareFriendCredits" type="number" min="0" max="100000" required></label>
+                <label>好友每日上限<input name="shareFriendDailyLimit" type="number" min="0" max="100" required></label>
+                <label>分享到朋友圈积分<input name="shareTimelineCredits" type="number" min="0" max="100000" required></label>
+                <label>朋友圈每日上限<input name="shareTimelineDailyLimit" type="number" min="0" max="100" required></label>
+              </div>
+            </div>
+            <div class="shares-rule-block">
+              <div class="shares-rule-block__title">邀请成功给分</div>
+              <div class="form-grid form-grid--dense">
+                <label class="toggle-field field-wide"><input name="inviteRewardEnabled" type="checkbox"><span>开启邀请成功给分</span></label>
+                <label>邀请登录奖励积分<input name="inviteLoginCredits" type="number" min="0" max="100000" required></label>
+                <label>邀请首作奖励积分<input name="inviteFirstJobCredits" type="number" min="0" max="100000" required></label>
+              </div>
+            </div>
+            <div class="form-actions"><button class="button button--primary" type="submit">保存奖励规则</button></div>
+          </form>
+
+          <div class="shares-tables">
+            <div class="content-panel shares-table-panel">
+              <div class="panel-heading panel-heading--compact">
+                <div>
+                  <h3>分享明细</h3>
+                  <p>用户分享作品到好友 / 朋友圈的发奖记录</p>
+                </div>
+                <form id="shareEventFilterForm" class="filter-bar">
+                  <input name="query" placeholder="用户 / 任务 ID">
+                  <select name="channel">
+                    <option value="all">全部渠道</option>
+                    <option value="friend">微信好友</option>
+                    <option value="timeline">朋友圈</option>
+                  </select>
+                  <button class="button button--quiet" type="submit">查询</button>
+                </form>
+              </div>
+              <div class="table-wrap table-wrap--flush"><table>
+                <thead><tr><th>时间</th><th>用户</th><th>渠道</th><th>奖励</th><th>作品任务</th></tr></thead>
+                <tbody id="shareEventRows"></tbody>
+              </table></div>
+            </div>
+
+            <div class="content-panel shares-table-panel">
+              <div class="panel-heading panel-heading--compact">
+                <div>
+                  <h3>邀请关系</h3>
+                  <p>新用户通过分享链接注册后的邀请链路</p>
+                </div>
+              </div>
+              <div class="table-wrap table-wrap--flush"><table>
+                <thead><tr><th>时间</th><th>邀请人</th><th>被邀请人</th><th>登录奖</th><th>首作奖</th></tr></thead>
+                <tbody id="inviteRows"></tbody>
+              </table></div>
+            </div>
           </div>
-          <div class="table-wrap"><table><thead><tr><th>时间</th><th>用户</th><th>渠道</th><th>奖励</th><th>作品任务</th></tr></thead><tbody id="shareEventRows"></tbody></table></div>
-          <div class="toolbar" style="margin-top:16px"><div><h3 style="margin:0;font-size:15px">邀请关系</h3></div></div>
-          <div class="table-wrap"><table><thead><tr><th>时间</th><th>邀请人</th><th>被邀请人</th><th>登录奖</th><th>首作奖</th></tr></thead><tbody id="inviteRows"></tbody></table></div>
         </div>
       </section>
 
@@ -260,7 +313,7 @@
       <div class="dialog-heading"><div><h3 id="categoryDialogTitle">新增分类</h3><p>ID 可留空自动生成；编辑时 ID 不可修改。</p></div><button class="icon-button" type="button" data-close="categoryDialog" aria-label="关闭">×</button></div>
       <div class="form-grid form-grid--dialog">
         <label id="categoryIdField">分类 ID<input name="id" pattern="[a-z0-9][a-z0-9-]*" maxlength="40" placeholder="可留空自动生成"></label>
-        <label>分类名称<input name="name" maxlength="20" required></label>
+        <label>分类名称<input name="name" maxlength="40" required></label>
         <label>排序值<input name="sortOrder" type="number" min="0" max="100000" required></label>
         <label class="toggle-field"><input name="enabled" type="checkbox" checked><span>启用分类（停用后小程序筛选不再展示）</span></label>
       </div>

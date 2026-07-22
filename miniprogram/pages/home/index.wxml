@@ -55,13 +55,14 @@
 
   <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="false">
     <view class="category-row">
-      <button
+      <view
         wx:for="{{categories}}"
         wx:key="id"
         class="category {{activeCategory === item.id ? 'category--active' : ''}}"
         data-id="{{item.id}}"
         bindtap="selectCategory"
-      >{{item.name}}</button>
+        hover-class="category--hover"
+      >{{item.name}}</view>
     </view>
   </scroll-view>
 

@@ -77,22 +77,86 @@ textarea { resize: vertical; line-height: 1.55; }
 
 .view-panel { animation: reveal .2s ease-out; }
 .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.stats-grid--shares { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 4px; }
 .stat-card { min-width: 0; padding: 18px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
 .stat-card span { color: var(--muted); font-size: 12px; }
 .stat-card strong { display: block; margin-top: 8px; font-family: Georgia, serif; font-size: 27px; }
 .stat-card:nth-child(2) strong { color: var(--mint); }
 .stat-card:nth-child(3) strong { color: var(--coral); }
 .stat-card:nth-child(4) strong { color: #a47e2e; }
+.stat-card--share strong { font-size: 24px; }
 
 .content-panel { margin-top: 18px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
 .settings-form { padding: 22px; }
 .panel-heading, .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .panel-heading { margin-bottom: 22px; }
+.panel-heading--compact { margin-bottom: 14px; padding: 18px 18px 0; flex-wrap: wrap; }
 .panel-heading h3, .toolbar h3 { margin: 0; font-size: 17px; }
 .panel-heading p, .toolbar p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.form-grid--dense { gap: 12px; }
 .field-wide { grid-column: 1 / -1; }
 .form-actions { margin-top: 20px; display: flex; justify-content: flex-end; }
+
+/* —— 分享与邀请页布局 —— */
+.shares-toolbar { margin-bottom: 16px; align-items: flex-end; }
+.shares-layout {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.shares-rules {
+  margin-top: 0;
+  position: sticky;
+  top: 16px;
+}
+.shares-rule-block {
+  margin-top: 4px;
+  padding: 14px 14px 16px;
+  background: #fafbfb;
+  border: 1px solid #eef0f1;
+  border-radius: 8px;
+}
+.shares-rule-block + .shares-rule-block { margin-top: 14px; }
+.shares-rule-block__title {
+  margin-bottom: 12px;
+  color: #367b6d;
+  font-size: 13px;
+  font-weight: 700;
+}
+.shares-tables {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+.shares-table-panel {
+  margin-top: 0;
+  overflow: hidden;
+}
+.table-wrap--flush {
+  border: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+}
+.channel-pill {
+  padding: 3px 8px;
+  display: inline-flex;
+  border-radius: 999px;
+  background: #f1f2f2;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.channel-pill--friend { background: var(--mint-soft); color: #367b6d; }
+.channel-pill--timeline { background: #fff6e0; color: #9a7420; }
+
+@media (max-width: 1100px) {
+  .shares-layout { grid-template-columns: 1fr; }
+  .shares-rules { position: static; }
+  .stats-grid--shares { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 .toolbar { margin-bottom: 16px; }
 .filter-bar { display: flex; align-items: center; gap: 8px; }
