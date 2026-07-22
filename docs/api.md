@@ -26,6 +26,9 @@
 | `POST` | `/api/jobs/:id/share/qrcode` | 生成微信小程序码 |
 | `POST` | `/api/jobs/:id/share/url-link` | 生成微信 URL Link |
 | `GET` | `/api/shares/:token` | 匿名读取公开分享作品 |
+| `POST` | `/api/cdks/redeem` | 使用 CDK 兑换积分（需登录） |
+| `GET/POST` | `/api/admin/cdks` | CDK 列表 / 批量生成 |
+| `DELETE` | `/api/admin/cdks/:id` | 删除未使用的 CDK |
 | `POST` | `/api/share-rewards` | 上报分享并发放分享积分（需登录） |
 | `GET` | `/api/share-rewards/me` | 当前用户分享/邀请统计 |
 | `GET` | `/api/admin/share-stats` | 分享与邀请汇总 |

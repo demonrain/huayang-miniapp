@@ -1,0 +1,90 @@
+.redeem-page {
+  padding-bottom: 48rpx;
+}
+
+.redeem-hero {
+  margin-top: 8rpx;
+  padding: 8rpx 4rpx 20rpx;
+}
+
+.redeem-kicker {
+  color: var(--coral);
+  font-family: Georgia, serif;
+  font-size: 17rpx;
+  letter-spacing: 2rpx;
+}
+
+.redeem-title {
+  margin-top: 8rpx;
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.redeem-sub {
+  margin-top: 10rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.redeem-card {
+  padding: 28rpx 26rpx;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 16rpx;
+  box-shadow: 0 12rpx 32rpx rgba(107, 80, 90, 0.06);
+}
+
+.redeem-label {
+  color: var(--ink);
+  font-size: 24rpx;
+  font-weight: 650;
+}
+
+.redeem-input {
+  width: 100%;
+  height: 88rpx;
+  margin-top: 14rpx;
+  padding: 0 20rpx;
+  background: #faf7f8;
+  border: 2rpx solid #f0e3e5;
+  border-radius: 14rpx;
+  box-sizing: border-box;
+  color: var(--ink);
+  font-family: Consolas, "SF Mono", monospace;
+  font-size: 30rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.redeem-tips {
+  margin-top: 18rpx;
+  color: var(--muted);
+  font-size: 20rpx;
+  line-height: 1.7;
+}
+
+.redeem-btn {
+  margin-top: 28rpx;
+  width: 100%;
+}
+
+.redeem-balance {
+  margin-top: 20rpx;
+  padding: 22rpx 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.redeem-balance__label {
+  color: var(--muted);
+  font-size: 22rpx;
+}
+
+.redeem-balance__value {
+  color: var(--coral);
+  font-family: Georgia, serif;
+  font-size: 40rpx;
+  font-weight: 700;
+}

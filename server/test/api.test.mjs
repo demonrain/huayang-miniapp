@@ -306,19 +306,105 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(qrCode.response.status, 409)
     assert.equal(qrCode.body.code, 'WECHAT_SHARE_NOT_CONFIGURED')
 
+    // CDK generate + redeem
+    const cdkBatch = await api('/api/admin/cdks', {
+      method: 'POST',
+      token: adminToken,
+      json: { credits: 15, count: 2, maxUses: 1, expireType: 'never', note: 'test-batch' }
+    })
+    assert.equal(cdkBatch.response.status, 201)
+    assert.equal(cdkBatch.body.count, 2)
+    assert.equal(cdkBatch.body.cdks[0].credits, 15)
+    assert.equal(cdkBatch.body.cdks[0].status, 'unused')
+    assert.equal(cdkBatch.body.cdks[0].maxUses, 1)
+
+    const redeem = await api('/api/cdks/redeem', {
+      method: 'POST',
+      token,
+      json: { code: cdkBatch.body.cdks[0].code.toLowerCase().replace(/-/g, '') }
+    })
+    assert.equal(redeem.response.status, 200)
+    assert.equal(redeem.body.credits, 15)
+    assert.equal(redeem.body.user.credits, 62) // 47 + 15
+
+    const redeemAgain = await api('/api/cdks/redeem', {
+      method: 'POST',
+      token,
+      json: { code: cdkBatch.body.cdks[0].code }
+    })
+    assert.equal(redeemAgain.response.status, 409)
+
+    // Multi-use universal CDK
+    const multiCdk = await api('/api/admin/cdks', {
+      method: 'POST',
+      token: adminToken,
+      json: { credits: 3, count: 1, maxUses: 2, customCode: 'TESTCODE2026', expireType: 'never' }
+    })
+    assert.equal(multiCdk.response.status, 201)
+    assert.equal(multiCdk.body.cdks[0].maxUses, 2)
+    const multiRedeem1 = await api('/api/cdks/redeem', {
+      method: 'POST', token, json: { code: 'TESTCODE2026' }
+    })
+    assert.equal(multiRedeem1.response.status, 200)
+    const multiRedeemDup = await api('/api/cdks/redeem', {
+      method: 'POST', token, json: { code: 'TESTCODE2026' }
+    })
+    assert.equal(multiRedeemDup.response.status, 409)
+    assert.equal(multiRedeemDup.body.code, 'CDK_ALREADY_USED')
+
+    const inviteeToken2Login = await api('/api/auth/wechat', {
+      method: 'POST', json: { code: 'cdk-user-two' }
+    })
+    const multiRedeem2 = await api('/api/cdks/redeem', {
+      method: 'POST', token: inviteeToken2Login.body.token, json: { code: 'TESTCODE2026' }
+    })
+    assert.equal(multiRedeem2.response.status, 200)
+    const multiRedeem3 = await api('/api/cdks/redeem', {
+      method: 'POST', token: inviteeToken2Login.body.token, json: { code: 'TEST-CODE-EXTRA' }
+    })
+    // exhausted after 2 uses - create exhausted check with third different user
+    const inviteeToken3 = await api('/api/auth/wechat', { method: 'POST', json: { code: 'cdk-user-three' } })
+    const multiExhausted = await api('/api/cdks/redeem', {
+      method: 'POST', token: inviteeToken3.body.token, json: { code: 'TESTCODE2026' }
+    })
+    assert.equal(multiExhausted.response.status, 409)
+    assert.equal(multiExhausted.body.code, 'CDK_EXHAUSTED')
+
+    const ann = await api('/api/admin/announcements', {
+      method: 'POST', token: adminToken,
+      json: { title: '测试公告', content: '欢迎使用花漾相绘', enabled: true }
+    })
+    assert.equal(ann.response.status, 201)
+    const publicAnn = await api('/api/announcements')
+    assert.equal(publicAnn.response.status, 200)
+    assert.ok(publicAnn.body.announcements.some(item => item.title === '测试公告'))
+
+    const cdkList = await api('/api/admin/cdks?status=unused', { token: adminToken })
+    assert.equal(cdkList.response.status, 200)
+    assert.ok(cdkList.body.summary.exhausted >= 1)
+    assert.ok(cdkList.body.summary.unused >= 1)
+
+    // After multi redeem +15 +3, credits were 62 then +3 = 65 before recharge
+    // Fix: multiRedeem1 adds 3 to main user token
+    // inviter credits after first redeem 62, after multi 65
+
+    const beforeRecharge = await api('/api/me', { token })
+    // 62 after first cdk + 3 multi-use = 65
+    assert.equal(beforeRecharge.body.user.credits, 65)
+
     const recharge = await api('/api/payments/orders', {
       method: 'POST', token, json: { packageId: 'popular' }
     })
     assert.equal(recharge.response.status, 201)
     assert.equal(recharge.body.payment.mode, 'mock')
     assert.equal(recharge.body.order.credits, 90)
-    assert.equal(recharge.body.user.credits, 137)
+    assert.equal(recharge.body.user.credits, 155)
 
     const wallet = await api('/api/wallet', { token })
     assert.equal(wallet.body.checkin.claimedToday, true)
     assert.equal(wallet.body.packages.find(item => item.id === 'popular').totalCredits, 90)
-    // Newest first: recharge 90, invite first job 10, invite login 5, share friend 2, checkin 7, admin 5, job -2, welcome 20
-    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [90, 10, 5, 2, 7, 5, -2, 20])
+    // Newest first: recharge 90, multi cdk 3, cdk 15, invite first job 10, invite login 5, share friend 2, checkin 7, admin 5, job -2, welcome 20
+    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [90, 3, 15, 10, 5, 2, 7, 5, -2, 20])
   } finally {
     await new Promise(resolve => application.server.close(resolve))
     config.dataDir = original.dataDir

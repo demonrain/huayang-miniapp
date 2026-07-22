@@ -8,7 +8,9 @@
     "pages/create/index",
     "pages/job/index",
     "pages/share/index",
-    "pages/privacy/index"
+    "pages/privacy/index",
+    "pages/redeem/index",
+    "pages/guide/index"
   ],
   "window": {
     "navigationStyle": "custom",

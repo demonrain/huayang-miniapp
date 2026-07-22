@@ -95,3 +95,51 @@ export async function sendJobResultSubscribeMessage({ openid, job, templateName 
   console.log(`[notify] job=${job.id} subscribe message sent`)
   return { ok: true }
 }
+
+/**
+ * Best-effort admin broadcast using the same subscribe template fields.
+ * Only works if the user previously accepted the template (WeChat one-shot rules apply).
+ */
+export async function sendAdminSubscribeMessage({ openid, style, status, tip, page = 'pages/home/index' }) {
+  if (!isSubscribeNotifyConfigured()) {
+    return { ok: false, skipped: true, reason: 'not_configured' }
+  }
+  if (!openid || openid.startsWith('dev-openid')) {
+    return { ok: false, skipped: true, reason: 'mock_openid' }
+  }
+
+  const fields = config.wechat.subscribeFields
+  const data = {
+    [fields.style]: { value: clip(style || '花漾相绘通知', 20) },
+    [fields.status]: { value: clip(status || '活动提醒', 5) },
+    [fields.time]: { value: formatChinaTime(new Date().toISOString()) },
+    [fields.tip]: { value: clip(tip || '打开小程序查看详情', 20) }
+  }
+
+  try {
+    const token = await getAccessToken()
+    const payload = {
+      touser: openid,
+      template_id: config.wechat.subscribeTemplateId,
+      page: String(page || 'pages/home/index').replace(/^\//, ''),
+      miniprogram_state: miniprogramState(),
+      lang: 'zh_CN',
+      data
+    }
+    const response = await fetch(
+      `https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${encodeURIComponent(token)}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload)
+      }
+    )
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok || body.errcode) {
+      return { ok: false, error: body.errmsg || `errcode ${body.errcode}` }
+    }
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: error.message || 'send failed' }
+  }
+}

@@ -240,6 +240,43 @@ tr:last-child td { border-bottom: 0; }
 
 .package-list { display: grid; gap: 12px; }
 .package-row { padding: 16px; display: grid; grid-template-columns: 1.1fr repeat(4, minmax(100px, .7fr)) auto; gap: 12px; align-items: end; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+
+.cdk-panel { margin-top: 22px; padding: 22px; }
+.cdk-generate-form { margin-bottom: 18px; padding-bottom: 8px; border-bottom: 1px solid #eef0f1; }
+.cdk-list-toolbar { margin: 16px 0 10px; }
+.cdk-code {
+  font-family: Consolas, "SF Mono", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #2f5f54;
+}
+.cdk-status--unused { background: var(--mint-soft); color: #367b6d; }
+.cdk-status--active { background: #e8f1ff; color: #3b6ea5; }
+.cdk-status--exhausted,
+.cdk-status--redeemed { background: #eef0f1; color: #6a6f73; }
+.cdk-status--expired { background: #fff0f2; color: #bd4f4f; }
+
+.messages-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+.messages-panel { margin-top: 0; overflow: hidden; }
+.messages-note {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  background: #fff8e7;
+  border: 1px solid #f3ead1;
+  border-radius: 8px;
+  color: #84775c;
+  font-size: 12px;
+  line-height: 1.55;
+}
+@media (max-width: 1100px) {
+  .messages-layout { grid-template-columns: 1fr; }
+}
 .package-id { align-self: center; }
 .package-id strong, .package-id span { display: block; }
 .package-id span { margin-top: 4px; color: var(--muted); font-size: 11px; }

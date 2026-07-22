@@ -85,10 +85,17 @@
         </view>
         <text class="menu-arrow">›</text>
       </button>
+      <button bindtap="goRedeem" hover-class="menu-item--hover">
+        <view class="menu-label">
+          <view class="menu-icon menu-icon--redeem">兑</view>
+          <text>积分兑换</text>
+        </view>
+        <text class="menu-arrow">›</text>
+      </button>
       <button bindtap="openHelp" hover-class="menu-item--hover">
         <view class="menu-label">
           <view class="menu-icon menu-icon--help">?</view>
-          <text>使用帮助</text>
+          <text>使用帮助 / 新手练习</text>
         </view>
         <text class="menu-arrow">›</text>
       </button>

@@ -359,6 +359,11 @@
   color: var(--green);
 }
 
+.menu-icon--redeem {
+  background: #fff6e0;
+  color: #b08a2e;
+}
+
 .menu-icon--help {
   background: var(--pink-soft);
   color: var(--coral);

@@ -131,36 +131,53 @@
 
   <view wx:if="{{!loading && !filteredTemplates.length}}" class="empty">这个分类的模板还在准备中</view>
 
-  <!-- First-time onboarding: guide user through first work -->
+  <!-- Admin in-app announcement -->
+  <view wx:if="{{showAnnouncement && announcement}}" class="announce-mask" catchtouchmove="noop">
+    <view class="announce-sheet">
+      <view class="announce-kicker">公告</view>
+      <view class="announce-title">{{announcement.title}}</view>
+      <view class="announce-body">{{announcement.content}}</view>
+      <button class="primary-button announce-btn" bindtap="dismissAnnouncementOnce">我知道了</button>
+      <view class="announce-skip" bindtap="dismissAnnouncementForever">不再提示</view>
+    </view>
+  </view>
+
+  <!-- First-time onboarding: invite into interactive fake-gen tour -->
   <view wx:if="{{showOnboarding}}" class="onboard-mask" catchtouchmove="noop">
     <view class="onboard-sheet">
-      <view class="onboard-kicker">新手指引</view>
-      <view class="onboard-title">3 步生成第一组作品</view>
-      <view class="onboard-steps">
+      <view class="onboard-kicker">新手互动练习</view>
+      <view class="onboard-title">跟着做一遍，学会生成图片</view>
+      <view class="onboard-lead">
+        全程演示、不扣积分：选风格 → 选照片 → 确认 → 假生成出图，和真实创作同路径。
+      </view>
+      <view class="onboard-steps onboard-steps--compact">
         <view class="onboard-step">
           <view class="onboard-step__num">1</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">挑一个风格</view>
-            <view class="onboard-step__text">在首页点进喜欢的模板卡片</view>
+            <view class="onboard-step__title">选风格</view>
           </view>
         </view>
         <view class="onboard-step">
           <view class="onboard-step__num">2</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">上传 1–6 张照片</view>
-            <view class="onboard-step__text">清晰人像/宠物效果更好</view>
+            <view class="onboard-step__title">选照片</view>
           </view>
         </view>
         <view class="onboard-step">
           <view class="onboard-step__num">3</view>
           <view class="onboard-step__body">
-            <view class="onboard-step__title">一键生成并收藏</view>
-            <view class="onboard-step__text">约 2–5 分钟完成，可在「作品」查看</view>
+            <view class="onboard-step__title">确认生成</view>
+          </view>
+        </view>
+        <view class="onboard-step">
+          <view class="onboard-step__num">4</view>
+          <view class="onboard-step__body">
+            <view class="onboard-step__title">看演示结果</view>
           </view>
         </view>
       </view>
-      <view class="onboard-gift">新用户赠送 {{welcomeCredits}} 积分，足够试几张</view>
-      <button class="primary-button onboard-cta" bindtap="finishOnboarding">开始创作</button>
+      <view class="onboard-gift">新用户赠送 {{welcomeCredits}} 积分 · 练习不消耗</view>
+      <button class="primary-button onboard-cta" bindtap="finishOnboarding">开始互动练习</button>
       <view class="onboard-skip" bindtap="skipOnboarding">我先随便看看</view>
     </view>
   </view>

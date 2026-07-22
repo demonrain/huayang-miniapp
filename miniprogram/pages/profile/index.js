@@ -243,11 +243,21 @@ Page({
     wx.switchTab({ url: '/pages/history/index' })
   },
 
+  goRedeem() {
+    wx.navigateTo({ url: '/pages/redeem/index' })
+  },
+
   openHelp() {
     wx.showModal({
       title: '使用帮助',
-      content: '1. 在首页选择风格\n2. 上传 1–6 张清晰照片\n3. 消耗积分生成作品（约 2–5 分钟）\n\n失败任务积分会自动退回。每日可在本页领取签到积分。头像与昵称需主动授权后才会保存。',
-      showCancel: false
+      content: '真实流程：首页选风格 → 上传 1–6 张照片 → 确认积分生成（约 2–5 分钟）。失败任务积分自动退回。\n\n可进入「互动练习」走一遍假生成（不扣积分）。',
+      confirmText: '互动练习',
+      cancelText: '知道了',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({ url: '/pages/guide/index' })
+        }
+      }
     })
   },
 

@@ -1,0 +1,39 @@
+<view class="page redeem-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav show-back credits="{{credits}}"></custom-nav>
+
+  <view class="redeem-hero">
+    <view class="redeem-kicker">CREDIT REDEEM</view>
+    <view class="redeem-title">积分兑换</view>
+    <view class="redeem-sub">输入管理后台发放的 CDK 兑换码，即可获得对应积分</view>
+  </view>
+
+  <view class="redeem-card">
+    <view class="redeem-label">兑换码</view>
+    <input
+      class="redeem-input"
+      type="text"
+      maxlength="32"
+      value="{{code}}"
+      placeholder="例如 ABCD-EFGH-JKMN"
+      bindinput="onCodeInput"
+      confirm-type="done"
+      bindconfirm="doRedeem"
+    />
+    <view class="redeem-tips">
+      <view>· 不区分大小写，可带或不带短横线</view>
+      <view>· 每个兑换码仅可使用一次</view>
+      <view>· 过期或已使用的兑换码无法再次兑换</view>
+    </view>
+    <button
+      class="primary-button redeem-btn"
+      loading="{{redeeming}}"
+      disabled="{{redeeming}}"
+      bindtap="doRedeem"
+    >立即兑换</button>
+  </view>
+
+  <view class="redeem-balance soft-card" wx:if="{{credits != null}}">
+    <text class="redeem-balance__label">当前可用积分</text>
+    <text class="redeem-balance__value">{{credits}}</text>
+  </view>
+</view>

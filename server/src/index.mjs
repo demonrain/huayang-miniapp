@@ -26,7 +26,11 @@ import {
 } from './domain.mjs'
 import { ensureThumb, findOriginalForThumb, isThumbPath } from './thumbs.mjs'
 import { createMiniProgramCode, createMiniProgramUrlLink, isWechatShareConfigured } from './wechat-share.mjs'
-import { isSubscribeNotifyConfigured, sendJobResultSubscribeMessage } from './wechat-notify.mjs'
+import {
+  isSubscribeNotifyConfigured,
+  sendAdminSubscribeMessage,
+  sendJobResultSubscribeMessage
+} from './wechat-notify.mjs'
 
 const now = () => new Date().toISOString()
 
@@ -220,7 +224,115 @@ const transactionLabels = {
   share_friend: '分享作品到好友',
   share_timeline: '分享作品到朋友圈',
   invite_login: '邀请新用户登录',
-  invite_first_job: '邀请新用户完成首作'
+  invite_first_job: '邀请新用户完成首作',
+  cdk_redeem: 'CDK 兑换积分'
+}
+
+// Avoid ambiguous 0/O/1/I in redemption codes
+const CDK_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+function randomCdkSegment(length = 4) {
+  let out = ''
+  for (let i = 0; i < length; i += 1) {
+    out += CDK_ALPHABET[randomBytes(1)[0] % CDK_ALPHABET.length]
+  }
+  return out
+}
+
+function generateCdkCode() {
+  return `${randomCdkSegment(4)}-${randomCdkSegment(4)}-${randomCdkSegment(4)}`
+}
+
+function normalizeCdkCode(code) {
+  return String(code || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .replace(/(.{4})(?=.)/g, '$1-')
+    .replace(/-$/, '')
+}
+
+function resolveCdkExpiresAt(expireType, customExpiresAt) {
+  const type = String(expireType || 'never').trim()
+  if (type === 'never' || type === '' || type === 'unlimited') return ''
+  const nowMs = Date.now()
+  if (type === '1d') return new Date(nowMs + 1 * 24 * 60 * 60 * 1000).toISOString()
+  if (type === '3d') return new Date(nowMs + 3 * 24 * 60 * 60 * 1000).toISOString()
+  if (type === '7d') return new Date(nowMs + 7 * 24 * 60 * 60 * 1000).toISOString()
+  if (type === 'custom') {
+    const raw = String(customExpiresAt || '').trim()
+    if (!raw) throw new HttpError(400, 'INVALID_EXPIRE', '自定义有效期请选择截止日期')
+    const date = new Date(raw)
+    if (Number.isNaN(date.getTime())) throw new HttpError(400, 'INVALID_EXPIRE', '自定义有效期格式不正确')
+    if (date.getTime() <= nowMs) throw new HttpError(400, 'INVALID_EXPIRE', '有效期必须晚于当前时间')
+    return date.toISOString()
+  }
+  throw new HttpError(400, 'INVALID_EXPIRE', '有效期类型不支持')
+}
+
+function cdkRedeemCount(item) {
+  if (Array.isArray(item.redemptions) && item.redemptions.length) return item.redemptions.length
+  if (item.redeemedAt || item.redeemedBy) return 1
+  return Number(item.redeemCount || 0)
+}
+
+function cdkMaxUses(item) {
+  // 0 = unlimited; default 1 for legacy single-use codes
+  if (item.maxUses === 0 || item.maxUses === '0') return 0
+  if (item.maxUses == null || item.maxUses === '') return 1
+  return Math.max(0, Number(item.maxUses) || 1)
+}
+
+function cdkStatus(item, at = Date.now()) {
+  if (item.expiresAt && new Date(item.expiresAt).getTime() <= at) return 'expired'
+  const used = cdkRedeemCount(item)
+  const maxUses = cdkMaxUses(item)
+  if (maxUses === 0) return used > 0 ? 'active' : 'unused' // unlimited
+  if (used <= 0) return 'unused'
+  if (used >= maxUses) return 'exhausted'
+  return 'active' // partially used multi-use
+}
+
+function publicCdk(item, state = null) {
+  const status = cdkStatus(item)
+  const used = cdkRedeemCount(item)
+  const maxUses = cdkMaxUses(item)
+  const redemptions = Array.isArray(item.redemptions) && item.redemptions.length
+    ? item.redemptions
+    : (item.redeemedBy
+      ? [{ userId: item.redeemedBy, redeemedAt: item.redeemedAt || '' }]
+      : [])
+  const last = redemptions[redemptions.length - 1]
+  const redeemer = state && last?.userId
+    ? state.users.find(user => user.id === last.userId)
+    : null
+  const statusLabels = {
+    unused: '未使用',
+    active: '使用中',
+    exhausted: '已兑完',
+    redeemed: '已兑换',
+    expired: '已过期'
+  }
+  return {
+    id: item.id,
+    code: item.code,
+    credits: Number(item.credits || 0),
+    maxUses,
+    maxUsesLabel: maxUses === 0 ? '不限次数' : `${maxUses} 次`,
+    redeemCount: used,
+    remainingUses: maxUses === 0 ? null : Math.max(0, maxUses - used),
+    expiresAt: item.expiresAt || '',
+    expiresLabel: item.expiresAt ? displayTime(item.expiresAt) : '永久有效',
+    createdAt: item.createdAt,
+    createdTime: displayTime(item.createdAt),
+    redeemedAt: last?.redeemedAt || item.redeemedAt || '',
+    redeemedTime: (last?.redeemedAt || item.redeemedAt) ? displayTime(last?.redeemedAt || item.redeemedAt) : '',
+    redeemedBy: last?.userId || item.redeemedBy || '',
+    redeemerNickname: redeemer?.nickname || '',
+    status,
+    statusLabel: statusLabels[status] || status,
+    note: item.note || ''
+  }
 }
 
 const shareChannelLabels = {
@@ -1094,7 +1206,288 @@ export async function createApplication() {
           return
         }
 
+        if (request.method === 'GET' && pathname === '/api/admin/cdks') {
+          const state = store.read()
+          const status = String(url.searchParams.get('status') || 'all')
+          const query = String(url.searchParams.get('query') || '').trim().toUpperCase()
+          if (!Array.isArray(state.cdks)) state.cdks = []
+          const cdks = state.cdks
+            .map(item => publicCdk(item, state))
+            .filter(item => status === 'all' || item.status === status)
+            .filter(item => {
+              if (!query) return true
+              const needle = query.replace(/-/g, '')
+              return item.code.replace(/-/g, '').includes(needle)
+            })
+            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+            .slice(0, 500)
+          const all = state.cdks.map(item => cdkStatus(item))
+          json(response, 200, {
+            cdks,
+            total: cdks.length,
+            summary: {
+              total: state.cdks.length,
+              unused: all.filter(s => s === 'unused').length,
+              active: all.filter(s => s === 'active').length,
+              exhausted: all.filter(s => s === 'exhausted' || s === 'redeemed').length,
+              redeemed: all.filter(s => s === 'exhausted' || s === 'redeemed').length,
+              expired: all.filter(s => s === 'expired').length
+            }
+          })
+          return
+        }
+
+        if (request.method === 'POST' && pathname === '/api/admin/cdks') {
+          const body = await readJson(request)
+          const credits = boundedInteger(body.credits, 'CDK 积分', 1, 1000000)
+          const count = boundedInteger(body.count ?? 1, '生成数量', 1, 100)
+          // 0 = unlimited redemptions; default 1
+          const maxUses = boundedInteger(body.maxUses ?? 1, '可兑换次数', 0, 1000000)
+          const note = cleanText(body.note || '', '备注', 80, false)
+          const expiresAt = resolveCdkExpiresAt(body.expireType, body.expiresAt)
+          const customCodeRaw = String(body.customCode || '').trim()
+          if (customCodeRaw && count !== 1) {
+            throw new HttpError(400, 'INVALID_CDK', '指定通用兑换码时，生成数量只能为 1')
+          }
+          let customCode = ''
+          if (customCodeRaw) {
+            customCode = normalizeCdkCode(customCodeRaw)
+            const compact = customCode.replace(/-/g, '')
+            if (compact.length < 6 || compact.length > 24) {
+              throw new HttpError(400, 'INVALID_CDK', '通用兑换码长度需为 6–24 位字母数字')
+            }
+          }
+          const created = await store.transaction(draft => {
+            if (!Array.isArray(draft.cdks)) draft.cdks = []
+            const existing = new Set(draft.cdks.map(item => item.code.replace(/-/g, '')))
+            const batch = []
+            for (let i = 0; i < count; i += 1) {
+              let code = customCode || generateCdkCode()
+              if (!customCode) {
+                let guard = 0
+                while (existing.has(code.replace(/-/g, '')) && guard < 20) {
+                  code = generateCdkCode()
+                  guard += 1
+                }
+              }
+              if (existing.has(code.replace(/-/g, ''))) {
+                throw new HttpError(409, 'CDK_EXISTS', customCode ? '该通用兑换码已存在' : 'CDK 生成冲突，请重试')
+              }
+              existing.add(code.replace(/-/g, ''))
+              const item = {
+                id: randomUUID(),
+                code,
+                credits,
+                maxUses,
+                redemptions: [],
+                expiresAt,
+                note,
+                createdAt: now(),
+                redeemedAt: '',
+                redeemedBy: ''
+              }
+              draft.cdks.push(item)
+              batch.push(item)
+            }
+            return batch
+          })
+          const state = store.read()
+          json(response, 201, {
+            cdks: created.map(item => publicCdk(item, state)),
+            count: created.length
+          })
+          return
+        }
+
+        const adminCdkMatch = pathname.match(/^\/api\/admin\/cdks\/([^/]+)$/)
+        if (request.method === 'DELETE' && adminCdkMatch) {
+          const cdkId = adminCdkMatch[1]
+          await store.transaction(draft => {
+            if (!Array.isArray(draft.cdks)) draft.cdks = []
+            const index = draft.cdks.findIndex(item => item.id === cdkId)
+            if (index === -1) throw new HttpError(404, 'CDK_NOT_FOUND', 'CDK 不存在')
+            const item = draft.cdks[index]
+            if (cdkRedeemCount(item) > 0) throw new HttpError(409, 'CDK_REDEEMED', '已有兑换记录的 CDK 不能删除')
+            draft.cdks.splice(index, 1)
+          })
+          json(response, 200, { ok: true, id: cdkId })
+          return
+        }
+
+        // —— In-app announcements ——
+        if (request.method === 'GET' && pathname === '/api/admin/announcements') {
+          const state = store.read()
+          const list = (Array.isArray(state.announcements) ? state.announcements : [])
+            .slice()
+            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+            .map(item => ({
+              id: item.id,
+              title: item.title,
+              content: item.content,
+              enabled: item.enabled !== false,
+              createdAt: item.createdAt,
+              createdTime: displayTime(item.createdAt),
+              updatedAt: item.updatedAt || item.createdAt
+            }))
+          json(response, 200, { announcements: list })
+          return
+        }
+
+        if (request.method === 'POST' && pathname === '/api/admin/announcements') {
+          const body = await readJson(request)
+          const title = cleanText(body.title, '公告标题', 40, true)
+          const content = cleanText(body.content, '公告内容', 500, true)
+          const id = randomUUID()
+          await store.transaction(draft => {
+            if (!Array.isArray(draft.announcements)) draft.announcements = []
+            draft.announcements.push({
+              id,
+              title,
+              content,
+              enabled: body.enabled !== false,
+              createdAt: now(),
+              updatedAt: now()
+            })
+          })
+          const item = store.read(state => (state.announcements || []).find(entry => entry.id === id))
+          json(response, 201, {
+            announcement: {
+              id: item.id,
+              title: item.title,
+              content: item.content,
+              enabled: item.enabled !== false,
+              createdAt: item.createdAt,
+              createdTime: displayTime(item.createdAt)
+            }
+          })
+          return
+        }
+
+        const adminAnnouncementMatch = pathname.match(/^\/api\/admin\/announcements\/([^/]+)$/)
+        if (request.method === 'PATCH' && adminAnnouncementMatch) {
+          const body = await readJson(request)
+          const id = adminAnnouncementMatch[1]
+          await store.transaction(draft => {
+            if (!Array.isArray(draft.announcements)) draft.announcements = []
+            const item = draft.announcements.find(entry => entry.id === id)
+            if (!item) throw new HttpError(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在')
+            if ('title' in body) item.title = cleanText(body.title, '公告标题', 40, true)
+            if ('content' in body) item.content = cleanText(body.content, '公告内容', 500, true)
+            if ('enabled' in body) item.enabled = Boolean(body.enabled)
+            item.updatedAt = now()
+          })
+          const item = store.read(state => (state.announcements || []).find(entry => entry.id === id))
+          json(response, 200, {
+            announcement: {
+              id: item.id,
+              title: item.title,
+              content: item.content,
+              enabled: item.enabled !== false,
+              createdAt: item.createdAt,
+              createdTime: displayTime(item.createdAt)
+            }
+          })
+          return
+        }
+
+        if (request.method === 'DELETE' && adminAnnouncementMatch) {
+          const id = adminAnnouncementMatch[1]
+          await store.transaction(draft => {
+            if (!Array.isArray(draft.announcements)) draft.announcements = []
+            const index = draft.announcements.findIndex(entry => entry.id === id)
+            if (index === -1) throw new HttpError(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在')
+            draft.announcements.splice(index, 1)
+          })
+          json(response, 200, { ok: true, id })
+          return
+        }
+
+        // —— Subscribe message broadcast (best-effort; WeChat one-shot limit applies) ——
+        if (request.method === 'POST' && pathname === '/api/admin/subscribe-broadcast') {
+          if (!isSubscribeNotifyConfigured()) {
+            throw new HttpError(409, 'SUBSCRIBE_NOT_CONFIGURED', '未配置订阅消息模板，无法推送')
+          }
+          const body = await readJson(request)
+          const style = cleanText(body.style || body.title || '花漾相绘通知', '推送标题', 20, true)
+          const status = cleanText(body.status || '活动提醒', '推送状态', 5, true)
+          const tip = cleanText(body.tip || body.content || '打开小程序查看详情', '推送提示', 20, true)
+          const page = cleanText(body.page || 'pages/home/index', '跳转页面', 120, false) || 'pages/home/index'
+          const state = store.read()
+          const targets = state.users.filter(item =>
+            item.enabled !== false
+            && item.openid
+            && !String(item.openid).startsWith('dev-openid')
+            && item.subscribeEligible
+          )
+          if (!targets.length) {
+            json(response, 200, {
+              ok: true,
+              total: 0,
+              sent: 0,
+              failed: 0,
+              message: '暂无订阅过消息的可推送用户（用户需在生成时授权订阅）'
+            })
+            return
+          }
+          let sent = 0
+          let failed = 0
+          const errors = []
+          for (const target of targets) {
+            const result = await sendAdminSubscribeMessage({
+              openid: target.openid,
+              style,
+              status,
+              tip,
+              page
+            })
+            if (result.ok) sent += 1
+            else {
+              failed += 1
+              if (errors.length < 5) errors.push(result.error || '发送失败')
+            }
+          }
+          json(response, 200, {
+            ok: true,
+            total: targets.length,
+            sent,
+            failed,
+            message: `已尝试推送 ${targets.length} 人：成功 ${sent}，失败 ${failed}`,
+            errors
+          })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/subscribe-stats') {
+          const state = store.read()
+          const eligible = state.users.filter(item =>
+            item.enabled !== false && item.subscribeEligible && item.openid && !String(item.openid).startsWith('dev-openid')
+          ).length
+          json(response, 200, {
+            subscribeConfigured: isSubscribeNotifyConfigured(),
+            subscribeTemplateId: config.wechat.subscribeTemplateId || '',
+            eligibleUsers: eligible,
+            totalUsers: state.users.length
+          })
+          return
+        }
+
         throw new HttpError(404, 'ADMIN_API_NOT_FOUND', '后台接口不存在')
+      }
+
+      // Public: active in-app announcements (no auth)
+      if (request.method === 'GET' && pathname === '/api/announcements') {
+        const state = store.read()
+        const announcements = (Array.isArray(state.announcements) ? state.announcements : [])
+          .filter(item => item.enabled !== false)
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+          .map(item => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            createdAt: item.createdAt
+          }))
+        json(response, 200, { announcements })
+        return
       }
 
       const user = getAuthenticatedUser(request, store)
@@ -1214,6 +1607,11 @@ export async function createApplication() {
           // Accumulate template popularity when user creates a job (per image)
           const popularityBump = body.assetIds.length
           currentTemplate.popularity = Number(currentTemplate.popularity || 0) + popularityBump
+          // Mark user eligible for admin subscribe broadcast after they accept notify once
+          if (body.notify) {
+            target.subscribeEligible = true
+            target.subscribeEligibleAt = now()
+          }
           return { job, created: true }
         })
         if (created.created) setTimeout(() => processJob(created.job.id), 10)
@@ -1465,6 +1863,66 @@ export async function createApplication() {
             inviteLoginCount: invites.filter(item => item.loginRewarded).length,
             inviteFirstJobCount: invites.filter(item => item.firstJobRewarded && !item.firstJobSkipped).length
           }
+        })
+        return
+      }
+
+      if (request.method === 'POST' && pathname === '/api/cdks/redeem') {
+        const body = await readJson(request)
+        const rawCode = String(body.code || '').trim()
+        if (!rawCode) throw new HttpError(400, 'INVALID_CDK', '请输入兑换码')
+        const normalized = normalizeCdkCode(rawCode)
+        // Accept both formatted ABCD-EFGH-IJKL and raw ABCDEFGHIJKL
+        const compact = normalized.replace(/-/g, '')
+        if (compact.length < 8 || compact.length > 24) {
+          throw new HttpError(400, 'INVALID_CDK', '兑换码格式不正确')
+        }
+
+        const result = await store.transaction(draft => {
+          if (!Array.isArray(draft.cdks)) draft.cdks = []
+          const item = draft.cdks.find(entry => entry.code.replace(/-/g, '') === compact)
+          if (!item) throw new HttpError(404, 'CDK_NOT_FOUND', '兑换码不存在')
+          // migrate legacy fields
+          if (!Array.isArray(item.redemptions)) {
+            item.redemptions = []
+            if (item.redeemedBy) {
+              item.redemptions.push({ userId: item.redeemedBy, redeemedAt: item.redeemedAt || now() })
+            }
+          }
+          if (item.maxUses == null) item.maxUses = 1
+
+          const status = cdkStatus(item)
+          if (status === 'expired') throw new HttpError(409, 'CDK_EXPIRED', '该兑换码已过期')
+          if (status === 'exhausted' || status === 'redeemed') {
+            throw new HttpError(409, 'CDK_EXHAUSTED', '该兑换码已达使用次数上限')
+          }
+          if (item.redemptions.some(entry => entry.userId === user.id)) {
+            throw new HttpError(409, 'CDK_ALREADY_USED', '你已经兑换过该兑换码')
+          }
+
+          const credits = Number(item.credits || 0)
+          if (credits < 1) throw new HttpError(400, 'INVALID_CDK', '兑换码积分无效')
+
+          creditUser(draft, user.id, credits, 'cdk_redeem', `CDK 兑换 ${credits} 积分`, item.id)
+          const stamp = now()
+          item.redemptions.push({ userId: user.id, redeemedAt: stamp })
+          item.redeemedAt = stamp
+          item.redeemedBy = user.id
+          return {
+            credits,
+            code: item.code,
+            remainingUses: cdkMaxUses(item) === 0 ? null : Math.max(0, cdkMaxUses(item) - cdkRedeemCount(item)),
+            user: draft.users.find(entry => entry.id === user.id)
+          }
+        })
+
+        const state = store.read()
+        json(response, 200, {
+          ok: true,
+          credits: result.credits,
+          code: result.code,
+          message: `兑换成功，积分 +${result.credits}`,
+          user: publicUser(result.user, state)
         })
         return
       }

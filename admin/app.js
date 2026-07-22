@@ -49,6 +49,16 @@ const elements = {
   creditUserLabel: document.querySelector('#creditUserLabel'),
   packageDialog: document.querySelector('#packageDialog'),
   packageForm: document.querySelector('#packageForm'),
+  cdkGenerateForm: document.querySelector('#cdkGenerateForm'),
+  cdkFilterForm: document.querySelector('#cdkFilterForm'),
+  cdkRows: document.querySelector('#cdkRows'),
+  cdkSummaryHint: document.querySelector('#cdkSummaryHint'),
+  cdkExpireType: document.querySelector('#cdkExpireType'),
+  cdkCustomExpireField: document.querySelector('#cdkCustomExpireField'),
+  announcementForm: document.querySelector('#announcementForm'),
+  announcementRows: document.querySelector('#announcementRows'),
+  subscribeBroadcastForm: document.querySelector('#subscribeBroadcastForm'),
+  subscribeStatsHint: document.querySelector('#subscribeStatsHint'),
   coverInput: document.querySelector('#coverInput'),
   bannerImageInput: document.querySelector('#bannerImageInput'),
   shareStatsGrid: document.querySelector('#shareStatsGrid'),
@@ -427,6 +437,7 @@ async function switchView(name) {
     transactions: '积分流水',
     jobs: '作品任务',
     shares: '分享与邀请',
+    messages: '消息推送',
     banners: '首页 Banner',
     templates: '模板管理',
     categories: '模板分类',
@@ -440,10 +451,96 @@ async function switchView(name) {
     if (name === 'transactions') await loadTransactions()
     if (name === 'jobs') await loadJobs()
     if (name === 'shares') await loadShareGrowth()
+    if (name === 'messages') await loadMessagesPage()
     if (name === 'categories') renderCategories()
     if (name === 'banners') fillBannerCarouselForm()
+    if (name === 'packages') await loadCdks()
   } catch (error) {
     showToast(error.message, true)
+  }
+}
+
+function syncCdkExpireFields() {
+  if (!elements.cdkExpireType || !elements.cdkCustomExpireField) return
+  const custom = elements.cdkExpireType.value === 'custom'
+  elements.cdkCustomExpireField.hidden = !custom
+  const input = document.querySelector('#cdkExpiresAt')
+  if (input) input.required = custom
+}
+
+async function loadCdks() {
+  if (!elements.cdkRows) return
+  elements.cdkRows.innerHTML = emptyRow(8, '加载中...')
+  const values = elements.cdkFilterForm ? new FormData(elements.cdkFilterForm) : new FormData()
+  const params = new URLSearchParams({
+    query: String(values.get('query') || ''),
+    status: String(values.get('status') || 'all')
+  })
+  const result = await api(`/api/admin/cdks?${params}`)
+  const summary = result.summary || {}
+  if (elements.cdkSummaryHint) {
+    elements.cdkSummaryHint.textContent =
+      `共 ${Number(summary.total || 0)} 个 · 未使用 ${Number(summary.unused || 0)} · 使用中 ${Number(summary.active || 0)} · 已兑完 ${Number(summary.exhausted || 0)} · 已过期 ${Number(summary.expired || 0)}`
+  }
+  elements.cdkRows.innerHTML = (result.cdks || []).map(item => {
+    const usesText = item.maxUses === 0
+      ? `已兑 ${Number(item.redeemCount || 0)} / 不限`
+      : `已兑 ${Number(item.redeemCount || 0)} / ${Number(item.maxUses)}`
+    return `
+    <tr>
+      <td><code class="cdk-code">${escapeHtml(item.code)}</code></td>
+      <td class="amount-positive">+${Number(item.credits)}</td>
+      <td>${escapeHtml(usesText)}</td>
+      <td>${escapeHtml(item.expiresLabel)}</td>
+      <td><span class="status-pill cdk-status--${escapeHtml(item.status)}">${escapeHtml(item.statusLabel)}</span></td>
+      <td>${escapeHtml(item.createdTime)}${item.note ? `<span class="cell-subtitle">${escapeHtml(item.note)}</span>` : ''}</td>
+      <td>${item.redeemCount > 0
+        ? `<strong>${escapeHtml(item.redeemerNickname || '用户')}</strong><span class="cell-subtitle">${escapeHtml(item.redeemedTime || '')}</span>`
+        : '<span class="muted">—</span>'}</td>
+      <td class="row-actions">
+        <button class="row-button" data-cdk-action="copy" data-code="${escapeHtml(item.code)}" type="button">复制</button>
+        ${item.redeemCount === 0
+          ? `<button class="row-button" data-cdk-action="delete" data-id="${escapeHtml(item.id)}" type="button">删除</button>`
+          : ''}
+      </td>
+    </tr>`
+  }).join('') || emptyRow(8, '还没有 CDK，请先生成')
+}
+
+async function loadMessagesPage() {
+  await Promise.all([loadAnnouncements(), loadSubscribeStats()])
+}
+
+async function loadAnnouncements() {
+  if (!elements.announcementRows) return
+  elements.announcementRows.innerHTML = emptyRow(5, '加载中...')
+  const result = await api('/api/admin/announcements')
+  elements.announcementRows.innerHTML = (result.announcements || []).map(item => `
+    <tr>
+      <td>${escapeHtml(item.createdTime)}</td>
+      <td><strong>${escapeHtml(item.title)}</strong></td>
+      <td><span class="cell-subtitle" style="max-width:280px;white-space:normal">${escapeHtml(item.content)}</span></td>
+      <td><span class="status-pill${item.enabled ? ' is-active' : ''}">${item.enabled ? '启用' : '停用'}</span></td>
+      <td class="row-actions">
+        <button class="row-button" data-announcement-action="toggle" data-id="${escapeHtml(item.id)}" data-enabled="${item.enabled ? '1' : '0'}" type="button">${item.enabled ? '停用' : '启用'}</button>
+        <button class="row-button" data-announcement-action="delete" data-id="${escapeHtml(item.id)}" type="button">删除</button>
+      </td>
+    </tr>
+  `).join('') || emptyRow(5, '暂无站内公告')
+}
+
+async function loadSubscribeStats() {
+  if (!elements.subscribeStatsHint) return
+  try {
+    const result = await api('/api/admin/subscribe-stats')
+    if (!result.subscribeConfigured) {
+      elements.subscribeStatsHint.textContent = '未配置订阅消息模板（需设置 WECHAT_SUBSCRIBE_TEMPLATE_ID 等）'
+      return
+    }
+    elements.subscribeStatsHint.textContent =
+      `模板已配置 · 可尝试推送用户 ${Number(result.eligibleUsers || 0)} 人（曾在生成时授权订阅）/ 总用户 ${Number(result.totalUsers || 0)}`
+  } catch (error) {
+    elements.subscribeStatsHint.textContent = error.message || '无法加载订阅统计'
   }
 }
 
@@ -889,6 +986,150 @@ elements.packageList.addEventListener('submit', async event => {
     })
     await loadOverview()
     showToast('充值套餐已保存')
+  } catch (error) { showToast(error.message, true) }
+})
+
+elements.cdkExpireType?.addEventListener('change', syncCdkExpireFields)
+syncCdkExpireFields()
+
+elements.cdkGenerateForm?.addEventListener('submit', async event => {
+  event.preventDefault()
+  const values = new FormData(elements.cdkGenerateForm)
+  const expireType = String(values.get('expireType') || 'never')
+  let expiresAt = ''
+  if (expireType === 'custom') {
+    const raw = String(values.get('expiresAt') || '').trim()
+    if (!raw) {
+      showToast('请选择自定义截止日期', true)
+      return
+    }
+    expiresAt = new Date(raw).toISOString()
+  }
+  try {
+    const result = await api('/api/admin/cdks', {
+      method: 'POST',
+      json: {
+        credits: Number(values.get('credits')),
+        count: Number(values.get('count')),
+        maxUses: Number(values.get('maxUses')),
+        customCode: String(values.get('customCode') || ''),
+        expireType,
+        expiresAt,
+        note: String(values.get('note') || '')
+      }
+    })
+    const codes = (result.cdks || []).map(item => item.code).join('\n')
+    if (codes && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(codes).catch(() => {})
+    }
+    showToast(`已生成 ${result.count || 0} 个 CDK${codes ? '（已复制）' : ''}`)
+    await loadCdks()
+  } catch (error) { showToast(error.message, true) }
+})
+
+elements.cdkFilterForm?.addEventListener('submit', event => {
+  event.preventDefault()
+  loadCdks().catch(error => showToast(error.message, true))
+})
+
+document.querySelector('#refreshCdkList')?.addEventListener('click', () => {
+  loadCdks().then(() => showToast('CDK 列表已刷新')).catch(error => showToast(error.message, true))
+})
+
+elements.cdkRows?.addEventListener('click', async event => {
+  const button = event.target.closest('[data-cdk-action]')
+  if (!button) return
+  if (button.dataset.cdkAction === 'copy') {
+    const code = button.dataset.code || ''
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(code)
+      else {
+        const input = document.createElement('input')
+        input.value = code
+        document.body.appendChild(input)
+        input.select()
+        document.execCommand('copy')
+        input.remove()
+      }
+      showToast(`已复制 ${code}`)
+    } catch (error) {
+      showToast('复制失败，请手动选择', true)
+    }
+    return
+  }
+  if (button.dataset.cdkAction === 'delete') {
+    if (!window.confirm('确认删除该未使用的 CDK？')) return
+    try {
+      await api(`/api/admin/cdks/${encodeURIComponent(button.dataset.id)}`, { method: 'DELETE' })
+      showToast('CDK 已删除')
+      await loadCdks()
+    } catch (error) { showToast(error.message, true) }
+  }
+})
+
+elements.announcementForm?.addEventListener('submit', async event => {
+  event.preventDefault()
+  const values = new FormData(elements.announcementForm)
+  try {
+    await api('/api/admin/announcements', {
+      method: 'POST',
+      json: {
+        title: String(values.get('title') || ''),
+        content: String(values.get('content') || ''),
+        enabled: Boolean(elements.announcementForm.elements.enabled?.checked)
+      }
+    })
+    elements.announcementForm.reset()
+    if (elements.announcementForm.elements.enabled) elements.announcementForm.elements.enabled.checked = true
+    showToast('公告已发布')
+    await loadAnnouncements()
+  } catch (error) { showToast(error.message, true) }
+})
+
+elements.announcementRows?.addEventListener('click', async event => {
+  const button = event.target.closest('[data-announcement-action]')
+  if (!button) return
+  const id = button.dataset.id
+  if (button.dataset.announcementAction === 'toggle') {
+    try {
+      await api(`/api/admin/announcements/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        json: { enabled: button.dataset.enabled !== '1' }
+      })
+      showToast('公告状态已更新')
+      await loadAnnouncements()
+    } catch (error) { showToast(error.message, true) }
+  }
+  if (button.dataset.announcementAction === 'delete') {
+    if (!window.confirm('确认删除该公告？')) return
+    try {
+      await api(`/api/admin/announcements/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      showToast('公告已删除')
+      await loadAnnouncements()
+    } catch (error) { showToast(error.message, true) }
+  }
+})
+
+document.querySelector('#refreshSubscribeStats')?.addEventListener('click', () => {
+  loadSubscribeStats().catch(error => showToast(error.message, true))
+})
+
+elements.subscribeBroadcastForm?.addEventListener('submit', async event => {
+  event.preventDefault()
+  if (!window.confirm('确认向可推送用户发送订阅消息？多数用户可能因未授权而失败。')) return
+  const values = new FormData(elements.subscribeBroadcastForm)
+  try {
+    const result = await api('/api/admin/subscribe-broadcast', {
+      method: 'POST',
+      json: {
+        style: String(values.get('style') || ''),
+        status: String(values.get('status') || ''),
+        tip: String(values.get('tip') || ''),
+        page: String(values.get('page') || 'pages/home/index')
+      }
+    })
+    showToast(result.message || '推送已提交')
+    await loadSubscribeStats()
   } catch (error) { showToast(error.message, true) }
 })
 

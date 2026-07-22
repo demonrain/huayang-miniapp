@@ -40,6 +40,7 @@
         <button class="nav-item" data-view="transactions"><span class="nav-icon">账</span>积分流水</button>
         <button class="nav-item" data-view="jobs"><span class="nav-icon">作</span>作品任务</button>
         <button class="nav-item" data-view="shares"><span class="nav-icon">享</span>分享与邀请</button>
+        <button class="nav-item" data-view="messages"><span class="nav-icon">信</span>消息推送</button>
         <button class="nav-item" data-view="banners"><span class="nav-icon">图</span>首页 Banner</button>
         <button class="nav-item" data-view="templates"><span class="nav-icon">▦</span>模板管理</button>
         <button class="nav-item" data-view="categories"><span class="nav-icon">分</span>模板分类</button>
@@ -168,7 +169,7 @@
           <div><h3>充值与消费记录</h3><p>包含充值、作品消费、签到、赠送、退款和后台调整。</p></div>
           <form id="transactionFilterForm" class="filter-bar">
             <input name="query" placeholder="昵称、用户 ID 或摘要">
-            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="share_friend">分享好友</option><option value="share_timeline">分享朋友圈</option><option value="invite_login">邀请登录</option><option value="invite_first_job">邀请首作</option><option value="admin_adjust">后台调整</option></select>
+            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="cdk_redeem">CDK 兑换</option><option value="share_friend">分享好友</option><option value="share_timeline">分享朋友圈</option><option value="invite_login">邀请登录</option><option value="invite_first_job">邀请首作</option><option value="admin_adjust">后台调整</option></select>
             <button class="button button--quiet" type="submit">查询</button>
           </form>
         </div>
@@ -238,6 +239,133 @@
           <button id="addPackageButton" class="button button--primary" type="button"><span>＋</span>新增套餐</button>
         </div>
         <div id="packageList" class="package-list"></div>
+
+        <div class="content-panel cdk-panel">
+          <div class="panel-heading">
+            <div>
+              <h3>积分兑换 CDK</h3>
+              <p id="cdkSummaryHint">生成兑换码供用户在小程序「积分兑换」中使用。默认永久有效。</p>
+            </div>
+            <button id="refreshCdkList" class="button button--quiet" type="button">刷新列表</button>
+          </div>
+
+          <form id="cdkGenerateForm" class="cdk-generate-form">
+            <div class="form-grid form-grid--dense">
+              <label>积分数量<input name="credits" type="number" min="1" max="1000000" value="10" required></label>
+              <label>生成数量（通用码请填 1）<input name="count" type="number" min="1" max="100" value="1" required></label>
+              <label>可兑换次数（0=不限）<input name="maxUses" type="number" min="0" max="1000000" value="1" required></label>
+              <label>有效期
+                <select name="expireType" id="cdkExpireType">
+                  <option value="never" selected>无限期</option>
+                  <option value="1d">1 天</option>
+                  <option value="3d">3 天</option>
+                  <option value="7d">7 天</option>
+                  <option value="custom">自定义截止日期</option>
+                </select>
+              </label>
+              <label id="cdkCustomExpireField" hidden>自定义截止时间
+                <input name="expiresAt" id="cdkExpiresAt" type="datetime-local">
+              </label>
+              <label class="field-wide">指定通用兑换码（可选，留空则自动生成）
+                <input name="customCode" maxlength="24" placeholder="例如 HUAYANG2026，同一码可被多人按次数兑换">
+              </label>
+              <label class="field-wide">备注（可选）<input name="note" maxlength="80" placeholder="例如：活动赠送、内部测试"></label>
+            </div>
+            <div class="form-actions">
+              <button class="button button--primary" type="submit">生成 CDK</button>
+            </div>
+          </form>
+
+          <div class="toolbar cdk-list-toolbar">
+            <div><h3 style="margin:0;font-size:15px">CDK 列表</h3></div>
+            <form id="cdkFilterForm" class="filter-bar">
+              <input name="query" placeholder="搜索兑换码">
+              <select name="status">
+                <option value="all">全部状态</option>
+                <option value="unused">未使用</option>
+                <option value="active">使用中</option>
+                <option value="exhausted">已兑完</option>
+                <option value="expired">已过期</option>
+              </select>
+              <button class="button button--quiet" type="submit">查询</button>
+            </form>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>兑换码</th>
+                  <th>积分</th>
+                  <th>次数</th>
+                  <th>有效期</th>
+                  <th>状态</th>
+                  <th>创建时间</th>
+                  <th>最近兑换</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="cdkRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="messagesView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div>
+            <h3>消息推送</h3>
+            <p>站内公告会在用户打开小程序时弹出；微信订阅消息仅能推送给曾授权过的用户（微信规则限制）。</p>
+          </div>
+        </div>
+
+        <div class="messages-layout">
+          <div class="content-panel messages-panel">
+            <div class="panel-heading">
+              <div>
+                <h3>站内公告</h3>
+                <p>用户打开首页时展示，可点「不再提示」屏蔽该条</p>
+              </div>
+            </div>
+            <form id="announcementForm" class="settings-form" style="padding-top:0">
+              <div class="form-grid form-grid--dense">
+                <label class="field-wide">标题<input name="title" maxlength="40" required placeholder="例如：春季活动上新"></label>
+                <label class="field-wide">内容<textarea name="content" maxlength="500" rows="4" required placeholder="公告正文，支持多行说明"></textarea></label>
+                <label class="toggle-field field-wide"><input name="enabled" type="checkbox" checked><span>启用后立即对用户可见</span></label>
+              </div>
+              <div class="form-actions">
+                <button class="button button--primary" type="submit">发布公告</button>
+              </div>
+            </form>
+            <div class="table-wrap table-wrap--flush">
+              <table>
+                <thead><tr><th>时间</th><th>标题</th><th>内容</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody id="announcementRows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="content-panel messages-panel">
+            <div class="panel-heading">
+              <div>
+                <h3>微信订阅消息广播</h3>
+                <p id="subscribeStatsHint">加载可推送用户数…</p>
+              </div>
+              <button id="refreshSubscribeStats" class="button button--quiet" type="button">刷新</button>
+            </div>
+            <form id="subscribeBroadcastForm" class="settings-form" style="padding-top:0">
+              <div class="form-grid form-grid--dense">
+                <label class="field-wide">标题/风格（thing，≤20字）<input name="style" maxlength="20" required placeholder="花漾相绘通知"></label>
+                <label>状态短语（≤5字）<input name="status" maxlength="5" required value="活动提醒"></label>
+                <label>跳转页面<input name="page" maxlength="120" value="pages/home/index"></label>
+                <label class="field-wide">温馨提示（thing，≤20字）<input name="tip" maxlength="20" required placeholder="打开小程序查看详情"></label>
+              </div>
+              <p class="messages-note">说明：微信订阅消息是「用户授权一次推一次」。只有在生成时点过「允许」的用户才可能收到；大量失败属正常（用户拒绝/次数用尽）。</p>
+              <div class="form-actions">
+                <button class="button button--primary" type="submit">向可推送用户发送</button>
+              </div>
+            </form>
+          </div>
+        </div>
       </section>
     </main>
   </div>

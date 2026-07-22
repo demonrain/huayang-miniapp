@@ -32,7 +32,9 @@ Page({
     ],
     activeCategory: 'all',
     navSpacer: 176,
-    showOnboarding: false
+    showOnboarding: false,
+    announcement: null,
+    showAnnouncement: false
   },
 
   onLoad() {
@@ -47,6 +49,13 @@ Page({
 
   onShow() {
     if (!this.data.loading) this.refreshUser()
+    // Sync sheet if guide page completed/skipped while we were away
+    const done = !!wx.getStorageSync('huayang_onboarding_done')
+    if (done && this.data.showOnboarding) {
+      this.setData({ showOnboarding: false })
+    }
+    if (!done) return
+    this.maybeShowAnnouncement()
   },
 
   startLoadingTips() {
@@ -114,6 +123,7 @@ Page({
         loading: false,
         showOnboarding
       })
+      if (!showOnboarding) this.maybeShowAnnouncement()
     } catch (error) {
       this.stopLoadingTips()
       this.setData({ loading: false })
@@ -162,17 +172,57 @@ Page({
   },
 
   finishOnboarding() {
-    this.markOnboardingDone()
-    const first = this.data.filteredTemplates[0] || this.data.templates[0]
-    if (first) {
-      wx.navigateTo({ url: `/pages/template/index?id=${first.id}` })
-      return
-    }
-    wx.showToast({ title: '请选择一个风格', icon: 'none' })
+    // Keep sheet open until user enters guide; guide marks done on completion
+    const credits = this.data.welcomeCredits || 20
+    wx.navigateTo({ url: `/pages/guide/index?credits=${credits}` })
   },
 
   skipOnboarding() {
     this.markOnboardingDone()
+  },
+
+  async maybeShowAnnouncement() {
+    // Don't stack onboarding + announcement
+    if (this.data.showOnboarding || this.data.showAnnouncement) return
+    try {
+      const { announcements } = await api.get('/api/announcements')
+      const list = Array.isArray(announcements) ? announcements : []
+      if (!list.length) return
+      let dismissed = []
+      try {
+        dismissed = JSON.parse(wx.getStorageSync('huayang_dismissed_announcements') || '[]')
+      } catch (error) {
+        dismissed = []
+      }
+      if (!Array.isArray(dismissed)) dismissed = []
+      const next = list.find(item => item && item.id && dismissed.indexOf(item.id) === -1)
+      if (!next) return
+      this.setData({
+        announcement: next,
+        showAnnouncement: true
+      })
+    } catch (error) {}
+  },
+
+  dismissAnnouncementOnce() {
+    this.setData({ showAnnouncement: false, announcement: null })
+  },
+
+  dismissAnnouncementForever() {
+    const id = this.data.announcement && this.data.announcement.id
+    if (id) {
+      let dismissed = []
+      try {
+        dismissed = JSON.parse(wx.getStorageSync('huayang_dismissed_announcements') || '[]')
+      } catch (error) {
+        dismissed = []
+      }
+      if (!Array.isArray(dismissed)) dismissed = []
+      if (dismissed.indexOf(id) === -1) dismissed.push(id)
+      // Keep storage bounded
+      wx.setStorageSync('huayang_dismissed_announcements', JSON.stringify(dismissed.slice(-50)))
+    }
+    this.setData({ showAnnouncement: false, announcement: null })
   },
 
   noop() {}
