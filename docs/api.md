@@ -18,7 +18,7 @@
 | `DELETE` | `/api/jobs/:id` | 删除失败任务记录（仅 `failed`） |
 | `GET/POST` | `/api/admin/categories` | 模板分类列表 / 新建 |
 | `PATCH/DELETE` | `/api/admin/categories/:id` | 更新 / 删除模板分类 |
-| `GET` | `/api/wallet` | 余额、套餐和积分明细 |
+| `GET` | `/api/wallet` | 余额、套餐和积分明细（`limit`/`offset` 分页流水，默认 limit=50） |
 | `POST` | `/api/checkins` | 每日签到并领取后台配置的积分 |
 | `POST` | `/api/payments/orders` | 创建充值订单 |
 | `POST` | `/api/payments/notify` | 微信支付 v3 通知 |

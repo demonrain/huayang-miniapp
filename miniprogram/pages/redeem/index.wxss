@@ -1,10 +1,22 @@
+/* Page locks; only .ledger-scroll scrolls */
 .redeem-page {
-  padding-bottom: calc(env(safe-area-inset-bottom) + 48rpx);
+  height: 100vh;
+  max-height: 100vh;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.redeem-top {
+  flex: none;
+  padding-bottom: 4rpx;
 }
 
 .redeem-hero {
   margin-top: 8rpx;
-  padding: 8rpx 4rpx 20rpx;
+  padding: 8rpx 4rpx 16rpx;
 }
 
 .redeem-kicker {
@@ -28,7 +40,7 @@
 }
 
 .redeem-card {
-  padding: 28rpx 26rpx;
+  padding: 24rpx 26rpx;
   background: #fff;
   border: 2rpx solid var(--line);
   border-radius: 16rpx;
@@ -58,20 +70,20 @@
 }
 
 .redeem-tips {
-  margin-top: 18rpx;
+  margin-top: 14rpx;
   color: var(--muted);
   font-size: 20rpx;
-  line-height: 1.7;
+  line-height: 1.65;
 }
 
 .redeem-btn {
-  margin-top: 28rpx;
+  margin-top: 22rpx;
   width: 100%;
 }
 
 .redeem-balance {
-  margin-top: 20rpx;
-  padding: 22rpx 24rpx;
+  margin-top: 16rpx;
+  padding: 18rpx 24rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -90,10 +102,13 @@
 }
 
 .ledger-title {
-  margin-top: 36rpx;
+  margin-top: 24rpx;
+  margin-bottom: 8rpx;
 }
 
 .ledger-guest {
+  flex: none;
+  margin-bottom: calc(env(safe-area-inset-bottom) + 24rpx);
   padding: 28rpx 24rpx;
   text-align: center;
 }
@@ -107,6 +122,15 @@
 .ledger-guest__btn {
   margin-top: 20rpx;
   width: 100%;
+}
+
+/* Independent scroll area for ledger */
+.ledger-scroll {
+  flex: 1;
+  min-height: 0;
+  height: 0;
+  margin-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
 }
 
 .ledger-loading {
@@ -173,3 +197,9 @@
   padding: 48rpx 24rpx;
 }
 
+.ledger-footer {
+  padding: 20rpx 12rpx 28rpx;
+  text-align: center;
+  color: var(--muted);
+  font-size: 20rpx;
+}

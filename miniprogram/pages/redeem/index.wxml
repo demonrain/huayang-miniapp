@@ -1,56 +1,70 @@
 <view class="page redeem-page page-enter" style="padding-top: {{navSpacer}}rpx">
   <custom-nav show-back credits="{{credits}}"></custom-nav>
 
-  <view class="redeem-hero">
-    <view class="redeem-kicker">CREDIT REDEEM</view>
-    <view class="redeem-title">积分兑换</view>
-    <view class="redeem-sub">输入管理后台发放的 CDK 兑换码，即可获得对应积分</view>
-  </view>
-
-  <view class="redeem-card">
-    <view class="redeem-label">兑换码</view>
-    <input
-      class="redeem-input"
-      type="text"
-      maxlength="32"
-      value="{{code}}"
-      placeholder="例如 ABCD-EFGH-JKMN"
-      bindinput="onCodeInput"
-      confirm-type="done"
-      bindconfirm="doRedeem"
-    />
-    <view class="redeem-tips">
-      <view>· 不区分大小写，可带或不带短横线</view>
-      <view>· 同一账号对同一兑换码仅可兑换一次</view>
-      <view>· 过期或已兑完的兑换码无法使用</view>
+  <!-- Fixed upper: redeem form + balance (does not scroll with ledger) -->
+  <view class="redeem-top">
+    <view class="redeem-hero">
+      <view class="redeem-kicker">CREDIT REDEEM</view>
+      <view class="redeem-title">积分兑换</view>
+      <view class="redeem-sub">输入管理后台发放的 CDK 兑换码，即可获得对应积分</view>
     </view>
-    <button
-      class="primary-button redeem-btn"
-      loading="{{redeeming}}"
-      disabled="{{redeeming}}"
-      bindtap="doRedeem"
-    >立即兑换</button>
+
+    <view class="redeem-card">
+      <view class="redeem-label">兑换码</view>
+      <input
+        class="redeem-input"
+        type="text"
+        maxlength="32"
+        value="{{code}}"
+        placeholder="例如 ABCD-EFGH-JKMN"
+        bindinput="onCodeInput"
+        confirm-type="done"
+        bindconfirm="doRedeem"
+      />
+      <view class="redeem-tips">
+        <view>· 不区分大小写，可带或不带短横线</view>
+        <view>· 同一账号对同一兑换码仅可兑换一次</view>
+        <view>· 过期或已兑完的兑换码无法使用</view>
+      </view>
+      <button
+        class="primary-button redeem-btn"
+        loading="{{redeeming}}"
+        disabled="{{redeeming}}"
+        bindtap="doRedeem"
+      >立即兑换</button>
+    </view>
+
+    <view class="redeem-balance soft-card" wx:if="{{credits != null}}">
+      <text class="redeem-balance__label">当前可用积分</text>
+      <text class="redeem-balance__value">{{credits}}</text>
+    </view>
+
+    <view class="section-title ledger-title">
+      <view class="section-title__main">积分明细</view>
+      <view class="section-title__sub">
+        {{isLoggedIn ? ('最近 ' + (transactions.length || 0) + (transactionsTotal ? '/' + transactionsTotal : '') + ' 条') : '登录后查看'}}
+      </view>
+    </view>
   </view>
 
-  <view class="redeem-balance soft-card" wx:if="{{credits != null}}">
-    <text class="redeem-balance__label">当前可用积分</text>
-    <text class="redeem-balance__value">{{credits}}</text>
-  </view>
-
-  <!-- Credit ledger -->
-  <view class="section-title ledger-title">
-    <view class="section-title__main">积分明细</view>
-    <view class="section-title__sub">{{isLoggedIn ? '最近 50 条' : '登录后查看'}}</view>
-  </view>
-
+  <!-- Scrollable ledger only -->
   <view wx:if="{{!isLoggedIn}}" class="ledger-guest soft-card">
     <view class="ledger-guest__text">登录后可查看签到、兑换、生成消费等积分流水</view>
     <button class="ghost-button ledger-guest__btn" bindtap="doLogin">微信登录</button>
   </view>
 
-  <block wx:else>
+  <scroll-view
+    wx:else
+    class="ledger-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="{{true}}"
+    lower-threshold="80"
+    bindscrolltolower="onLedgerReachBottom"
+  >
     <view wx:if="{{loadingLedger && !transactions.length}}" class="ledger-loading">加载明细中…</view>
-    <view class="transaction-list">
+
+    <view class="transaction-list" wx:if="{{transactions.length}}">
       <view wx:for="{{transactions}}" wx:key="id" class="transaction-row">
         <view class="transaction-main">
           <view class="transaction-name">{{item.title}}</view>
@@ -60,7 +74,9 @@
           {{item.amount > 0 ? '+' : ''}}{{item.amount}}
         </view>
       </view>
-      <view wx:if="{{!loadingLedger && !transactions.length}}" class="empty ledger-empty">暂无积分记录</view>
     </view>
-  </block>
+
+    <view wx:if="{{!loadingLedger && !transactions.length}}" class="empty ledger-empty">暂无积分记录</view>
+    <view wx:if="{{ledgerFooter}}" class="ledger-footer">{{ledgerFooter}}</view>
+  </scroll-view>
 </view>

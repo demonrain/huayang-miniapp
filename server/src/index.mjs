@@ -1953,15 +1953,23 @@ export async function createApplication() {
 
       if (request.method === 'GET' && pathname === '/api/wallet') {
         const state = store.read()
-        const transactions = state.transactions
+        const limitRaw = Number(url.searchParams.get('limit') ?? 50)
+        const offsetRaw = Number(url.searchParams.get('offset') ?? 0)
+        const limit = Math.min(100, Math.max(1, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 50))
+        const offset = Math.max(0, Number.isFinite(offsetRaw) ? Math.floor(offsetRaw) : 0)
+        const allTransactions = state.transactions
           .filter(item => item.userId === user.id)
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-          .slice(0, 50)
+        const transactionsTotal = allTransactions.length
+        const transactions = allTransactions
+          .slice(offset, offset + limit)
           .map(publicTransaction)
         json(response, 200, {
           user: publicUser(state.users.find(item => item.id === user.id), state),
           packages: publicPackages(state),
           transactions,
+          transactionsTotal,
+          transactionsHasMore: offset + transactions.length < transactionsTotal,
           checkin: {
             reward: state.settings.checkinCredits,
             claimedToday: state.transactions.some(item => item.userId === user.id && item.type === 'checkin' && item.externalRef === chinaDateKey())
