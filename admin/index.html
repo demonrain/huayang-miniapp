@@ -311,56 +311,117 @@
       </section>
 
       <section id="messagesView" class="view-panel" hidden>
-        <div class="toolbar">
+        <div class="toolbar messages-toolbar">
           <div>
             <h3>消息推送</h3>
-            <p>站内公告会在用户打开小程序时弹出；微信订阅消息仅能推送给曾授权过的用户（微信规则限制）。</p>
+            <p>站内公告在用户打开小程序时弹出；微信订阅消息只能推送给曾授权过的用户。</p>
           </div>
         </div>
 
-        <div class="messages-layout">
+        <div class="messages-stack">
+          <!-- 1. 站内公告：发布表单 + 列表分区 -->
           <div class="content-panel messages-panel">
-            <div class="panel-heading">
+            <div class="panel-heading panel-heading--pad">
               <div>
                 <h3>站内公告</h3>
-                <p>用户打开首页时展示，可点「不再提示」屏蔽该条</p>
+                <p>用户打开首页时展示；用户可点「不再提示」屏蔽单条公告</p>
               </div>
             </div>
-            <form id="announcementForm" class="settings-form" style="padding-top:0">
-              <div class="form-grid form-grid--dense">
-                <label class="field-wide">标题<input name="title" maxlength="40" required placeholder="例如：春季活动上新"></label>
-                <label class="field-wide">内容<textarea name="content" maxlength="500" rows="4" required placeholder="公告正文，支持多行说明"></textarea></label>
-                <label class="toggle-field field-wide"><input name="enabled" type="checkbox" checked><span>启用后立即对用户可见</span></label>
-              </div>
-              <div class="form-actions">
-                <button class="button button--primary" type="submit">发布公告</button>
+
+            <form id="announcementForm" class="messages-form">
+              <div class="messages-block">
+                <div class="messages-block__title">发布新公告</div>
+                <div class="form-grid form-grid--dense messages-announce-grid">
+                  <label class="field-wide">标题
+                    <input name="title" maxlength="40" required placeholder="例如：春季活动上新">
+                  </label>
+                  <label class="field-wide">内容
+                    <textarea name="content" maxlength="500" rows="3" required placeholder="公告正文，支持多行说明"></textarea>
+                  </label>
+                  <label class="toggle-field field-wide">
+                    <input name="enabled" type="checkbox" checked>
+                    <span>启用后立即对用户可见</span>
+                  </label>
+                </div>
+                <div class="form-actions form-actions--inline">
+                  <button class="button button--primary" type="submit">发布公告</button>
+                </div>
               </div>
             </form>
+
+            <div class="messages-list-head">
+              <div>
+                <strong>已发布列表</strong>
+                <span>按时间倒序</span>
+              </div>
+            </div>
             <div class="table-wrap table-wrap--flush">
-              <table>
-                <thead><tr><th>时间</th><th>标题</th><th>内容</th><th>状态</th><th>操作</th></tr></thead>
+              <table class="messages-announce-table">
+                <thead>
+                  <tr>
+                    <th class="col-time">时间</th>
+                    <th class="col-title">标题</th>
+                    <th class="col-content">内容</th>
+                    <th class="col-status">状态</th>
+                    <th class="col-actions">操作</th>
+                  </tr>
+                </thead>
                 <tbody id="announcementRows"></tbody>
               </table>
             </div>
           </div>
 
+          <!-- 2. 微信订阅广播 -->
           <div class="content-panel messages-panel">
-            <div class="panel-heading">
+            <div class="panel-heading panel-heading--pad">
               <div>
                 <h3>微信订阅消息广播</h3>
-                <p id="subscribeStatsHint">加载可推送用户数…</p>
+                <p>依赖用户在生成作品时授权的一次性订阅，失败率偏高属正常</p>
               </div>
-              <button id="refreshSubscribeStats" class="button button--quiet" type="button">刷新</button>
+              <button id="refreshSubscribeStats" class="button button--quiet" type="button">刷新统计</button>
             </div>
-            <form id="subscribeBroadcastForm" class="settings-form" style="padding-top:0">
-              <div class="form-grid form-grid--dense">
-                <label class="field-wide">标题/风格（thing，≤20字）<input name="style" maxlength="20" required placeholder="花漾相绘通知"></label>
-                <label>状态短语（≤5字）<input name="status" maxlength="5" required value="活动提醒"></label>
-                <label>跳转页面<input name="page" maxlength="120" value="pages/home/index"></label>
-                <label class="field-wide">温馨提示（thing，≤20字）<input name="tip" maxlength="20" required placeholder="打开小程序查看详情"></label>
+
+            <div class="messages-stats" id="subscribeStatsBar" aria-live="polite">
+              <div class="messages-stat">
+                <span class="messages-stat__label">模板状态</span>
+                <strong id="subscribeStatTemplate" class="messages-stat__value">—</strong>
               </div>
-              <p class="messages-note">说明：微信订阅消息是「用户授权一次推一次」。只有在生成时点过「允许」的用户才可能收到；大量失败属正常（用户拒绝/次数用尽）。</p>
-              <div class="form-actions">
+              <div class="messages-stat">
+                <span class="messages-stat__label">可尝试推送</span>
+                <strong id="subscribeStatEligible" class="messages-stat__value">—</strong>
+              </div>
+              <div class="messages-stat">
+                <span class="messages-stat__label">总用户</span>
+                <strong id="subscribeStatTotal" class="messages-stat__value">—</strong>
+              </div>
+              <p id="subscribeStatsHint" class="messages-stats__hint">加载可推送用户数…</p>
+            </div>
+
+            <form id="subscribeBroadcastForm" class="messages-form">
+              <div class="messages-block">
+                <div class="messages-block__title">消息内容</div>
+                <div class="form-grid form-grid--dense messages-push-grid">
+                  <label class="field-wide">标题 / 风格（thing，≤20 字）
+                    <input name="style" maxlength="20" required placeholder="花漾相绘通知">
+                  </label>
+                  <label>状态短语（≤5 字）
+                    <input name="status" maxlength="5" required value="活动提醒">
+                  </label>
+                  <label>跳转页面
+                    <input name="page" maxlength="120" value="pages/home/index">
+                  </label>
+                  <label class="field-wide">温馨提示（thing，≤20 字）
+                    <input name="tip" maxlength="20" required placeholder="打开小程序查看详情">
+                  </label>
+                </div>
+              </div>
+
+              <div class="messages-note" role="note">
+                <strong>发送须知</strong>
+                <span>微信订阅消息为「授权一次推一次」。仅生成时点过「允许」的用户可能收到；用户拒绝或次数用尽会导致大量失败。</span>
+              </div>
+
+              <div class="form-actions form-actions--inline">
                 <button class="button button--primary" type="submit">向可推送用户发送</button>
               </div>
             </form>

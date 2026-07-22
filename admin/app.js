@@ -59,6 +59,9 @@ const elements = {
   announcementRows: document.querySelector('#announcementRows'),
   subscribeBroadcastForm: document.querySelector('#subscribeBroadcastForm'),
   subscribeStatsHint: document.querySelector('#subscribeStatsHint'),
+  subscribeStatTemplate: document.querySelector('#subscribeStatTemplate'),
+  subscribeStatEligible: document.querySelector('#subscribeStatEligible'),
+  subscribeStatTotal: document.querySelector('#subscribeStatTotal'),
   coverInput: document.querySelector('#coverInput'),
   bannerImageInput: document.querySelector('#bannerImageInput'),
   shareStatsGrid: document.querySelector('#shareStatsGrid'),
@@ -517,11 +520,11 @@ async function loadAnnouncements() {
   const result = await api('/api/admin/announcements')
   elements.announcementRows.innerHTML = (result.announcements || []).map(item => `
     <tr>
-      <td>${escapeHtml(item.createdTime)}</td>
-      <td><strong>${escapeHtml(item.title)}</strong></td>
-      <td><span class="cell-subtitle" style="max-width:280px;white-space:normal">${escapeHtml(item.content)}</span></td>
-      <td><span class="status-pill${item.enabled ? ' is-active' : ''}">${item.enabled ? '启用' : '停用'}</span></td>
-      <td class="row-actions">
+      <td class="col-time">${escapeHtml(item.createdTime)}</td>
+      <td class="col-title"><strong>${escapeHtml(item.title)}</strong></td>
+      <td class="col-content"><div class="messages-announce-content" title="${escapeHtml(item.content)}">${escapeHtml(item.content)}</div></td>
+      <td class="col-status"><span class="status-pill${item.enabled ? ' is-active' : ''}">${item.enabled ? '启用' : '停用'}</span></td>
+      <td class="col-actions row-actions">
         <button class="row-button" data-announcement-action="toggle" data-id="${escapeHtml(item.id)}" data-enabled="${item.enabled ? '1' : '0'}" type="button">${item.enabled ? '停用' : '启用'}</button>
         <button class="row-button" data-announcement-action="delete" data-id="${escapeHtml(item.id)}" type="button">删除</button>
       </td>
@@ -530,17 +533,29 @@ async function loadAnnouncements() {
 }
 
 async function loadSubscribeStats() {
-  if (!elements.subscribeStatsHint) return
+  const setStats = (template, eligible, total, hint) => {
+    if (elements.subscribeStatTemplate) elements.subscribeStatTemplate.textContent = template
+    if (elements.subscribeStatEligible) elements.subscribeStatEligible.textContent = eligible
+    if (elements.subscribeStatTotal) elements.subscribeStatTotal.textContent = total
+    if (elements.subscribeStatsHint) elements.subscribeStatsHint.textContent = hint
+  }
+  if (!elements.subscribeStatsHint && !elements.subscribeStatTemplate) return
   try {
     const result = await api('/api/admin/subscribe-stats')
     if (!result.subscribeConfigured) {
-      elements.subscribeStatsHint.textContent = '未配置订阅消息模板（需设置 WECHAT_SUBSCRIBE_TEMPLATE_ID 等）'
+      setStats('未配置', '—', '—', '请设置 WECHAT_SUBSCRIBE_TEMPLATE_ID 等环境变量后再推送')
       return
     }
-    elements.subscribeStatsHint.textContent =
-      `模板已配置 · 可尝试推送用户 ${Number(result.eligibleUsers || 0)} 人（曾在生成时授权订阅）/ 总用户 ${Number(result.totalUsers || 0)}`
+    const eligible = Number(result.eligibleUsers || 0)
+    const total = Number(result.totalUsers || 0)
+    setStats(
+      '已配置',
+      `${eligible} 人`,
+      `${total} 人`,
+      '可尝试推送 = 曾在生成时授权过订阅的用户；实际送达还受微信一次性授权限制'
+    )
   } catch (error) {
-    elements.subscribeStatsHint.textContent = error.message || '无法加载订阅统计'
+    setStats('—', '—', '—', error.message || '无法加载订阅统计')
   }
 }
 
