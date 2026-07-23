@@ -59,10 +59,13 @@
       <view wx:else>照片仅用于本次创作。原图与生成结果由你管理，不会出现在公开广场。</view>
     </view>
 
+    <view wx:if="{{files.length && !demo}}" class="eta-banner">{{etaHint}}</view>
+
     <view class="bottom-bar">
       <view>
         <view class="cost-label">{{demo ? '演示消耗' : '预计消耗'}}</view>
         <view class="cost-value">{{demo ? 0 : totalCost}} <text>积分</text></view>
+        <view wx:if="{{files.length && !demo}}" class="cost-eta">{{etaHint}}</view>
       </view>
       <button
         class="generate-button"

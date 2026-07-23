@@ -11,6 +11,7 @@ import { generateImages } from './generator.mjs'
 import { createWechatPrepay, decryptWechatResource, verifyWechatNotification } from './payments.mjs'
 import { HttpError, json, readBody, readImageUpload, readJson, serveFile, setCors } from './http.mjs'
 import {
+  assetThumbUrl,
   assetUrl,
   DEFAULT_TEMPLATE_CATEGORIES,
   findTemplate,
@@ -227,6 +228,12 @@ const transactionLabels = {
   invite_login: '邀请新用户登录',
   invite_first_job: '邀请新用户完成首作',
   cdk_redeem: 'CDK 兑换积分'
+}
+
+const feedbackTypeLabels = {
+  problem: '问题反馈',
+  feature: '功能建议',
+  template_request: '请求新模板'
 }
 
 // Avoid ambiguous 0/O/1/I in redemption codes
@@ -1047,16 +1054,96 @@ export async function createApplication() {
               const owner = state.users.find(user => user.id === item.userId)
               const job = publicJob(item, state)
               const endTime = item.completedAt || item.updatedAt
+              const template = findTemplate(state, item.templateId, true)
+              const sampleResultIds = new Set(
+                (template?.sampleRefs || []).filter(ref => ref.jobId === item.id).map(ref => ref.resultId)
+              )
               return {
                 ...job,
                 userNickname: owner?.nickname || '未知用户',
                 userMaskedId: item.userId.slice(0, 8),
                 createdTime: displayTime(item.createdAt),
                 completedTime: item.completedAt ? displayTime(item.completedAt) : '',
-                durationSeconds: item.startedAt && endTime ? Math.max(0, Math.round((new Date(endTime) - new Date(item.startedAt)) / 1000)) : null
+                durationSeconds: item.startedAt && endTime ? Math.max(0, Math.round((new Date(endTime) - new Date(item.startedAt)) / 1000)) : null,
+                results: (job.results || []).map(result => ({
+                  ...result,
+                  isSample: sampleResultIds.has(result.id)
+                }))
               }
             })
           json(response, 200, { jobs, total: jobs.length })
+          return
+        }
+
+        // Add a succeeded job result into its template's "更多效果参考" samples
+        const adminJobSampleMatch = pathname.match(/^\/api\/admin\/jobs\/([^/]+)\/samples$/)
+        if (request.method === 'POST' && adminJobSampleMatch) {
+          const jobId = adminJobSampleMatch[1]
+          const body = await readJson(request)
+          const resultId = cleanText(body.resultId, '结果 ID', 80, true)
+          const updated = await store.transaction(draft => {
+            const job = draft.jobs.find(item => item.id === jobId)
+            if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '任务不存在')
+            if (job.status !== 'succeeded') throw new HttpError(409, 'JOB_NOT_READY', '仅已完成作品可添加为效果参考')
+            const result = (job.results || []).find(item => item.id === resultId)
+            if (!result || !result.storagePath) throw new HttpError(404, 'RESULT_NOT_FOUND', '生成结果不存在')
+            const template = draft.templates.find(item => item.id === job.templateId)
+            if (!template) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '关联模板不存在')
+            if (!Array.isArray(template.sampleRefs)) template.sampleRefs = []
+            if (template.sampleRefs.some(item => item.resultId === resultId || (item.jobId === jobId && item.storagePath === result.storagePath))) {
+              throw new HttpError(409, 'SAMPLE_EXISTS', '该效果已在更多效果参考中')
+            }
+            template.sampleRefs.push({
+              id: randomUUID(),
+              resultId: result.id,
+              jobId: job.id,
+              storagePath: result.storagePath,
+              mime: result.mime || 'image/jpeg',
+              createdAt: now()
+            })
+            // Cap sample gallery size
+            if (template.sampleRefs.length > 24) {
+              template.sampleRefs = template.sampleRefs.slice(-24)
+            }
+            return template
+          })
+          const state = store.read()
+          json(response, 201, {
+            ok: true,
+            template: publicTemplate(updated, state, true),
+            message: '已加入该模板的更多效果参考'
+          })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/feedbacks') {
+          const state = store.read()
+          const type = String(url.searchParams.get('type') || 'all')
+          const list = (state.feedbacks || [])
+            .filter(item => type === 'all' || item.type === type)
+            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+            .slice(0, 500)
+            .map(item => {
+              const owner = state.users.find(user => user.id === item.userId)
+              const images = (item.assetIds || []).map(assetId => {
+                const asset = state.assets.find(a => a.id === assetId)
+                if (!asset) return null
+                const full = assetUrl(asset)
+                return { id: asset.id, url: full, thumbUrl: assetThumbUrl(asset) || full }
+              }).filter(Boolean)
+              return {
+                id: item.id,
+                type: item.type,
+                typeLabel: feedbackTypeLabels[item.type] || item.type,
+                content: item.content,
+                images,
+                userNickname: owner?.nickname || '未知用户',
+                userMaskedId: String(item.userId || '').slice(0, 8),
+                createdAt: item.createdAt,
+                createdTime: displayTime(item.createdAt)
+              }
+            })
+          json(response, 200, { feedbacks: list, total: list.length })
           return
         }
 
@@ -1969,6 +2056,51 @@ export async function createApplication() {
           code: result.code,
           message: `兑换成功，积分 +${result.credits}`,
           user: publicUser(result.user, state)
+        })
+        return
+      }
+
+      if (request.method === 'POST' && pathname === '/api/feedbacks') {
+        const body = await readJson(request)
+        const type = cleanText(body.type, '反馈类型', 40, true)
+        if (!feedbackTypeLabels[type]) {
+          throw new HttpError(400, 'INVALID_FIELD', '反馈类型无效')
+        }
+        const content = cleanText(body.content, '反馈内容', 800, true)
+        const assetIds = Array.isArray(body.assetIds)
+          ? body.assetIds.map(item => String(item || '').trim()).filter(Boolean).slice(0, 6)
+          : []
+        if (type === 'template_request' && !assetIds.length && content.length < 4) {
+          throw new HttpError(400, 'INVALID_FIELD', '请求新模板请补充描述或上传参考图')
+        }
+        const state = store.read()
+        for (const assetId of assetIds) {
+          const asset = state.assets.find(item => item.id === assetId && item.userId === user.id)
+          if (!asset) throw new HttpError(400, 'ASSET_NOT_FOUND', '参考图片不存在或不属于你')
+        }
+        const item = await store.transaction(draft => {
+          if (!Array.isArray(draft.feedbacks)) draft.feedbacks = []
+          const feedback = {
+            id: randomUUID(),
+            userId: user.id,
+            type,
+            content,
+            assetIds,
+            createdAt: now()
+          }
+          draft.feedbacks.push(feedback)
+          return feedback
+        })
+        json(response, 201, {
+          ok: true,
+          feedback: {
+            id: item.id,
+            type: item.type,
+            typeLabel: feedbackTypeLabels[item.type],
+            content: item.content,
+            createdAt: item.createdAt
+          },
+          message: '感谢反馈，我们会认真查看'
         })
         return
       }

@@ -92,6 +92,13 @@
         </view>
         <text class="menu-arrow">›</text>
       </button>
+      <button bindtap="goFeedback" hover-class="menu-item--hover">
+        <view class="menu-label">
+          <view class="menu-icon menu-icon--feedback">建</view>
+          <text>建议反馈</text>
+        </view>
+        <text class="menu-arrow">›</text>
+      </button>
       <button bindtap="openHelp" hover-class="menu-item--hover">
         <view class="menu-label">
           <view class="menu-icon menu-icon--help">?</view>

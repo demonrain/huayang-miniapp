@@ -149,6 +149,118 @@
   color: #8a574d;
 }
 
+/* Cute fail card */
+.fail-card {
+  margin-top: 24rpx;
+  padding: 48rpx 36rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(165deg, #fff8f6 0%, #fff0ed 55%, #fef6f0 100%);
+  border: 2rpx solid #f4d6cf;
+  border-radius: 20rpx;
+  box-shadow: 0 12rpx 32rpx rgba(138, 87, 77, 0.08);
+}
+
+.fail-illus {
+  position: relative;
+  width: 160rpx;
+  height: 140rpx;
+  margin-bottom: 12rpx;
+}
+
+.fail-flower {
+  position: relative;
+  width: 120rpx;
+  height: 120rpx;
+  margin: 0 auto;
+  opacity: 0.92;
+}
+
+.fail-petal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 42rpx;
+  height: 58rpx;
+  margin-left: -21rpx;
+  margin-top: -52rpx;
+  background: linear-gradient(180deg, #ffd4dc, #f2a4b1);
+  border-radius: 50%;
+  transform-origin: 50% 88%;
+}
+
+.fail-petal--1 { transform: rotate(0deg); opacity: 0.85; }
+.fail-petal--2 { transform: rotate(90deg); background: linear-gradient(180deg, #ffe8c8, #ffb59c); }
+.fail-petal--3 { transform: rotate(180deg) scale(0.92); opacity: 0.7; }
+.fail-petal--4 { transform: rotate(270deg); background: linear-gradient(180deg, #e8e0f8, #c4b8dc); opacity: 0.8; }
+
+.fail-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 32rpx;
+  height: 32rpx;
+  margin: -16rpx 0 0 -16rpx;
+  background: #ffd978;
+  border: 5rpx solid #fff;
+  border-radius: 50%;
+}
+
+.fail-cloud {
+  position: absolute;
+  right: 8rpx;
+  bottom: 8rpx;
+  width: 48rpx;
+  height: 28rpx;
+  background: rgba(180, 160, 155, 0.25);
+  border-radius: 999rpx;
+}
+
+.fail-title {
+  margin-top: 8rpx;
+  color: #7a4f48;
+  font-family: "Kaiti SC", "STKaiti", "Songti SC", serif;
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.fail-desc {
+  margin-top: 14rpx;
+  max-width: 520rpx;
+  color: #9a6a62;
+  font-size: 26rpx;
+  line-height: 1.55;
+}
+
+.fail-refund {
+  margin-top: 18rpx;
+  padding: 12rpx 20rpx;
+  background: var(--mint-soft);
+  border-radius: 999rpx;
+  color: var(--green);
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.fail-unstable {
+  margin-top: 18rpx;
+  padding: 16rpx 18rpx;
+  max-width: 560rpx;
+  background: #fff8e7;
+  border: 2rpx solid #f3ead1;
+  border-radius: 12rpx;
+  color: #8a7650;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.job-fail-actions {
+  margin-top: 28rpx;
+}
+
 .status-index {
   width: 78rpx;
   height: 78rpx;

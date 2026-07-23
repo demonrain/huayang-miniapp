@@ -18,22 +18,34 @@
         <view class="progress-dot"></view>
       </view>
       <view class="generating-title">正在让照片开花</view>
-      <view class="generating-status">{{statusText}} · {{demo ? '演示约数秒' : '预计 2–5 分钟'}}</view>
+      <view class="generating-status">{{statusText}} · {{demo ? '演示约数秒' : etaStatus}}</view>
       <view class="generating-tip">{{waitingTip}}</view>
       <view class="progress-track">
         <view class="progress-track__bar"></view>
       </view>
       <view class="generating-note">
-        <block wx:if="{{demo}}">练习加速演示排队与出图过程。真实创作大约 2–5 分钟，完成后可在「作品」查看，也可开启微信提醒。</block>
-        <block wx:else>生成大约需要 2–5 分钟，你可以先去做别的事情。完成后会通过微信消息提醒你；也可随时在「作品」里查看进度。</block>
+        <block wx:if="{{demo}}">练习加速演示排队与出图过程。真实创作按每张 2–5 分钟估算，完成后可在「作品」查看，也可开启微信提醒。</block>
+        <block wx:else>{{etaNote}}</block>
       </view>
     </view>
 
-    <view wx:elif="{{job.status === 'failed'}}" class="status-block status-block--failed">
-      <view class="status-index">失败</view>
-      <view class="status-main">
-        <view class="status-title">{{statusText}}</view>
-        <view class="status-sub">{{job.error || '本次积分已自动退回'}}</view>
+    <!-- Friendly failed state: no raw error dump -->
+    <view wx:elif="{{job.status === 'failed'}}" class="fail-card">
+      <view class="fail-illus">
+        <view class="fail-flower">
+          <view class="fail-petal fail-petal--1"></view>
+          <view class="fail-petal fail-petal--2"></view>
+          <view class="fail-petal fail-petal--3"></view>
+          <view class="fail-petal fail-petal--4"></view>
+          <view class="fail-dot"></view>
+        </view>
+        <view class="fail-cloud"></view>
+      </view>
+      <view class="fail-title">哎呀，小花瓣没开好</view>
+      <view class="fail-desc">{{failMessage}}</view>
+      <view class="fail-refund">本次消耗的积分已自动退回账户～</view>
+      <view wx:if="{{serviceUnstable}}" class="fail-unstable">
+        最近几次生成都不太顺利，服务可能暂时不稳定。建议稍后再试，或先去逛逛别的风格。
       </view>
     </view>
 
@@ -52,18 +64,6 @@
             bindtap="preview"
           ></image>
           <view class="result-number">{{index + 1}} / {{job.results.length}}</view>
-          <!-- 暂时隐藏单张保存/分享操作
-          <view class="result-actions">
-            <button data-url="{{item.url}}" bindtap="saveOne">
-              <image class="action-icon" src="/assets/icons/download.png" mode="aspectFit"></image>
-              <text>保存</text>
-            </button>
-            <button data-url="{{item.url}}" bindtap="shareImage">
-              <image class="action-icon" src="/assets/icons/image-share.png" mode="aspectFit"></image>
-              <text>分享图片</text>
-            </button>
-          </view>
-          -->
         </view>
       </view>
 
@@ -140,20 +140,18 @@
       <view wx:elif="{{demo}}" class="demo-banner" style="margin-top: 20rpx">演示结果使用风格封面示意。返回首页后可对真实模板正式生成。</view>
     </view>
 
-    <view wx:if="{{job.status === 'failed'}}" class="job-actions job-row-actions">
+    <!-- Failed: only retry + home on one row -->
+    <view wx:if="{{job.status === 'failed'}}" class="job-row-actions job-fail-actions">
       <view class="job-row-actions__cell">
         <button class="primary-button job-row-btn" loading="{{retrying}}" disabled="{{retrying}}" bindtap="retryJob">重试生成</button>
       </view>
       <view class="job-row-actions__cell">
-        <button class="ghost-button job-row-btn" bindtap="createAgain">换个风格</button>
+        <button class="ghost-button job-row-btn" bindtap="goHome">返回首页</button>
       </view>
     </view>
-    <view wx:if="{{job.status === 'failed'}}" class="job-delete-wrap">
-      <button class="job-delete-btn" loading="{{deleting}}" disabled="{{deleting}}" bindtap="deleteFailedJob">删除这条失败记录</button>
-    </view>
 
-    <!-- 生成中 / 失败：查看作品 + 返回首页；完成：仅返回首页（作品已在本页展示） -->
-    <view wx:if="{{isWaiting || job.status === 'failed'}}" class="job-footer-actions job-row-actions">
+    <!-- Waiting: view works + home -->
+    <view wx:if="{{isWaiting}}" class="job-footer-actions job-row-actions">
       <view class="job-row-actions__cell">
         <button class="ghost-button job-row-btn" bindtap="goWorks">查看作品</button>
       </view>

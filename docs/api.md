@@ -27,6 +27,7 @@
 | `POST` | `/api/jobs/:id/share/url-link` | 生成微信 URL Link |
 | `GET` | `/api/shares/:token` | 匿名读取公开分享作品 |
 | `POST` | `/api/cdks/redeem` | 使用 CDK 兑换积分（需登录） |
+| `POST` | `/api/feedbacks` | 提交建议反馈（需登录；`type`: problem/feature/template_request） |
 | `GET/POST` | `/api/admin/cdks` | CDK 列表 / 批量生成 |
 | `DELETE` | `/api/admin/cdks/:id` | 删除未使用的 CDK |
 | `POST` | `/api/share-rewards` | 上报分享并发放分享积分（需登录） |
@@ -45,6 +46,8 @@
 | `POST` | `/api/admin/users/:id/credits` | 调整用户积分并写入流水 |
 | `GET` | `/api/admin/transactions` | 查询充值、消费及其他积分流水 |
 | `GET` | `/api/admin/jobs` | 查询作品任务、状态和生成时间 |
+| `POST` | `/api/admin/jobs/:id/samples` | 将任务某张结果加入模板「更多效果参考」 |
+| `GET` | `/api/admin/feedbacks` | 用户建议反馈列表 |
 | `POST/PATCH` | `/api/admin/banners[/:id]` | 新增或修改首页 Banner |
 | `POST` | `/api/admin/banners/:id/image` | 上传 Banner 图片 |
 | `GET` | `/api/admin/templates` | 模板分页列表（`page`/`pageSize`/`query`/`status`/`category`） |

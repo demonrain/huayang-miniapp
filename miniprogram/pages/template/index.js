@@ -44,7 +44,7 @@ Page({
       const template = templates.find(item => item.id === this.data.templateId)
       if (!template) throw new Error('模板不存在或已下架')
 
-      const samples = this.buildSamples(template, templates)
+      const samples = this.buildSamples(template)
       const tags = Array.isArray(template.tags) ? [...template.tags] : []
       if (template.badge && !tags.includes(template.badge)) tags.unshift(template.badge)
       const defaults = ['保留五官', '高清输出']
@@ -73,39 +73,29 @@ Page({
     }
   },
 
-  buildSamples(current, templates) {
-    const samples = []
-    const pushSample = (item, key) => {
-      if (!item || samples.some(sample => sample.key === key)) return
-      samples.push({
-        key,
-        name: item.shortName || item.name || '',
-        coverUrl: item.coverUrl || '',
-        coverFullUrl: item.coverFullUrl || item.coverUrl || '',
-        palette: item.palette || 'linear-gradient(145deg, #f2c5cc, #e9f7f2)'
-      })
+  buildSamples(current) {
+    // Prefer admin-curated samples from job results
+    const curated = Array.isArray(current.samples) ? current.samples.filter(item => item && (item.url || item.thumbUrl)) : []
+    if (curated.length) {
+      return curated.map((item, index) => ({
+        key: item.id || `sample-${index}`,
+        name: item.name || current.shortName || '效果参考',
+        coverUrl: item.thumbUrl || item.url || '',
+        coverFullUrl: item.url || item.thumbUrl || '',
+        palette: current.palette || 'linear-gradient(145deg, #f2c5cc, #e9f7f2)'
+      }))
     }
-
-    pushSample(current, `self-${current.id}`)
-
-    const sameCategory = templates.filter(item => item.id !== current.id && item.category === current.category)
-    const others = templates.filter(item => item.id !== current.id && item.category !== current.category)
-    for (const item of [...sameCategory, ...others]) {
-      if (samples.length >= 3) break
-      pushSample(item, item.id)
-    }
-
-    while (samples.length < 3) {
-      samples.push({
-        key: `placeholder-${samples.length}`,
-        name: current.shortName || '参考',
-        coverUrl: current.coverUrl || '',
+    // Fallback: only this template cover (no cross-template mix)
+    if (current.coverUrl || current.coverFullUrl) {
+      return [{
+        key: `self-${current.id}`,
+        name: current.shortName || current.name || '效果参考',
+        coverUrl: current.coverUrl || current.coverFullUrl || '',
         coverFullUrl: current.coverFullUrl || current.coverUrl || '',
         palette: current.palette || 'linear-gradient(145deg, #f2c5cc, #e9f7f2)'
-      })
+      }]
     }
-
-    return samples.slice(0, 3)
+    return []
   },
 
   previewCover() {

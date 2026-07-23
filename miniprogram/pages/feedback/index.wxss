@@ -1,0 +1,149 @@
+.feedback-page {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 48rpx);
+}
+
+.fb-hero {
+  margin-top: 8rpx;
+  padding: 8rpx 4rpx 16rpx;
+}
+
+.fb-kicker {
+  color: var(--coral);
+  font-family: Georgia, serif;
+  font-size: 17rpx;
+  letter-spacing: 2rpx;
+}
+
+.fb-title {
+  margin-top: 8rpx;
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.fb-sub {
+  margin-top: 10rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+
+.section-label {
+  margin: 12rpx 0 12rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.type-card {
+  padding: 20rpx 22rpx;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 14rpx;
+  box-shadow: 0 6rpx 16rpx rgba(108, 82, 92, 0.04);
+}
+
+.type-card.is-selected {
+  border-color: #f2a4b1;
+  background: #fffafb;
+  box-shadow: 0 8rpx 20rpx rgba(231, 109, 130, 0.1);
+}
+
+.type-card__name {
+  font-size: 28rpx;
+  font-weight: 650;
+}
+
+.type-card__desc {
+  margin-top: 6rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+  line-height: 1.4;
+}
+
+.fb-card {
+  position: relative;
+  padding: 18rpx 20rpx 40rpx;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 14rpx;
+}
+
+.fb-textarea {
+  width: 100%;
+  min-height: 220rpx;
+  color: var(--ink);
+  font-size: 26rpx;
+  line-height: 1.55;
+}
+
+.fb-count {
+  position: absolute;
+  right: 18rpx;
+  bottom: 12rpx;
+  color: var(--muted);
+  font-size: 20rpx;
+}
+
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.photo-cell {
+  position: relative;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  background: #f4eaec;
+}
+
+.photo-cell image {
+  width: 100%;
+  height: 100%;
+}
+
+.photo-remove {
+  position: absolute;
+  top: 6rpx;
+  right: 6rpx;
+  width: 36rpx;
+  height: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(48, 40, 44, 0.55);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 24rpx;
+}
+
+.photo-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  border: 2rpx dashed #e0c8cc;
+  background: #fff;
+  color: var(--muted);
+  font-size: 20rpx;
+}
+
+.photo-add__plus {
+  font-size: 36rpx;
+  line-height: 1;
+  color: var(--coral);
+}
+
+.fb-submit {
+  margin-top: 36rpx;
+  width: 100%;
+}

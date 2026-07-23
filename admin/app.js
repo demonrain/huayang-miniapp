@@ -39,6 +39,8 @@ const elements = {
   transactionFilterForm: document.querySelector('#transactionFilterForm'),
   jobRows: document.querySelector('#jobRows'),
   jobFilterForm: document.querySelector('#jobFilterForm'),
+  feedbackRows: document.querySelector('#feedbackRows'),
+  feedbackFilterForm: document.querySelector('#feedbackFilterForm'),
   bannerRows: document.querySelector('#bannerRows'),
   bannerCarouselForm: document.querySelector('#bannerCarouselForm'),
   bannerEnabledHint: document.querySelector('#bannerEnabledHint'),
@@ -371,6 +373,25 @@ function mediaThumbs(items, emptyText) {
   }).join('')}</div>`
 }
 
+function resultThumbsWithSample(job) {
+  const list = Array.isArray(job.results) ? job.results.filter(item => item?.url || item?.thumbUrl) : []
+  if (!list.length) return `<span class="muted">${job.status === 'succeeded' ? '无' : '未出'}</span>`
+  const canAdd = job.status === 'succeeded'
+  return `<div class="job-media-row job-media-row--results">${list.map((item, index) => {
+    const full = item.url || item.thumbUrl
+    const thumb = item.thumbUrl || item.url
+    const sampleBtn = canAdd
+      ? (item.isSample
+        ? `<span class="sample-pill is-on">已在效果参考</span>`
+        : `<button class="row-button sample-add-btn" type="button" data-job-action="add-sample" data-job-id="${escapeHtml(job.id)}" data-result-id="${escapeHtml(item.id)}">添加到更多效果</button>`)
+      : ''
+    return `<div class="job-result-cell">
+      <a class="job-media-thumb" href="${escapeHtml(full)}" target="_blank" rel="noreferrer" title="打开大图 ${index + 1}"><img src="${escapeHtml(thumb)}" alt=""></a>
+      ${sampleBtn}
+    </div>`
+  }).join('')}</div>`
+}
+
 function renderTemplates() {
   const list = state.templates || []
   elements.templateRows.innerHTML = list.map(template => `
@@ -509,7 +530,7 @@ async function loadJobs() {
             <span class="job-media-sep">→</span>
             <div class="job-media-group">
               <span class="job-media-label">生成</span>
-              ${mediaThumbs(job.results, job.status === 'succeeded' ? '无' : '未出')}
+              ${resultThumbsWithSample(job)}
             </div>
           </div>
         </div>
@@ -527,6 +548,24 @@ async function loadJobs() {
   `).join('') || emptyRow(9, '没有符合条件的作品任务')
 }
 
+async function loadFeedbacks() {
+  if (!elements.feedbackRows) return
+  elements.feedbackRows.innerHTML = emptyRow(5, '加载中...')
+  const values = elements.feedbackFilterForm ? new FormData(elements.feedbackFilterForm) : new FormData()
+  const params = new URLSearchParams({ type: String(values.get('type') || 'all') })
+  const result = await api(`/api/admin/feedbacks?${params}`)
+  const list = result.feedbacks || []
+  elements.feedbackRows.innerHTML = list.map(item => `
+    <tr>
+      <td>${escapeHtml(item.createdTime || formatDate(item.createdAt))}</td>
+      <td><strong>${escapeHtml(item.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.userMaskedId)}</span></td>
+      <td><span class="status-pill is-active">${escapeHtml(item.typeLabel || item.type)}</span></td>
+      <td><div class="feedback-content">${escapeHtml(item.content)}</div></td>
+      <td>${mediaThumbs(item.images, '无')}</td>
+    </tr>
+  `).join('') || emptyRow(5, '暂无用户反馈')
+}
+
 async function switchView(name) {
   const titles = {
     overview: '概览与规则',
@@ -535,6 +574,7 @@ async function switchView(name) {
     jobs: '作品任务',
     shares: '分享与邀请',
     messages: '消息推送',
+    feedbacks: '建议反馈',
     banners: '首页 Banner',
     templates: '模板管理',
     categories: '模板分类',
@@ -549,6 +589,7 @@ async function switchView(name) {
     if (name === 'jobs') await loadJobs()
     if (name === 'shares') await loadShareGrowth()
     if (name === 'messages') await loadMessagesPage()
+    if (name === 'feedbacks') await loadFeedbacks()
     if (name === 'templates') await loadTemplates()
     if (name === 'categories') renderCategories()
     if (name === 'banners') fillBannerCarouselForm()
@@ -864,6 +905,31 @@ if (elements.bannerCarouselForm) {
 elements.userFilterForm.addEventListener('submit', event => { event.preventDefault(); loadUsers().catch(error => showToast(error.message, true)) })
 elements.transactionFilterForm.addEventListener('submit', event => { event.preventDefault(); loadTransactions().catch(error => showToast(error.message, true)) })
 elements.jobFilterForm.addEventListener('submit', event => { event.preventDefault(); loadJobs().catch(error => showToast(error.message, true)) })
+
+elements.jobRows?.addEventListener('click', async event => {
+  const button = event.target.closest('[data-job-action="add-sample"]')
+  if (!button) return
+  const jobId = button.dataset.jobId
+  const resultId = button.dataset.resultId
+  if (!jobId || !resultId) return
+  button.disabled = true
+  try {
+    const result = await api(`/api/admin/jobs/${encodeURIComponent(jobId)}/samples`, {
+      method: 'POST',
+      json: { resultId }
+    })
+    showToast(result.message || '已加入更多效果参考')
+    await loadJobs()
+  } catch (error) {
+    showToast(error.message, true)
+    button.disabled = false
+  }
+})
+
+elements.feedbackFilterForm?.addEventListener('submit', event => {
+  event.preventDefault()
+  loadFeedbacks().catch(error => showToast(error.message, true))
+})
 
 elements.userRows.addEventListener('click', async event => {
   const button = event.target.closest('[data-user-action]')

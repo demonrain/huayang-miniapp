@@ -1,6 +1,7 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
 const { isDemoQuery, buildDemoJob, saveDemoJob, delay } = require('../../utils/demo')
+const { formatEtaRange, estimateRange } = require('../../utils/eta')
 
 const DEMO_SAMPLE = { path: '/assets/demo/demo-photo.jpg', size: 0, demoSample: true }
 
@@ -12,6 +13,7 @@ Page({
     busy: false,
     maxFiles: 6,
     totalCost: 0,
+    etaHint: '',
     credits: null,
     navSpacer: 176,
     subscribeEnabled: false,
@@ -38,10 +40,13 @@ Page({
       ])
       const template = templates.find(item => item.id === this.data.templateId)
       if (!template) throw new Error('模板不存在或已下架')
+      const files = demo ? [DEMO_SAMPLE] : this.data.files
+      const totalCost = demo ? Number(template.cost || 0) : this.data.totalCost
       this.setData({
         template,
-        files: demo ? [DEMO_SAMPLE] : this.data.files,
-        totalCost: demo ? Number(template.cost || 0) : this.data.totalCost,
+        files,
+        totalCost,
+        etaHint: this.buildEtaHint(files.length),
         credits: app.isLoggedIn() ? (user?.credits ?? null) : null,
         subscribeEnabled: Boolean(config.subscribeEnabled && config.subscribeTemplateId),
         subscribeTemplateId: config.subscribeTemplateId || ''
@@ -55,6 +60,13 @@ Page({
     }
   },
 
+  buildEtaHint(count) {
+    if (!count) return '每张大约 2–5 分钟'
+    const { count: n } = estimateRange(count)
+    if (n === 1) return `预计约 ${formatEtaRange(1)}（每张 2–5 分钟）`
+    return `共 ${n} 张 · 预计约 ${formatEtaRange(n)}（每张 2–5 分钟）`
+  },
+
   chooseImages() {
     const count = this.data.maxFiles - this.data.files.length
     wx.chooseMedia({
@@ -66,7 +78,11 @@ Page({
         const next = tempFiles.map(file => ({ path: file.tempFilePath, size: file.size }))
         const current = this.data.demo && this.data.files.every(file => file.demoSample) ? [] : this.data.files
         const files = current.concat(next)
-        this.setData({ files, totalCost: files.length * this.data.template.cost })
+        this.setData({
+          files,
+          totalCost: files.length * this.data.template.cost,
+          etaHint: this.buildEtaHint(files.length)
+        })
       }
     })
   },
@@ -74,7 +90,11 @@ Page({
   removeImage(event) {
     const index = Number(event.currentTarget.dataset.index)
     const files = this.data.files.filter((_, itemIndex) => itemIndex !== index)
-    this.setData({ files, totalCost: files.length * this.data.template.cost })
+    this.setData({
+      files,
+      totalCost: files.length * this.data.template.cost,
+      etaHint: this.buildEtaHint(files.length)
+    })
   },
 
   previewImage(event) {

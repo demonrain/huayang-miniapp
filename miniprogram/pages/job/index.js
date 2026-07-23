@@ -8,6 +8,9 @@ const {
   markOnboardingDone,
   delay
 } = require('../../utils/demo')
+const { etaStatusText, etaNoteText, waitingTipsForCount } = require('../../utils/eta')
+const { recordJobFailure, isServiceUnstable } = require('../../utils/fail-guard')
+const { saveImageToAlbum } = require('../../utils/album')
 
 const STATUS_TEXT = {
   queued: '正在排队',
@@ -16,19 +19,11 @@ const STATUS_TEXT = {
   failed: '生成失败'
 }
 
-const WAITING_TIPS = [
-  '大约 2–5 分钟就好，先去刷会儿手机也行',
-  '画笔正在热身，颜料也在排队喝咖啡…',
-  '完成后会发微信提醒，你先忙别的也没关系',
-  'AI 在认真数你的睫毛，请再给它一点点耐心',
-  '光影调色中：少一点滤镜感，多一点心动感',
-  '正在给照片浇水施肥，马上就开花',
-  '像素们正在手拉手换装，场面有点热闹',
-  '大师在琢磨构图，灵感还在路上堵车',
-  '好作品值得等待，就像花期总在不经意间到来',
-  '后台小精灵加班中，结果出来会喊你一声',
-  '正在把平凡瞬间酿成一点点魔法',
-  'AI 说：再等我五秒…好吧可能是五十秒'
+const FAIL_MESSAGES = [
+  '小精灵打了个瞌睡，这回没能完成魔法。',
+  '颜料桶翻车了，作品还在酝酿中。',
+  '灵感堵车啦，这次没赶上末班车。',
+  '画笔休息了一会儿，再试一次也许就开花。'
 ]
 
 Page({
@@ -37,7 +32,12 @@ Page({
     job: null,
     statusText: '',
     isWaiting: false,
-    waitingTip: WAITING_TIPS[0],
+    waitingTip: '',
+    waitingTips: [],
+    etaStatus: '预计 2–5 分钟',
+    etaNote: '',
+    failMessage: FAIL_MESSAGES[0],
+    serviceUnstable: false,
     saving: false,
     share: null,
     sharing: false,
@@ -156,11 +156,26 @@ Page({
     wx.showToast({ title: '演示完成', icon: 'success' })
   },
 
+  applyEta(count) {
+    const n = Math.max(1, Number(count) || 1)
+    const tips = waitingTipsForCount(n)
+    this.waitingTips = tips
+    this.tipIndex = 0
+    this.setData({
+      etaStatus: etaStatusText(n),
+      etaNote: etaNoteText(n),
+      waitingTips: tips,
+      waitingTip: tips[0]
+    })
+  },
+
   startTipRotation() {
     if (this.tipTimer) return
     this.tipTimer = setInterval(() => {
-      this.tipIndex = (this.tipIndex + 1) % WAITING_TIPS.length
-      this.setData({ waitingTip: WAITING_TIPS[this.tipIndex] })
+      const tips = this.waitingTips || this.data.waitingTips || []
+      if (!tips.length) return
+      this.tipIndex = (this.tipIndex + 1) % tips.length
+      this.setData({ waitingTip: tips[this.tipIndex] })
     }, 5000)
   },
 
@@ -185,12 +200,30 @@ Page({
       }
       const { job } = await api.get(`/api/jobs/${this.data.id}`)
       const isWaiting = job.status === 'queued' || job.status === 'processing'
-      this.setData({
+      const count = (job.assetIds && job.assetIds.length) || 1
+      this.applyEta(count)
+
+      const patch = {
         job,
         statusText: STATUS_TEXT[job.status] || '处理中',
         isWaiting,
         credits: user?.credits ?? getApp().globalData.user?.credits ?? null
-      })
+      }
+
+      if (job.status === 'failed') {
+        // Record once per job id to avoid poll double-counting
+        if (this._failRecordedFor !== job.id) {
+          this._failRecordedFor = job.id
+          recordJobFailure()
+        }
+        const unstable = isServiceUnstable()
+        patch.serviceUnstable = unstable
+        patch.failMessage = unstable
+          ? '小花瓣有点累了，服务可能暂时不稳定。'
+          : FAIL_MESSAGES[Math.abs(String(job.id).length) % FAIL_MESSAGES.length]
+      }
+
+      this.setData(patch)
 
       if (isWaiting) {
         this.startTipRotation()
@@ -362,13 +395,17 @@ Page({
     try {
       for (const result of this.data.job.results) {
         const tempFilePath = await this.download(result.url)
-        await this.saveToAlbum(tempFilePath)
+        await saveImageToAlbum(tempFilePath)
       }
       wx.hideLoading()
       wx.showToast({ title: `已保存 ${this.data.job.results.length} 张`, icon: 'success' })
     } catch (error) {
       wx.hideLoading()
-      wx.showModal({ title: '保存失败', content: error.message || '请检查相册权限', showCancel: false })
+      wx.showModal({
+        title: error.code === 'ALBUM_DENIED' ? '需要相册权限' : '保存失败',
+        content: error.message || '请开启相册权限后重试',
+        showCancel: false
+      })
     } finally {
       this.setData({ saving: false })
     }
@@ -378,12 +415,12 @@ Page({
     wx.showLoading({ title: '正在保存', mask: true })
     try {
       const tempFilePath = await this.download(event.currentTarget.dataset.url)
-      await this.saveToAlbum(tempFilePath)
+      await saveImageToAlbum(tempFilePath)
       wx.hideLoading()
       wx.showToast({ title: '已保存到相册', icon: 'success' })
     } catch (error) {
       wx.hideLoading()
-      wx.showToast({ title: '保存失败，请检查相册权限', icon: 'none' })
+      wx.showToast({ title: error.message || '保存失败', icon: 'none' })
     }
   },
 
@@ -456,12 +493,6 @@ Page({
     })
   },
 
-  saveToAlbum(filePath) {
-    return new Promise((resolve, reject) => {
-      wx.saveImageToPhotosAlbum({ filePath, success: resolve, fail: reject })
-    })
-  },
-
   createAgain() {
     const id = this.data.job && this.data.job.templateId
     if (!id) return
@@ -472,6 +503,19 @@ Page({
   async retryJob() {
     const job = this.data.job
     if (!job || job.status !== 'failed' || this.data.retrying) return
+    if (this.data.serviceUnstable) {
+      const go = await new Promise(resolve => {
+        wx.showModal({
+          title: '服务可能不稳定',
+          content: '短时间内多次生成失败，建议过段时间再试。仍要现在重试吗？',
+          confirmText: '仍要重试',
+          cancelText: '稍后再说',
+          success: res => resolve(Boolean(res.confirm)),
+          fail: () => resolve(false)
+        })
+      })
+      if (!go) return
+    }
     if (!job.templateId || !job.assetIds?.length) {
       wx.showToast({ title: '无法重试，请重新选图', icon: 'none' })
       return

@@ -359,6 +359,11 @@
   color: var(--green);
 }
 
+.menu-icon--feedback {
+  background: #fff6e8;
+  color: #c48a3a;
+}
+
 .menu-icon--redeem {
   background: #fff6e0;
   color: #b08a2e;

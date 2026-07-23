@@ -247,6 +247,10 @@ Page({
     wx.navigateTo({ url: '/pages/redeem/index' })
   },
 
+  goFeedback() {
+    wx.navigateTo({ url: '/pages/feedback/index' })
+  },
+
   openHelp() {
     wx.showModal({
       title: '使用帮助',

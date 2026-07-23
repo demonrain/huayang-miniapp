@@ -107,6 +107,7 @@ export function seedConfig(draft) {
       ...item,
       enabled: true,
       coverAssetId: '',
+      sampleRefs: [],
       sortOrder: (index + 1) * 10
     }))
     changed = true
@@ -121,6 +122,14 @@ export function seedConfig(draft) {
       template.popularity = Number(catalogTemplate?.popularity || 0)
       changed = true
     }
+    if (!Array.isArray(template.sampleRefs)) {
+      template.sampleRefs = []
+      changed = true
+    }
+  }
+  if (!Array.isArray(draft.feedbacks)) {
+    draft.feedbacks = []
+    changed = true
   }
   if (!draft.banners.length) {
     draft.banners = [
@@ -176,6 +185,22 @@ export function findTemplate(state, templateId, includeDisabled = false) {
 export function publicTemplate(template, state, admin = false) {
   const cover = template.coverAssetId ? state.assets.find(item => item.id === template.coverAssetId) : null
   const fullCover = assetUrl(cover)
+  const sampleRefs = Array.isArray(template.sampleRefs) ? template.sampleRefs : []
+  const samples = sampleRefs
+    .slice()
+    .reverse()
+    .slice(0, 12)
+    .map(ref => {
+      const full = mediaUrl(ref.storagePath)
+      const thumb = mediaThumbUrl(ref.storagePath) || full
+      return {
+        id: ref.id || ref.resultId,
+        url: full,
+        thumbUrl: thumb,
+        name: template.shortName || template.name || '效果参考'
+      }
+    })
+    .filter(item => item.url)
   const value = {
     id: template.id,
     name: template.name,
@@ -191,12 +216,16 @@ export function publicTemplate(template, state, admin = false) {
     // Lists load thumb first; full cover available for detail/preview
     coverUrl: assetThumbUrl(cover) || fullCover,
     coverFullUrl: fullCover,
+    // Curated effect samples from admin (job results)
+    samples,
+    sampleCount: sampleRefs.length,
     enabled: template.enabled !== false,
     sortOrder: Number(template.sortOrder || 0)
   }
   if (admin) {
     value.prompt = template.prompt
     value.coverAssetId = template.coverAssetId || ''
+    value.sampleRefs = sampleRefs
   }
   return value
 }

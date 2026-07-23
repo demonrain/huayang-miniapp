@@ -10,7 +10,8 @@
     "pages/share/index",
     "pages/privacy/index",
     "pages/redeem/index",
-    "pages/guide/index"
+    "pages/guide/index",
+    "pages/feedback/index"
   ],
   "window": {
     "navigationStyle": "custom",

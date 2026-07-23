@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const initialState = {
-  version: 6,
+  version: 7,
   users: [],
   transactions: [],
   assets: [],
@@ -17,6 +17,7 @@ const initialState = {
   invites: [],
   cdks: [],
   announcements: [],
+  feedbacks: [],
   settings: null
 }
 
@@ -33,8 +34,14 @@ export class JsonStore {
     try {
       const saved = JSON.parse(await readFile(this.filename, 'utf8'))
       this.state = { ...structuredClone(initialState), ...saved, version: initialState.version }
-      for (const key of ['users', 'transactions', 'assets', 'jobs', 'orders', 'templates', 'templateCategories', 'banners', 'packages', 'shares', 'shareEvents', 'invites', 'cdks', 'announcements']) {
+      for (const key of ['users', 'transactions', 'assets', 'jobs', 'orders', 'templates', 'templateCategories', 'banners', 'packages', 'shares', 'shareEvents', 'invites', 'cdks', 'announcements', 'feedbacks']) {
         if (!Array.isArray(this.state[key])) this.state[key] = []
+      }
+      // Ensure sample refs array exists on templates
+      if (Array.isArray(this.state.templates)) {
+        for (const template of this.state.templates) {
+          if (!Array.isArray(template.sampleRefs)) template.sampleRefs = []
+        }
       }
     } catch (error) {
       if (error.code !== 'ENOENT') throw error

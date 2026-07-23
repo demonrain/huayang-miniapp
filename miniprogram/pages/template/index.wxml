@@ -27,14 +27,14 @@
         <text wx:for="{{displayTags}}" wx:key="*this">{{item}}</text>
       </view>
 
-      <view class="sample-heading">
+      <view class="sample-heading" wx:if="{{samples.length}}">
         <view>
           <view class="sample-heading__main">更多效果参考</view>
-          <view class="sample-heading__sub">同一风格会根据原图自然变化</view>
+          <view class="sample-heading__sub">本风格真实出图效果，同一风格会根据原图自然变化</view>
         </view>
       </view>
 
-      <view class="sample-strip">
+      <view class="sample-strip" wx:if="{{samples.length}}">
         <view
           wx:for="{{samples}}"
           wx:key="key"
