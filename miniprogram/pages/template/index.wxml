@@ -34,19 +34,28 @@
         </view>
       </view>
 
-      <view class="sample-strip" wx:if="{{samples.length}}">
-        <view
-          wx:for="{{samples}}"
-          wx:key="key"
-          class="sample-card"
-          style="background: {{item.palette}}"
-          data-url="{{item.coverFullUrl || item.coverUrl}}"
-          bindtap="previewSample"
-        >
-          <image wx:if="{{item.coverUrl}}" src="{{item.coverUrl}}" mode="aspectFill" lazy-load></image>
-          <text wx:else class="sample-card__label">{{item.name}}</text>
+      <scroll-view
+        wx:if="{{samples.length}}"
+        class="sample-scroll {{samples.length > 3 ? 'sample-scroll--many' : ''}}"
+        scroll-x="{{samples.length > 3}}"
+        enhanced
+        show-scrollbar="{{false}}"
+        enable-flex
+      >
+        <view class="sample-strip {{samples.length > 3 ? 'sample-strip--scroll' : ''}}">
+          <view
+            wx:for="{{samples}}"
+            wx:key="key"
+            class="sample-card"
+            style="background: {{item.palette}}"
+            data-url="{{item.coverFullUrl || item.coverUrl}}"
+            bindtap="previewSample"
+          >
+            <image wx:if="{{item.coverUrl}}" src="{{item.coverUrl}}" mode="aspectFill" lazy-load></image>
+            <text wx:else class="sample-card__label">{{item.name}}</text>
+          </view>
         </view>
-      </view>
+      </scroll-view>
     </view>
 
     <view class="detail-action">

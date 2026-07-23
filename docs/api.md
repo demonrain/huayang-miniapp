@@ -47,6 +47,7 @@
 | `GET` | `/api/admin/transactions` | 查询充值、消费及其他积分流水 |
 | `GET` | `/api/admin/jobs` | 查询作品任务、状态和生成时间 |
 | `POST` | `/api/admin/jobs/:id/samples` | 将任务某张结果加入模板「更多效果参考」 |
+| `DELETE` | `/api/admin/jobs/:id/samples` | 从模板「更多效果参考」中移除该结果（body: `resultId`） |
 | `GET` | `/api/admin/feedbacks` | 用户建议反馈列表 |
 | `POST/PATCH` | `/api/admin/banners[/:id]` | 新增或修改首页 Banner |
 | `POST` | `/api/admin/banners/:id/image` | 上传 Banner 图片 |

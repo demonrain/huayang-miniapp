@@ -382,7 +382,7 @@ function resultThumbsWithSample(job) {
     const thumb = item.thumbUrl || item.url
     const sampleBtn = canAdd
       ? (item.isSample
-        ? `<span class="sample-pill is-on">已在效果参考</span>`
+        ? `<button class="row-button sample-add-btn sample-add-btn--on" type="button" data-job-action="remove-sample" data-job-id="${escapeHtml(job.id)}" data-result-id="${escapeHtml(item.id)}">取消加入</button>`
         : `<button class="row-button sample-add-btn" type="button" data-job-action="add-sample" data-job-id="${escapeHtml(job.id)}" data-result-id="${escapeHtml(item.id)}">添加到更多效果</button>`)
       : ''
     return `<div class="job-result-cell">
@@ -907,18 +907,20 @@ elements.transactionFilterForm.addEventListener('submit', event => { event.preve
 elements.jobFilterForm.addEventListener('submit', event => { event.preventDefault(); loadJobs().catch(error => showToast(error.message, true)) })
 
 elements.jobRows?.addEventListener('click', async event => {
-  const button = event.target.closest('[data-job-action="add-sample"]')
+  const button = event.target.closest('[data-job-action="add-sample"], [data-job-action="remove-sample"]')
   if (!button) return
   const jobId = button.dataset.jobId
   const resultId = button.dataset.resultId
+  const action = button.dataset.jobAction
   if (!jobId || !resultId) return
   button.disabled = true
   try {
+    const removing = action === 'remove-sample'
     const result = await api(`/api/admin/jobs/${encodeURIComponent(jobId)}/samples`, {
-      method: 'POST',
+      method: removing ? 'DELETE' : 'POST',
       json: { resultId }
     })
-    showToast(result.message || '已加入更多效果参考')
+    showToast(result.message || (removing ? '已取消加入' : '已加入更多效果参考'))
     await loadJobs()
   } catch (error) {
     showToast(error.message, true)

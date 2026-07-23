@@ -292,17 +292,13 @@ tr:last-child td { border-bottom: 0; }
   padding: 0 8px;
   white-space: nowrap;
 }
-.sample-pill {
-  display: inline-flex;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  background: #eef0f1;
-  color: var(--muted);
+.sample-add-btn--on {
+  border-color: #c8e8dc !important;
+  background: var(--mint-soft) !important;
+  color: #367b6d !important;
 }
-.sample-pill.is-on {
-  background: var(--mint-soft);
-  color: #367b6d;
+.sample-add-btn--on:hover {
+  background: #dff3ec !important;
 }
 .feedback-content {
   max-width: 360px;

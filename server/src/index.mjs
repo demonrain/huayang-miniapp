@@ -1075,12 +1075,45 @@ export async function createApplication() {
           return
         }
 
-        // Add a succeeded job result into its template's "更多效果参考" samples
+        // Add / remove a job result in its template's "更多效果参考" samples
         const adminJobSampleMatch = pathname.match(/^\/api\/admin\/jobs\/([^/]+)\/samples$/)
-        if (request.method === 'POST' && adminJobSampleMatch) {
+        if (adminJobSampleMatch && (request.method === 'POST' || request.method === 'DELETE')) {
           const jobId = adminJobSampleMatch[1]
           const body = await readJson(request)
           const resultId = cleanText(body.resultId, '结果 ID', 80, true)
+
+          if (request.method === 'DELETE') {
+            const updated = await store.transaction(draft => {
+              const job = draft.jobs.find(item => item.id === jobId)
+              if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '任务不存在')
+              const template = draft.templates.find(item => item.id === job.templateId)
+              if (!template) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '关联模板不存在')
+              if (!Array.isArray(template.sampleRefs)) template.sampleRefs = []
+              const before = template.sampleRefs.length
+              template.sampleRefs = template.sampleRefs.filter(item =>
+                !(item.resultId === resultId || (item.jobId === jobId && item.resultId === resultId))
+              )
+              // Also match by storage path when result still exists on job
+              const result = (job.results || []).find(item => item.id === resultId)
+              if (result?.storagePath) {
+                template.sampleRefs = template.sampleRefs.filter(item =>
+                  !(item.jobId === jobId && item.storagePath === result.storagePath)
+                )
+              }
+              if (template.sampleRefs.length === before) {
+                throw new HttpError(404, 'SAMPLE_NOT_FOUND', '该效果不在更多效果参考中')
+              }
+              return template
+            })
+            const state = store.read()
+            json(response, 200, {
+              ok: true,
+              template: publicTemplate(updated, state, true),
+              message: '已从更多效果参考中移除'
+            })
+            return
+          }
+
           const updated = await store.transaction(draft => {
             const job = draft.jobs.find(item => item.id === jobId)
             if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '任务不存在')
