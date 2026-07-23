@@ -191,7 +191,7 @@
 
       <section id="feedbacksView" class="view-panel" hidden>
         <div class="toolbar">
-          <div><h3>建议反馈</h3><p>用户提交的问题反馈、功能建议与新模板请求。</p></div>
+          <div><h3>建议反馈</h3><p>用户提交的问题反馈、功能建议与新模板请求；可在此回复用户。</p></div>
           <form id="feedbackFilterForm" class="filter-bar">
             <select name="type">
               <option value="all">全部类型</option>
@@ -199,10 +199,29 @@
               <option value="feature">功能建议</option>
               <option value="template_request">请求新模板</option>
             </select>
+            <select name="status">
+              <option value="all">全部状态</option>
+              <option value="pending">待回复</option>
+              <option value="replied">已回复</option>
+            </select>
             <button class="button button--quiet" type="submit">查询</button>
           </form>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>时间</th><th>用户</th><th>类型</th><th>内容</th><th>附图</th></tr></thead><tbody id="feedbackRows"></tbody></table></div>
+        <div class="table-wrap"><table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>用户</th>
+              <th>类型</th>
+              <th>状态</th>
+              <th>内容</th>
+              <th>附图</th>
+              <th>官方回复</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="feedbackRows"></tbody>
+        </table></div>
       </section>
 
       <section id="bannersView" class="view-panel" hidden>
@@ -524,6 +543,28 @@
         <label class="field-wide">调整原因<input name="reason" maxlength="40" placeholder="例如：活动补发" required></label>
       </div>
       <div class="dialog-actions"><button class="button button--quiet" type="button" data-close="creditDialog">取消</button><button class="button button--primary" type="submit">确认调整</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="feedbackReplyDialog" class="dialog dialog--small">
+    <form id="feedbackReplyForm" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <h3 id="feedbackReplyTitle">回复反馈</h3>
+          <p id="feedbackReplyMeta">用户将在小程序「我的反馈」中看到回复</p>
+        </div>
+        <button class="icon-button" type="button" data-close="feedbackReplyDialog" aria-label="关闭">×</button>
+      </div>
+      <div class="feedback-reply-preview" id="feedbackReplyPreview"></div>
+      <div class="form-grid form-grid--dialog">
+        <label class="field-wide">回复内容
+          <textarea name="reply" id="feedbackReplyInput" maxlength="1000" rows="5" required placeholder="请输入对用户的回复"></textarea>
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button button--quiet" type="button" data-close="feedbackReplyDialog">取消</button>
+        <button class="button button--primary" type="submit">发送回复</button>
+      </div>
     </form>
   </dialog>
 

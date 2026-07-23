@@ -301,11 +301,35 @@ tr:last-child td { border-bottom: 0; }
   background: #dff3ec !important;
 }
 .feedback-content {
-  max-width: 360px;
+  max-width: 280px;
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.5;
   font-size: 13px;
+}
+.feedback-reply-cell .cell-subtitle {
+  display: block;
+  margin-top: 6px;
+}
+.feedback-reply-preview {
+  margin: 0 24px 12px;
+  padding: 12px 14px;
+  background: #fafbfb;
+  border: 1px solid #eef0f1;
+  border-radius: 8px;
+}
+.feedback-preview-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.feedback-preview-text {
+  margin-top: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  font-size: 13px;
+  color: var(--ink);
 }
 .mono-id { font-family: Consolas, monospace; font-size: 11px; color: #5a6561; }
 .banner-carousel-panel { margin-bottom: 16px; }

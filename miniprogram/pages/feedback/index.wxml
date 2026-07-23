@@ -4,54 +4,109 @@
   <view class="fb-hero">
     <view class="fb-kicker">FEEDBACK</view>
     <view class="fb-title">建议与反馈</view>
-    <view class="fb-sub">告诉我们你的想法，帮花漾相绘开得更好</view>
+    <view class="fb-sub">告诉我们你的想法，也可查看历史与官方回复</view>
   </view>
 
-  <view class="section-label">反馈类型</view>
-  <view class="type-list">
+  <view class="fb-tabs">
     <view
-      wx:for="{{types}}"
-      wx:key="id"
-      class="type-card {{type === item.id ? 'is-selected' : ''}}"
-      data-id="{{item.id}}"
-      bindtap="selectType"
-    >
-      <view class="type-card__name">{{item.name}}</view>
-      <view class="type-card__desc">{{item.desc}}</view>
-    </view>
+      class="fb-tab {{tab === 'compose' ? 'is-active' : ''}}"
+      data-tab="compose"
+      bindtap="switchTab"
+    >提交反馈</view>
+    <view
+      class="fb-tab {{tab === 'history' ? 'is-active' : ''}}"
+      data-tab="history"
+      bindtap="switchTab"
+    >我的反馈</view>
   </view>
 
-  <view class="section-label">详细说明</view>
-  <view class="fb-card">
-    <textarea
-      class="fb-textarea"
-      maxlength="800"
-      placeholder="请描述你遇到的问题、期望的功能，或想要的风格效果…"
-      value="{{content}}"
-      bindinput="onContentInput"
-      show-confirm-bar="{{false}}"
-    ></textarea>
-    <view class="fb-count">{{content.length}}/800</view>
-  </view>
-
-  <block wx:if="{{type === 'template_request' || files.length}}">
-    <view class="section-label">{{type === 'template_request' ? '参考图片（可选，最多 6 张）' : '附图（可选）'}}</view>
-    <view class="photo-grid">
-      <view wx:for="{{files}}" wx:key="path" class="photo-cell">
-        <image src="{{item.path}}" mode="aspectFill" data-path="{{item.path}}" bindtap="previewImage"></image>
-        <view class="photo-remove" data-index="{{index}}" catchtap="removeImage">×</view>
+  <!-- Compose -->
+  <block wx:if="{{tab === 'compose'}}">
+    <view class="section-label">反馈类型</view>
+    <view class="type-list">
+      <view
+        wx:for="{{types}}"
+        wx:key="id"
+        class="type-card {{type === item.id ? 'is-selected' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectType"
+      >
+        <view class="type-card__name">{{item.name}}</view>
+        <view class="type-card__desc">{{item.desc}}</view>
       </view>
-      <view wx:if="{{files.length < maxFiles}}" class="photo-cell photo-add" bindtap="chooseImages">
-        <view class="photo-add__plus">＋</view>
-        <text>添加</text>
+    </view>
+
+    <view class="section-label">详细说明</view>
+    <view class="fb-card">
+      <textarea
+        class="fb-textarea"
+        maxlength="800"
+        placeholder="请描述你遇到的问题、期望的功能，或想要的风格效果…"
+        value="{{content}}"
+        bindinput="onContentInput"
+        show-confirm-bar="{{false}}"
+      ></textarea>
+      <view class="fb-count">{{content.length}}/800</view>
+    </view>
+
+    <block wx:if="{{type === 'template_request' || files.length}}">
+      <view class="section-label">{{type === 'template_request' ? '参考图片（可选，最多 6 张）' : '附图（可选）'}}</view>
+      <view class="photo-grid">
+        <view wx:for="{{files}}" wx:key="path" class="photo-cell">
+          <image src="{{item.path}}" mode="aspectFill" data-path="{{item.path}}" bindtap="previewImage"></image>
+          <view class="photo-remove" data-index="{{index}}" catchtap="removeImage">×</view>
+        </view>
+        <view wx:if="{{files.length < maxFiles}}" class="photo-cell photo-add" bindtap="chooseImages">
+          <view class="photo-add__plus">＋</view>
+          <text>添加</text>
+        </view>
+      </view>
+    </block>
+
+    <button
+      class="primary-button fb-submit"
+      loading="{{submitting}}"
+      disabled="{{submitting}}"
+      bindtap="submit"
+    >提交反馈</button>
+  </block>
+
+  <!-- History -->
+  <block wx:else>
+    <view wx:if="{{historyLoading}}" class="history-loading">加载反馈记录…</view>
+    <view wx:elif="{{!history.length}}" class="history-empty">
+      <view class="history-empty__title">还没有反馈记录</view>
+      <view class="history-empty__sub">提交后可在这里查看进度与官方回复</view>
+      <button class="ghost-button history-empty__btn" data-tab="compose" bindtap="switchTab">去提交反馈</button>
+    </view>
+    <view wx:else class="history-list">
+      <view wx:for="{{history}}" wx:key="id" class="history-card">
+        <view class="history-card__head">
+          <view class="history-card__type">{{item.typeLabel}}</view>
+          <view class="history-card__status {{item.statusClass}}">{{item.statusLabel}}</view>
+        </view>
+        <view class="history-card__time">{{item.createdTime}}</view>
+        <view class="history-card__content">{{item.content}}</view>
+        <view wx:if="{{item.imageUrls.length}}" class="history-images">
+          <image
+            wx:for="{{item.images}}"
+            wx:for-item="img"
+            wx:key="id"
+            class="history-thumb"
+            src="{{img.thumbUrl || img.url}}"
+            mode="aspectFill"
+            data-url="{{img.url}}"
+            data-urls="{{item.imageUrls}}"
+            bindtap="previewHistoryImage"
+            lazy-load
+          ></image>
+        </view>
+        <view wx:if="{{item.reply}}" class="history-reply">
+          <view class="history-reply__label">官方回复 · {{item.repliedTime}}</view>
+          <view class="history-reply__text">{{item.reply}}</view>
+        </view>
+        <view wx:else class="history-wait">我们会尽快查看，回复后会显示在这里</view>
       </view>
     </view>
   </block>
-
-  <button
-    class="primary-button fb-submit"
-    loading="{{submitting}}"
-    disabled="{{submitting}}"
-    bindtap="submit"
-  >提交反馈</button>
 </view>

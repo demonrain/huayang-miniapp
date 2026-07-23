@@ -11,22 +11,36 @@ Page({
   data: {
     navSpacer: 176,
     credits: null,
+    tab: 'compose', // compose | history
     types: TYPES,
     type: 'problem',
     content: '',
     files: [],
     maxFiles: 6,
     submitting: false,
-    needImages: false
+    needImages: false,
+    history: [],
+    historyLoading: false,
+    historyLoaded: false
   },
 
   onLoad() {
     this.setData(getNavMetrics())
   },
 
-  onShow() {
+  async onShow() {
     const user = getApp().globalData.user
     if (user) this.setData({ credits: user.credits })
+    if (this.data.tab === 'history') {
+      await this.loadHistory()
+    }
+  },
+
+  switchTab(event) {
+    const tab = event.currentTarget.dataset.tab
+    if (!tab || tab === this.data.tab) return
+    this.setData({ tab })
+    if (tab === 'history') this.loadHistory()
   },
 
   selectType(event) {
@@ -71,6 +85,38 @@ Page({
     })
   },
 
+  previewHistoryImage(event) {
+    const urls = event.currentTarget.dataset.urls || []
+    const current = event.currentTarget.dataset.url
+    if (!urls.length) return
+    wx.previewImage({ current: current || urls[0], urls })
+  },
+
+  async loadHistory() {
+    try {
+      await getApp().requireLogin('登录后可查看反馈记录')
+    } catch (error) {
+      return
+    }
+    this.setData({ historyLoading: true })
+    try {
+      const result = await api.get('/api/feedbacks')
+      const list = Array.isArray(result.feedbacks) ? result.feedbacks : []
+      this.setData({
+        history: list.map(item => ({
+          ...item,
+          imageUrls: (item.images || []).map(img => img.url || img.thumbUrl).filter(Boolean),
+          statusClass: item.status === 'replied' ? 'is-replied' : 'is-pending'
+        })),
+        historyLoaded: true,
+        historyLoading: false
+      })
+    } catch (error) {
+      this.setData({ historyLoading: false, historyLoaded: true })
+      wx.showToast({ title: error.message || '加载失败', icon: 'none' })
+    }
+  },
+
   async submit() {
     if (this.data.submitting) return
     try {
@@ -105,13 +151,29 @@ Page({
         assetIds
       })
       wx.hideLoading()
-      wx.showToast({ title: result.message || '已提交', icon: 'success' })
-      setTimeout(() => {
-        wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/profile/index' }) })
-      }, 500)
+      // Modal stays until user taps OK (toast disappears too fast)
+      await new Promise(resolve => {
+        wx.showModal({
+          title: '提交成功',
+          content: result.message || '感谢反馈，我们会认真查看。可在「我的反馈」中查看进度与官方回复。',
+          showCancel: false,
+          confirmText: '知道了',
+          success: () => resolve(),
+          fail: () => resolve()
+        })
+      })
+      this.setData({
+        content: '',
+        files: [],
+        type: 'problem',
+        needImages: false,
+        tab: 'history',
+        historyLoaded: false
+      })
+      await this.loadHistory()
     } catch (error) {
       wx.hideLoading()
-      wx.showToast({ title: error.message || '提交失败', icon: 'none' })
+      wx.showToast({ title: error.message || '提交失败', icon: 'none', duration: 2500 })
     } finally {
       this.setData({ submitting: false })
     }

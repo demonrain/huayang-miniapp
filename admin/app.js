@@ -20,7 +20,9 @@ const state = {
   editingBannerId: '',
   bannerImageId: '',
   editingCategoryId: '',
-  creditUserId: ''
+  creditUserId: '',
+  feedbacks: [],
+  replyingFeedbackId: ''
 }
 
 const elements = {
@@ -41,6 +43,12 @@ const elements = {
   jobFilterForm: document.querySelector('#jobFilterForm'),
   feedbackRows: document.querySelector('#feedbackRows'),
   feedbackFilterForm: document.querySelector('#feedbackFilterForm'),
+  feedbackReplyDialog: document.querySelector('#feedbackReplyDialog'),
+  feedbackReplyForm: document.querySelector('#feedbackReplyForm'),
+  feedbackReplyTitle: document.querySelector('#feedbackReplyTitle'),
+  feedbackReplyMeta: document.querySelector('#feedbackReplyMeta'),
+  feedbackReplyPreview: document.querySelector('#feedbackReplyPreview'),
+  feedbackReplyInput: document.querySelector('#feedbackReplyInput'),
   bannerRows: document.querySelector('#bannerRows'),
   bannerCarouselForm: document.querySelector('#bannerCarouselForm'),
   bannerEnabledHint: document.querySelector('#bannerEnabledHint'),
@@ -550,20 +558,49 @@ async function loadJobs() {
 
 async function loadFeedbacks() {
   if (!elements.feedbackRows) return
-  elements.feedbackRows.innerHTML = emptyRow(5, '加载中...')
+  elements.feedbackRows.innerHTML = emptyRow(8, '加载中...')
   const values = elements.feedbackFilterForm ? new FormData(elements.feedbackFilterForm) : new FormData()
-  const params = new URLSearchParams({ type: String(values.get('type') || 'all') })
+  const params = new URLSearchParams({
+    type: String(values.get('type') || 'all'),
+    status: String(values.get('status') || 'all')
+  })
   const result = await api(`/api/admin/feedbacks?${params}`)
   const list = result.feedbacks || []
-  elements.feedbackRows.innerHTML = list.map(item => `
+  state.feedbacks = list
+  elements.feedbackRows.innerHTML = list.map(item => {
+    const replied = item.status === 'replied' || Boolean(item.reply)
+    return `
     <tr>
       <td>${escapeHtml(item.createdTime || formatDate(item.createdAt))}</td>
       <td><strong>${escapeHtml(item.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.userMaskedId)}</span></td>
       <td><span class="status-pill is-active">${escapeHtml(item.typeLabel || item.type)}</span></td>
+      <td><span class="status-pill${replied ? ' is-active' : ''}">${escapeHtml(item.statusLabel || (replied ? '已回复' : '待回复'))}</span></td>
       <td><div class="feedback-content">${escapeHtml(item.content)}</div></td>
       <td>${mediaThumbs(item.images, '无')}</td>
-    </tr>
-  `).join('') || emptyRow(5, '暂无用户反馈')
+      <td><div class="feedback-content feedback-reply-cell">${item.reply ? escapeHtml(item.reply) : '<span class="muted">—</span>'}${item.repliedTime ? `<span class="cell-subtitle">${escapeHtml(item.repliedTime)}</span>` : ''}</div></td>
+      <td class="row-actions">
+        <button class="row-button" type="button" data-feedback-action="reply" data-id="${escapeHtml(item.id)}">${replied ? '修改回复' : '回复'}</button>
+      </td>
+    </tr>`
+  }).join('') || emptyRow(8, '暂无用户反馈')
+}
+
+function openFeedbackReplyDialog(feedback) {
+  if (!elements.feedbackReplyDialog || !feedback) return
+  state.replyingFeedbackId = feedback.id
+  if (elements.feedbackReplyTitle) {
+    elements.feedbackReplyTitle.textContent = feedback.reply ? '修改回复' : '回复反馈'
+  }
+  if (elements.feedbackReplyMeta) {
+    elements.feedbackReplyMeta.textContent = `${feedback.userNickname || '用户'} · ${feedback.typeLabel || ''} · ${feedback.createdTime || ''}`
+  }
+  if (elements.feedbackReplyPreview) {
+    elements.feedbackReplyPreview.innerHTML = `<div class="feedback-preview-label">用户反馈</div><div class="feedback-preview-text">${escapeHtml(feedback.content || '')}</div>`
+  }
+  if (elements.feedbackReplyInput) {
+    elements.feedbackReplyInput.value = feedback.reply || ''
+  }
+  elements.feedbackReplyDialog.showModal()
 }
 
 async function switchView(name) {
@@ -931,6 +968,40 @@ elements.jobRows?.addEventListener('click', async event => {
 elements.feedbackFilterForm?.addEventListener('submit', event => {
   event.preventDefault()
   loadFeedbacks().catch(error => showToast(error.message, true))
+})
+
+elements.feedbackRows?.addEventListener('click', event => {
+  const button = event.target.closest('[data-feedback-action="reply"]')
+  if (!button) return
+  const feedback = (state.feedbacks || []).find(item => item.id === button.dataset.id)
+  if (!feedback) {
+    showToast('反馈不存在或已刷新', true)
+    return
+  }
+  openFeedbackReplyDialog(feedback)
+})
+
+elements.feedbackReplyForm?.addEventListener('submit', async event => {
+  event.preventDefault()
+  const id = state.replyingFeedbackId
+  if (!id) return
+  const reply = String(elements.feedbackReplyInput?.value || '').trim()
+  if (!reply) {
+    showToast('请填写回复内容', true)
+    return
+  }
+  try {
+    const result = await api(`/api/admin/feedbacks/${encodeURIComponent(id)}/reply`, {
+      method: 'POST',
+      json: { reply }
+    })
+    elements.feedbackReplyDialog?.close()
+    state.replyingFeedbackId = ''
+    showToast(result.message || '回复已保存')
+    await loadFeedbacks()
+  } catch (error) {
+    showToast(error.message, true)
+  }
 })
 
 elements.userRows.addEventListener('click', async event => {

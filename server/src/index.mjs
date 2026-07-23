@@ -236,6 +236,42 @@ const feedbackTypeLabels = {
   template_request: '请求新模板'
 }
 
+const feedbackStatusLabels = {
+  pending: '待回复',
+  replied: '已回复'
+}
+
+function publicFeedback(item, state, { includeUser = false } = {}) {
+  const images = (item.assetIds || []).map(assetId => {
+    const asset = state.assets.find(a => a.id === assetId)
+    if (!asset) return null
+    const full = assetUrl(asset)
+    return { id: asset.id, url: full, thumbUrl: assetThumbUrl(asset) || full }
+  }).filter(Boolean)
+  const status = item.reply ? 'replied' : (item.status || 'pending')
+  const value = {
+    id: item.id,
+    type: item.type,
+    typeLabel: feedbackTypeLabels[item.type] || item.type,
+    content: item.content,
+    images,
+    status,
+    statusLabel: feedbackStatusLabels[status] || status,
+    reply: item.reply || '',
+    repliedAt: item.repliedAt || '',
+    repliedTime: item.repliedAt ? displayTime(item.repliedAt) : '',
+    createdAt: item.createdAt,
+    createdTime: displayTime(item.createdAt)
+  }
+  if (includeUser) {
+    const owner = state.users.find(user => user.id === item.userId)
+    value.userId = item.userId
+    value.userNickname = owner?.nickname || '未知用户'
+    value.userMaskedId = String(item.userId || '').slice(0, 8)
+  }
+  return value
+}
+
 // Avoid ambiguous 0/O/1/I in redemption codes
 const CDK_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
@@ -1152,31 +1188,41 @@ export async function createApplication() {
         if (request.method === 'GET' && pathname === '/api/admin/feedbacks') {
           const state = store.read()
           const type = String(url.searchParams.get('type') || 'all')
+          const status = String(url.searchParams.get('status') || 'all')
           const list = (state.feedbacks || [])
             .filter(item => type === 'all' || item.type === type)
+            .filter(item => {
+              if (status === 'all') return true
+              const itemStatus = item.reply ? 'replied' : (item.status || 'pending')
+              return itemStatus === status
+            })
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
             .slice(0, 500)
-            .map(item => {
-              const owner = state.users.find(user => user.id === item.userId)
-              const images = (item.assetIds || []).map(assetId => {
-                const asset = state.assets.find(a => a.id === assetId)
-                if (!asset) return null
-                const full = assetUrl(asset)
-                return { id: asset.id, url: full, thumbUrl: assetThumbUrl(asset) || full }
-              }).filter(Boolean)
-              return {
-                id: item.id,
-                type: item.type,
-                typeLabel: feedbackTypeLabels[item.type] || item.type,
-                content: item.content,
-                images,
-                userNickname: owner?.nickname || '未知用户',
-                userMaskedId: String(item.userId || '').slice(0, 8),
-                createdAt: item.createdAt,
-                createdTime: displayTime(item.createdAt)
-              }
-            })
+            .map(item => publicFeedback(item, state, { includeUser: true }))
           json(response, 200, { feedbacks: list, total: list.length })
+          return
+        }
+
+        const adminFeedbackReplyMatch = pathname.match(/^\/api\/admin\/feedbacks\/([^/]+)\/reply$/)
+        if (request.method === 'POST' && adminFeedbackReplyMatch) {
+          const feedbackId = adminFeedbackReplyMatch[1]
+          const body = await readJson(request)
+          const reply = cleanText(body.reply, '回复内容', 1000, true)
+          const updated = await store.transaction(draft => {
+            if (!Array.isArray(draft.feedbacks)) draft.feedbacks = []
+            const item = draft.feedbacks.find(entry => entry.id === feedbackId)
+            if (!item) throw new HttpError(404, 'FEEDBACK_NOT_FOUND', '反馈不存在')
+            item.reply = reply
+            item.repliedAt = now()
+            item.status = 'replied'
+            return item
+          })
+          const state = store.read()
+          json(response, 200, {
+            ok: true,
+            feedback: publicFeedback(updated, state, { includeUser: true }),
+            message: '回复已保存'
+          })
           return
         }
 
@@ -2093,6 +2139,17 @@ export async function createApplication() {
         return
       }
 
+      if (request.method === 'GET' && pathname === '/api/feedbacks') {
+        const state = store.read()
+        const list = (state.feedbacks || [])
+          .filter(item => item.userId === user.id)
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+          .slice(0, 100)
+          .map(item => publicFeedback(item, state))
+        json(response, 200, { feedbacks: list, total: list.length })
+        return
+      }
+
       if (request.method === 'POST' && pathname === '/api/feedbacks') {
         const body = await readJson(request)
         const type = cleanText(body.type, '反馈类型', 40, true)
@@ -2119,6 +2176,9 @@ export async function createApplication() {
             type,
             content,
             assetIds,
+            status: 'pending',
+            reply: '',
+            repliedAt: '',
             createdAt: now()
           }
           draft.feedbacks.push(feedback)
@@ -2126,13 +2186,7 @@ export async function createApplication() {
         })
         json(response, 201, {
           ok: true,
-          feedback: {
-            id: item.id,
-            type: item.type,
-            typeLabel: feedbackTypeLabels[item.type],
-            content: item.content,
-            createdAt: item.createdAt
-          },
+          feedback: publicFeedback(item, store.read()),
           message: '感谢反馈，我们会认真查看'
         })
         return

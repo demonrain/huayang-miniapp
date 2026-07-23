@@ -27,6 +27,7 @@
 | `POST` | `/api/jobs/:id/share/url-link` | 生成微信 URL Link |
 | `GET` | `/api/shares/:token` | 匿名读取公开分享作品 |
 | `POST` | `/api/cdks/redeem` | 使用 CDK 兑换积分（需登录） |
+| `GET` | `/api/feedbacks` | 当前用户反馈历史（含官方回复） |
 | `POST` | `/api/feedbacks` | 提交建议反馈（需登录；`type`: problem/feature/template_request） |
 | `GET/POST` | `/api/admin/cdks` | CDK 列表 / 批量生成 |
 | `DELETE` | `/api/admin/cdks/:id` | 删除未使用的 CDK |
@@ -48,7 +49,8 @@
 | `GET` | `/api/admin/jobs` | 查询作品任务、状态和生成时间 |
 | `POST` | `/api/admin/jobs/:id/samples` | 将任务某张结果加入模板「更多效果参考」 |
 | `DELETE` | `/api/admin/jobs/:id/samples` | 从模板「更多效果参考」中移除该结果（body: `resultId`） |
-| `GET` | `/api/admin/feedbacks` | 用户建议反馈列表 |
+| `GET` | `/api/admin/feedbacks` | 用户建议反馈列表（`type`/`status` 筛选） |
+| `POST` | `/api/admin/feedbacks/:id/reply` | 回复用户反馈（body: `reply`） |
 | `POST/PATCH` | `/api/admin/banners[/:id]` | 新增或修改首页 Banner |
 | `POST` | `/api/admin/banners/:id/image` | 上传 Banner 图片 |
 | `GET` | `/api/admin/templates` | 模板分页列表（`page`/`pageSize`/`query`/`status`/`category`） |
