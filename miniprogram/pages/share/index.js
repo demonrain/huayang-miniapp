@@ -57,15 +57,22 @@ Page({
   async saveImage(event) {
     if (this.data.saving) return
     this.setData({ saving: true })
-    wx.showLoading({ title: '正在保存', mask: true })
     try {
+      const { ensureAlbumPermission, saveImageToAlbum, hideLoadingQuiet } = require('../../utils/album')
+      // Permission first, without loading mask covering the system dialog
+      await ensureAlbumPermission()
+      wx.showLoading({ title: '正在保存', mask: true })
       const filePath = await this.download(event.currentTarget.dataset.url)
-      await this.saveToAlbum(filePath)
-      wx.hideLoading()
+      await saveImageToAlbum(filePath)
+      hideLoadingQuiet()
       wx.showToast({ title: '已保存到相册', icon: 'success' })
     } catch (error) {
-      wx.hideLoading()
-      wx.showToast({ title: '保存失败，请检查相册权限', icon: 'none' })
+      try { wx.hideLoading({ fail: () => {} }) } catch (e) {}
+      wx.showModal({
+        title: error.code === 'ALBUM_DENIED' ? '需要相册权限' : '保存失败',
+        content: error.message || '请开启相册权限后重试',
+        showCancel: false
+      })
     } finally {
       this.setData({ saving: false })
     }
@@ -87,12 +94,6 @@ Page({
   download(url) {
     return new Promise((resolve, reject) => {
       wx.downloadFile({ url, success: result => resolve(result.tempFilePath), fail: reject })
-    })
-  },
-
-  saveToAlbum(filePath) {
-    return new Promise((resolve, reject) => {
-      wx.saveImageToPhotosAlbum({ filePath, success: resolve, fail: reject })
     })
   },
 

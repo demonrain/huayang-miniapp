@@ -10,7 +10,7 @@ const {
 } = require('../../utils/demo')
 const { etaStatusText, etaNoteText, waitingTipsForCount } = require('../../utils/eta')
 const { recordJobFailure, isServiceUnstable } = require('../../utils/fail-guard')
-const { saveImageToAlbum } = require('../../utils/album')
+const { ensureAlbumPermission, saveImageToAlbum, hideLoadingQuiet } = require('../../utils/album')
 
 const STATUS_TEXT = {
   queued: '正在排队',
@@ -390,17 +390,35 @@ Page({
       return
     }
     if (this.data.saving) return
+    const results = (this.data.job && this.data.job.results) || []
+    if (!results.length) {
+      wx.showToast({ title: '暂无可保存的作品', icon: 'none' })
+      return
+    }
+
     this.setData({ saving: true })
-    wx.showLoading({ title: '正在保存', mask: true })
     try {
-      for (const result of this.data.job.results) {
-        const tempFilePath = await this.download(result.url)
+      // 1) Ask album permission first — must NOT sit under showLoading mask,
+      //    otherwise system authorize dialog may not appear / user can't interact.
+      await ensureAlbumPermission()
+
+      // 2) Download + save each image
+      wx.showLoading({ title: `保存中 0/${results.length}`, mask: true })
+      let saved = 0
+      for (let i = 0; i < results.length; i += 1) {
+        const result = results[i]
+        const url = result.url || result.thumbUrl
+        if (!url) throw Object.assign(new Error('作品地址无效'), { code: 'SAVE_FAILED' })
+        wx.showLoading({ title: `保存中 ${i + 1}/${results.length}`, mask: true })
+        const tempFilePath = await this.download(url)
+        // Permission already granted; still use helper for auth-retry edge cases
         await saveImageToAlbum(tempFilePath)
+        saved += 1
       }
-      wx.hideLoading()
-      wx.showToast({ title: `已保存 ${this.data.job.results.length} 张`, icon: 'success' })
+      hideLoadingQuiet()
+      wx.showToast({ title: `已保存 ${saved} 张到相册`, icon: 'success' })
     } catch (error) {
-      wx.hideLoading()
+      hideLoadingQuiet()
       wx.showModal({
         title: error.code === 'ALBUM_DENIED' ? '需要相册权限' : '保存失败',
         content: error.message || '请开启相册权限后重试',
@@ -412,15 +430,24 @@ Page({
   },
 
   async saveOne(event) {
-    wx.showLoading({ title: '正在保存', mask: true })
+    if (this.data.saving) return
+    this.setData({ saving: true })
     try {
+      await ensureAlbumPermission()
+      wx.showLoading({ title: '正在保存', mask: true })
       const tempFilePath = await this.download(event.currentTarget.dataset.url)
       await saveImageToAlbum(tempFilePath)
-      wx.hideLoading()
+      hideLoadingQuiet()
       wx.showToast({ title: '已保存到相册', icon: 'success' })
     } catch (error) {
-      wx.hideLoading()
-      wx.showToast({ title: error.message || '保存失败', icon: 'none' })
+      hideLoadingQuiet()
+      wx.showModal({
+        title: error.code === 'ALBUM_DENIED' ? '需要相册权限' : '保存失败',
+        content: error.message || '请开启相册权限后重试',
+        showCancel: false
+      })
+    } finally {
+      this.setData({ saving: false })
     }
   },
 
@@ -489,7 +516,27 @@ Page({
 
   download(url) {
     return new Promise((resolve, reject) => {
-      wx.downloadFile({ url, success: result => resolve(result.tempFilePath), fail: reject })
+      if (!url) {
+        reject(Object.assign(new Error('图片地址无效'), { code: 'SAVE_FAILED' }))
+        return
+      }
+      wx.downloadFile({
+        url,
+        success: result => {
+          if (result.statusCode && result.statusCode !== 200) {
+            reject(Object.assign(new Error('图片下载失败，请检查网络'), { code: 'SAVE_FAILED' }))
+            return
+          }
+          if (!result.tempFilePath) {
+            reject(Object.assign(new Error('图片下载失败'), { code: 'SAVE_FAILED' }))
+            return
+          }
+          resolve(result.tempFilePath)
+        },
+        fail: () => {
+          reject(Object.assign(new Error('图片下载失败，请检查网络'), { code: 'SAVE_FAILED' }))
+        }
+      })
     })
   },
 

@@ -21,6 +21,11 @@
     "backgroundColor": "#FFF9F8",
     "backgroundTextStyle": "light"
   },
+  "permission": {
+    "scope.writePhotosAlbum": {
+      "desc": "用于将生成的作品保存到你的手机相册"
+    }
+  },
   "tabBar": {
     "color": "#9A929A",
     "selectedColor": "#E76D82",
