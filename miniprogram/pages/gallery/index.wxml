@@ -66,7 +66,7 @@
                 data-id="{{item.id}}"
                 catchtap="onLike"
               >
-                <text class="gallery-like__icon">{{item.likedByMe ? '♥' : '♡'}}</text>
+                <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"></image>
                 <text class="gallery-like__count">{{item.likeCount || 0}}</text>
               </view>
             </view>
@@ -102,7 +102,7 @@
                 data-id="{{item.id}}"
                 catchtap="onLike"
               >
-                <text class="gallery-like__icon">{{item.likedByMe ? '♥' : '♡'}}</text>
+                <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"></image>
                 <text class="gallery-like__count">{{item.likeCount || 0}}</text>
               </view>
             </view>
@@ -119,7 +119,7 @@
       <text>花</text>
     </view>
     <view class="empty-title">花海还空着</view>
-    <view class="empty-sub">在「作品」里开启公开共享，你的作品就会出现在这里</view>
+    <view class="empty-sub">在「作品」里开启「分享到花海」，你的作品就会出现在这里</view>
     <button class="primary-button" bindtap="goPublish">去我的作品</button>
   </view>
 </view>

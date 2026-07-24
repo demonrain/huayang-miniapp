@@ -8,6 +8,7 @@
     "pages/template/index",
     "pages/create/index",
     "pages/job/index",
+    "pages/avatar-crop/index",
     "pages/share/index",
     "pages/privacy/index",
     "pages/redeem/index",

@@ -69,7 +69,8 @@ Page({
     likedByMe: false,
     liking: false,
     authorId: '',
-    authorNickname: ''
+    authorNickname: '',
+    authorWorks: []
   },
 
   onLoad(query) {
@@ -234,6 +235,7 @@ Page({
         galleryLikeLikerCredits: Number(rewards.likeLikerCredits != null ? rewards.likeLikerCredits : this.data.galleryLikeLikerCredits),
         galleryLikeAuthorCredits: Number(rewards.likeAuthorCredits != null ? rewards.likeAuthorCredits : this.data.galleryLikeAuthorCredits)
       })
+      this.loadAuthorWorks(job.authorId || '', job.id)
     } catch (error) {
       wx.showModal({
         title: '作品暂不可展示',
@@ -242,6 +244,32 @@ Page({
         success: () => wx.switchTab({ url: '/pages/home/index' })
       })
     }
+  },
+
+  async loadAuthorWorks(authorId, excludeId) {
+    if (!authorId) {
+      this.setData({ authorWorks: [] })
+      return
+    }
+    try {
+      const query = [
+        `page=1`,
+        `pageSize=12`,
+        `authorId=${encodeURIComponent(authorId)}`,
+        `exclude=${encodeURIComponent(excludeId || '')}`
+      ].join('&')
+      const result = await api.get(`/api/gallery?${query}`)
+      const items = (result.items || []).slice(0, 12)
+      this.setData({ authorWorks: items })
+    } catch (error) {
+      this.setData({ authorWorks: [] })
+    }
+  },
+
+  openAuthorWork(event) {
+    const id = event.currentTarget.dataset.id
+    if (!id || id === this.data.id) return
+    wx.redirectTo({ url: `/pages/job/index?id=${encodeURIComponent(id)}&showcase=1` })
   },
 
   async onShowcaseLike() {
@@ -344,11 +372,18 @@ Page({
   },
 
   onPublicShareToggle(event) {
-    this.setData({ publicShareEnabled: Boolean(event.detail.value) })
+    const enabled = Boolean(event.detail.value)
+    // If turning off, also clear originals display preference for API
+    const showOriginals = enabled ? Boolean(this.data.publicShareShowOriginals) : false
+    this.setData({ publicShareEnabled: enabled })
+    this.savePublicShare({ enabled, showOriginals })
   },
 
   onPublicShareOriginalsToggle(event) {
-    this.setData({ publicShareShowOriginals: Boolean(event.detail.value) })
+    const showOriginals = Boolean(event.detail.value)
+    this.setData({ publicShareShowOriginals: showOriginals })
+    if (!this.data.publicShareEnabled) return
+    this.savePublicShare({ enabled: true, showOriginals })
   },
 
   async loadGalleryRewardTips() {
@@ -363,10 +398,14 @@ Page({
     } catch (error) {}
   },
 
-  async savePublicShare() {
+  async savePublicShare(overrides = {}) {
     if (this.data.publicShareSaving || this.data.demo || this.data.showcase) return
-    const enabled = Boolean(this.data.publicShareEnabled)
-    const showOriginals = Boolean(this.data.publicShareShowOriginals)
+    const enabled = overrides.enabled != null ? Boolean(overrides.enabled) : Boolean(this.data.publicShareEnabled)
+    const showOriginals = overrides.showOriginals != null
+      ? Boolean(overrides.showOriginals)
+      : Boolean(this.data.publicShareShowOriginals)
+    const prevEnabled = Boolean(this.data.job && this.data.job.publicShareEnabled)
+    const prevOriginals = Boolean(this.data.job && this.data.job.publicShareShowOriginals)
     this.setData({ publicShareSaving: true })
     try {
       const result = await api.post(`/api/jobs/${this.data.id}/public-share`, {
@@ -387,12 +426,17 @@ Page({
         galleryLikeAuthorCredits: Number(rewards.likeAuthorCredits != null ? rewards.likeAuthorCredits : this.data.galleryLikeAuthorCredits)
       })
       wx.showToast({
-        title: result.message || (enabled ? '已公开共享' : '已取消公开'),
+        title: result.message || (enabled ? '已分享到花海' : '已取消分享'),
         icon: 'none',
-        duration: 2800
+        duration: 2600
       })
     } catch (error) {
-      this.setData({ publicShareSaving: false })
+      // Revert switch UI on failure
+      this.setData({
+        publicShareSaving: false,
+        publicShareEnabled: prevEnabled,
+        publicShareShowOriginals: prevOriginals
+      })
       wx.showToast({ title: error.message || '保存失败', icon: 'none' })
     }
   },
@@ -537,20 +581,11 @@ Page({
     return this.sharePromise
   },
 
-  setAvatarShape(event) {
-    const shape = event.currentTarget.dataset.shape === 'circle' ? 'circle' : 'square'
-    this.setData({ avatarShape: shape })
-  },
-
-  /**
-   * Center-crop result image to square (optionally mask as circle) and save to album.
-   */
-  async makeAvatar(event) {
+  openAvatarCrop(event) {
     if (this.data.demo) {
       wx.showToast({ title: '练习模式不支持导出头像', icon: 'none' })
       return
     }
-    if (this.data.avatarMaking) return
     const results = (this.data.job && this.data.job.results) || []
     const index = Number(event.currentTarget.dataset.index)
     const result = results[Number.isFinite(index) ? index : 0] || results[0]
@@ -559,118 +594,8 @@ Page({
       wx.showToast({ title: '暂无可制作的图片', icon: 'none' })
       return
     }
-    const shape = this.data.avatarShape === 'circle' ? 'circle' : 'square'
-    this.setData({ avatarMaking: true })
-    try {
-      await ensureAlbumPermission()
-      wx.showLoading({ title: '制作中', mask: true })
-      const tempFilePath = await this.download(url)
-      const avatarPath = await this.exportAvatarFromFile(tempFilePath, shape)
-      await saveImageToAlbum(avatarPath)
-      hideLoadingQuiet()
-      wx.showToast({ title: shape === 'circle' ? '圆形头像已保存' : '方形头像已保存', icon: 'success' })
-    } catch (error) {
-      hideLoadingQuiet()
-      wx.showModal({
-        title: error.code === 'ALBUM_DENIED' ? '需要相册权限' : '制作失败',
-        content: error.message || '请稍后重试',
-        showCancel: false
-      })
-    } finally {
-      this.setData({ avatarMaking: false })
-    }
-  },
-
-  exportAvatarFromFile(filePath, shape) {
-    const size = 600
-    return new Promise((resolve, reject) => {
-      wx.getImageInfo({
-        src: filePath,
-        success: (info) => {
-          const query = wx.createSelectorQuery()
-          query.select('#avatarCanvas').fields({ node: true, size: true }).exec(async (res) => {
-            try {
-              const canvas = res && res[0] && res[0].node
-              if (!canvas) {
-                // Fallback: old canvas API
-                resolve(await this.exportAvatarLegacy(filePath, info, shape, size))
-                return
-              }
-              const ctx = canvas.getContext('2d')
-              const dpr = (wx.getWindowInfo && wx.getWindowInfo().pixelRatio) || 2
-              canvas.width = size * dpr
-              canvas.height = size * dpr
-              ctx.scale(dpr, dpr)
-              ctx.clearRect(0, 0, size, size)
-              if (shape === 'circle') {
-                ctx.beginPath()
-                ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-                ctx.closePath()
-                ctx.clip()
-              }
-              const sw = info.width
-              const sh = info.height
-              const side = Math.min(sw, sh)
-              const sx = (sw - side) / 2
-              const sy = (sh - side) / 2
-              const img = canvas.createImage()
-              img.onload = () => {
-                ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size)
-                wx.canvasToTempFilePath({
-                  canvas,
-                  x: 0,
-                  y: 0,
-                  width: size * dpr,
-                  height: size * dpr,
-                  destWidth: size,
-                  destHeight: size,
-                  fileType: 'png',
-                  success: r => resolve(r.tempFilePath),
-                  fail: reject
-                })
-              }
-              img.onerror = () => reject(new Error('图片加载失败'))
-              img.src = filePath
-            } catch (error) {
-              reject(error)
-            }
-          })
-        },
-        fail: reject
-      })
-    })
-  },
-
-  exportAvatarLegacy(filePath, info, shape, size) {
-    return new Promise((resolve, reject) => {
-      const ctx = wx.createCanvasContext('avatarCanvasLegacy', this)
-      if (shape === 'circle') {
-        ctx.beginPath()
-        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-        ctx.clip()
-      }
-      const sw = info.width
-      const sh = info.height
-      const side = Math.min(sw, sh)
-      const sx = (sw - side) / 2
-      const sy = (sh - side) / 2
-      ctx.drawImage(filePath, sx, sy, side, side, 0, 0, size, size)
-      ctx.draw(false, () => {
-        setTimeout(() => {
-          wx.canvasToTempFilePath({
-            canvasId: 'avatarCanvasLegacy',
-            x: 0,
-            y: 0,
-            width: size,
-            height: size,
-            destWidth: size,
-            destHeight: size,
-            fileType: 'png',
-            success: r => resolve(r.tempFilePath),
-            fail: reject
-          }, this)
-        }, 80)
-      })
+    wx.navigateTo({
+      url: `/pages/avatar-crop/index?url=${encodeURIComponent(url)}`
     })
   },
 

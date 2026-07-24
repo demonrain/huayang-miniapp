@@ -91,37 +91,30 @@
         </scroll-view>
       </view>
 
-      <!-- Owner: publish so Banner / gallery / other users can open this job -->
+      <!-- Owner: share to 花海 — switch auto-saves -->
       <view wx:if="{{!demo && !showcase && isOwner && job.status === 'succeeded'}}" class="public-share-panel">
-        <view class="public-share-panel__title">公开共享到花海</view>
-        <view class="public-share-panel__desc">开启后作品会出现在「花海」，其他用户可浏览；同一作品公开奖励仅能获得一次。</view>
+        <view class="public-share-panel__title">分享到花海</view>
+        <view class="public-share-panel__desc">开启后作品会出现在「花海」，其他用户可浏览与点赞；同一作品分享奖励仅能获得一次。切换开关后自动保存。</view>
         <view wx:if="{{galleryPublishCredits > 0 || galleryLikeAuthorCredits > 0}}" class="public-share-reward-tip">
-          公开可获 {{galleryPublishCredits}} 积分（每作品一次）
+          首次分享可获 {{galleryPublishCredits}} 积分
           <text wx:if="{{galleryLikeAuthorCredits > 0}}">；被点赞你得 {{galleryLikeAuthorCredits}} 积分，点赞者得 {{galleryLikeLikerCredits}} 积分</text>
         </view>
         <label class="public-share-row">
-          <text>公开此作品</text>
-          <switch checked="{{publicShareEnabled}}" color="#E76D82" bindchange="onPublicShareToggle" />
+          <text>分享到花海</text>
+          <switch checked="{{publicShareEnabled}}" color="#E76D82" disabled="{{publicShareSaving}}" bindchange="onPublicShareToggle" />
         </label>
         <label class="public-share-row {{publicShareEnabled ? '' : 'is-disabled'}}">
           <text>同时显示原图</text>
-          <switch checked="{{publicShareShowOriginals}}" disabled="{{!publicShareEnabled}}" color="#E76D82" bindchange="onPublicShareOriginalsToggle" />
+          <switch checked="{{publicShareShowOriginals}}" disabled="{{!publicShareEnabled || publicShareSaving}}" color="#E76D82" bindchange="onPublicShareOriginalsToggle" />
         </label>
-        <view class="public-share-panel__note">{{publicShareEnabled ? (publicShareShowOriginals ? '访客可看生成图与原图' : '访客仅可看生成效果，不看原图') : '当前未公开，他人无法在花海中看到'}}</view>
-        <button class="ghost-button public-share-save" loading="{{publicShareSaving}}" disabled="{{publicShareSaving}}" bindtap="savePublicShare">保存共享设置</button>
+        <view class="public-share-panel__note">{{publicShareEnabled ? (publicShareShowOriginals ? '访客可看生成图与原图' : '访客仅可看生成效果，不看原图') : '当前未分享，他人无法在花海中看到'}}</view>
       </view>
 
-      <!-- Make avatar from result -->
+      <!-- Make avatar: open crop preview -->
       <view wx:if="{{!demo && !showcase && job.status === 'succeeded' && job.results.length}}" class="avatar-panel">
         <view class="avatar-panel__title">一键制作头像</view>
-        <view class="avatar-panel__desc">将作品居中裁成正方形，可选圆形，保存到相册做头像</view>
-        <view class="avatar-shape-row">
-          <view class="avatar-shape {{avatarShape === 'square' ? 'is-active' : ''}}" data-shape="square" bindtap="setAvatarShape">方形</view>
-          <view class="avatar-shape {{avatarShape === 'circle' ? 'is-active' : ''}}" data-shape="circle" bindtap="setAvatarShape">圆形</view>
-        </view>
-        <button class="primary-button avatar-make-btn" loading="{{avatarMaking}}" disabled="{{avatarMaking}}" data-index="0" bindtap="makeAvatar">
-          制作{{avatarShape === 'circle' ? '圆形' : '方形'}}头像并保存
-        </button>
+        <view class="avatar-panel__desc">进入预览界面，拖动/缩放作品，裁成方形或圆形后保存到相册</view>
+        <button class="primary-button avatar-make-btn" data-index="0" bindtap="openAvatarCrop">制作头像</button>
         <view wx:if="{{job.results.length > 1}}" class="avatar-multi">
           <text class="avatar-multi__label">从第几张制作：</text>
           <view class="avatar-multi__list">
@@ -130,10 +123,33 @@
               wx:key="id"
               class="avatar-multi__item"
               data-index="{{index}}"
-              bindtap="makeAvatar"
+              bindtap="openAvatarCrop"
             >图{{index + 1}}</view>
           </view>
         </view>
+      </view>
+
+      <!-- Showcase: more works from same author -->
+      <view wx:if="{{showcase && authorWorks.length}}" class="author-works">
+        <view class="section-title">
+          <view class="section-title__main">TA 的其他分享</view>
+          <view class="section-title__sub">{{authorNickname || '作者'}} 在花海里的更多作品</view>
+        </view>
+        <scroll-view class="author-works__scroll" scroll-x enhanced show-scrollbar="false">
+          <view class="author-works__row">
+            <view
+              wx:for="{{authorWorks}}"
+              wx:key="id"
+              class="author-works__card"
+              data-id="{{item.id}}"
+              bindtap="openAuthorWork"
+            >
+              <image wx:if="{{item.coverUrl}}" class="author-works__cover" src="{{item.coverUrl}}" mode="aspectFill" lazy-load></image>
+              <view wx:else class="author-works__placeholder" style="background: {{item.templatePalette}}">{{item.templateShortName}}</view>
+              <text class="author-works__name">{{item.templateName}}</text>
+            </view>
+          </view>
+        </scroll-view>
       </view>
 
       <!-- Showcase 页底部固定 dock 已有「用同款风格创作」，此处隐藏避免重复 -->
@@ -145,10 +161,6 @@
           <button class="{{!demo && job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">{{demo ? '再练一次' : '继续创作'}}</button>
         </view>
       </view>
-
-      <!-- Offscreen canvases for avatar export -->
-      <canvas type="2d" id="avatarCanvas" class="avatar-canvas-hidden"></canvas>
-      <canvas canvas-id="avatarCanvasLegacy" class="avatar-canvas-hidden" style="width:600px;height:600px;"></canvas>
 
       <view wx:if="{{!demo && !showcase && shareRewardEnabled && (shareFriendTip || shareTimelineTip)}}" class="share-reward-panel">
         <view class="share-reward-panel__title">分享领积分</view>
@@ -216,7 +228,7 @@
     <view wx:elif="{{showcase && !demo && job.status === 'succeeded'}}" class="showcase-dock">
       <button class="showcase-dock__create" bindtap="createAgain">用同款风格创作</button>
       <view wx:if="{{isOwner}}" class="showcase-dock__stats" aria-label="点赞数">
-        <text class="showcase-dock__heart">♥</text>
+        <image class="showcase-dock__icon" src="/assets/icons/like-active.png" mode="aspectFit"></image>
         <view class="showcase-dock__stats-text">
           <text class="showcase-dock__count">{{likeCount}}</text>
           <text class="showcase-dock__label">次点赞</text>
@@ -227,7 +239,7 @@
         class="showcase-dock__like {{likedByMe ? 'is-liked' : ''}} {{liking ? 'is-loading' : ''}}"
         bindtap="onShowcaseLike"
       >
-        <text class="showcase-dock__heart">{{likedByMe ? '♥' : '♡'}}</text>
+        <image class="showcase-dock__icon" src="{{likedByMe ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"></image>
         <view class="showcase-dock__stats-text">
           <text class="showcase-dock__count">{{likeCount}}</text>
           <text class="showcase-dock__label">{{likedByMe ? '已赞' : '点赞'}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? ' +' : ''}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? galleryLikeLikerCredits : ''}}</text>

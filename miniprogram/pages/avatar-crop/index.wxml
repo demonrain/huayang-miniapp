@@ -1,0 +1,56 @@
+<view class="page crop-page" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav show-back title="制作头像"></custom-nav>
+
+  <view class="crop-tip">双指缩放 · 单指拖动，调整到裁切框内</view>
+
+  <view class="crop-stage" style="height: {{stagePx}}px">
+    <movable-area
+      class="crop-area"
+      style="width: {{areaPx}}px; height: {{areaPx}}px;"
+      scale-area
+    >
+      <movable-view
+        class="crop-view"
+        direction="all"
+        scale
+        scale-min="{{scaleMin}}"
+        scale-max="4"
+        scale-value="{{scale}}"
+        x="{{x}}"
+        y="{{y}}"
+        inertia
+        out-of-bounds="{{false}}"
+        style="width: {{viewW}}px; height: {{viewH}}px;"
+        bindchange="onMove"
+        bindscale="onScale"
+      >
+        <image class="crop-image" src="{{filePath}}" mode="aspectFill" style="width: {{viewW}}px; height: {{viewH}}px;"></image>
+      </movable-view>
+    </movable-area>
+
+    <!-- Dark mask with cutout -->
+    <view class="crop-mask" catchtouchmove="noop">
+      <view class="crop-mask__shade crop-mask__top" style="height: {{maskSide}}px"></view>
+      <view class="crop-mask__mid" style="height: {{cropPx}}px">
+        <view class="crop-mask__shade crop-mask__side" style="width: {{maskSide}}px"></view>
+        <view class="crop-frame {{shape === 'circle' ? 'is-circle' : ''}}" style="width: {{cropPx}}px; height: {{cropPx}}px;"></view>
+        <view class="crop-mask__shade crop-mask__side" style="width: {{maskSide}}px"></view>
+      </view>
+      <view class="crop-mask__shade crop-mask__bottom"></view>
+    </view>
+  </view>
+
+  <view class="crop-toolbar">
+    <view class="crop-shapes">
+      <view class="crop-shape {{shape === 'square' ? 'is-active' : ''}}" data-shape="square" bindtap="setShape">方形</view>
+      <view class="crop-shape {{shape === 'circle' ? 'is-active' : ''}}" data-shape="circle" bindtap="setShape">圆形</view>
+    </view>
+    <view class="crop-actions">
+      <button class="ghost-button crop-btn" bindtap="goBack">取消</button>
+      <button class="primary-button crop-btn" loading="{{saving}}" disabled="{{saving || !ready}}" bindtap="saveAvatar">保存到相册</button>
+    </view>
+  </view>
+
+  <canvas type="2d" id="exportCanvas" class="export-canvas"></canvas>
+  <canvas canvas-id="exportCanvasLegacy" class="export-canvas" style="width: {{exportSize}}px; height: {{exportSize}}px;"></canvas>
+</view>

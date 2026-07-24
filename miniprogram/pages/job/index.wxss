@@ -605,32 +605,63 @@
   color: var(--muted);
 }
 
-.avatar-shape-row {
-  margin-top: 18rpx;
-  display: flex;
-  gap: 12rpx;
-}
-
-.avatar-shape {
-  flex: 1;
-  padding: 16rpx 0;
-  text-align: center;
-  border: 2rpx solid #eadfe3;
-  border-radius: 12rpx;
-  color: #6a6064;
-  font-size: 26rpx;
-  font-weight: 600;
-}
-
-.avatar-shape.is-active {
-  border-color: #e76d82;
-  background: #fff5f7;
-  color: #e76d82;
-}
-
 .avatar-make-btn {
   margin-top: 18rpx;
   width: 100%;
+}
+
+.author-works {
+  margin-top: 28rpx;
+}
+
+.author-works__scroll {
+  margin-top: 8rpx;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.author-works__row {
+  display: inline-flex;
+  gap: 16rpx;
+  padding: 4rpx 2rpx 12rpx;
+}
+
+.author-works__card {
+  width: 200rpx;
+  flex: none;
+}
+
+.author-works__cover,
+.author-works__placeholder {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 14rpx;
+  overflow: hidden;
+  background: #ebe6e8;
+}
+
+.author-works__cover {
+  display: block;
+}
+
+.author-works__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: "Kaiti SC", "STKaiti", serif;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.author-works__name {
+  display: block;
+  margin-top: 10rpx;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 22rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .avatar-multi {
@@ -732,16 +763,18 @@
   opacity: 0.7;
 }
 
+.showcase-dock__icon {
+  width: 44rpx;
+  height: 44rpx;
+  flex: none;
+}
+
 .showcase-dock__heart {
   width: 48rpx;
   text-align: center;
   color: #e04b66;
   font-size: 40rpx;
   line-height: 1;
-}
-
-.showcase-dock__like:not(.is-liked) .showcase-dock__heart {
-  color: #c56f60;
 }
 
 .showcase-dock__stats-text {

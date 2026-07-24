@@ -378,7 +378,7 @@ const transactionLabels = {
   invite_login: '邀请新用户登录',
   invite_first_job: '邀请新用户完成首作',
   cdk_redeem: 'CDK 兑换积分',
-  gallery_publish: '公开共享作品',
+  gallery_publish: '分享到花海',
   gallery_like_give: '点赞花海作品',
   gallery_like_receive: '作品被点赞'
 }
@@ -2345,7 +2345,7 @@ export async function createApplication() {
               const rewards = publicShareRewardSettings(draft.settings)
               const amount = Number(rewards.galleryPublishCredits || 0)
               if (amount > 0) {
-                creditUser(draft, user.id, amount, 'gallery_publish', '公开共享作品奖励', job.id)
+                creditUser(draft, user.id, amount, 'gallery_publish', '分享到花海奖励', job.id)
                 job.publicSharePublishRewarded = true
                 publishReward = amount
               }
@@ -2361,12 +2361,12 @@ export async function createApplication() {
         const state = store.read()
         const rewards = publicShareRewardSettings(state.settings)
         let message = result.enabled
-          ? (showOriginals ? '已公开共享（含原图）' : '已公开共享（不显示原图）')
-          : '已取消公开共享'
+          ? (showOriginals ? '已分享到花海（含原图）' : '已分享到花海（不显示原图）')
+          : '已取消分享到花海'
         if (result.publishReward > 0) {
           message += `，获得 ${result.publishReward} 积分`
         } else if (result.enabled && Number(rewards.galleryPublishCredits || 0) > 0 && result.job.publicSharePublishRewarded) {
-          message += '（本作品公开奖励已领取）'
+          message += '（本作品分享奖励已领取）'
         }
         json(response, 200, {
           ok: true,
@@ -2397,8 +2397,12 @@ export async function createApplication() {
           }
         })()
         const likes = Array.isArray(state.jobLikes) ? state.jobLikes : []
+        const authorId = String(url.searchParams.get('authorId') || '').trim()
+        const excludeId = String(url.searchParams.get('exclude') || '').trim()
         const filtered = state.jobs
           .filter(item => item.status === 'succeeded' && item.publicShareEnabled)
+          .filter(item => !authorId || item.userId === authorId)
+          .filter(item => !excludeId || item.id !== excludeId)
           .sort((a, b) => String(b.publicShareAt || b.completedAt || b.createdAt)
             .localeCompare(String(a.publicShareAt || a.completedAt || a.createdAt)))
         const page = paginateArray(filtered, url, { defaultPageSize: 12 })

@@ -112,13 +112,13 @@
               </div>
             </div>
             <div class="shares-rule-block">
-              <div class="shares-rule-block__title">花海公开与点赞</div>
+              <div class="shares-rule-block__title">花海分享与点赞</div>
               <div class="form-grid form-grid--dense">
-                <label>公开共享奖励积分（每作品仅一次）<input name="galleryPublishCredits" type="number" min="0" max="100000" required></label>
+                <label>分享到花海奖励积分（每作品仅一次）<input name="galleryPublishCredits" type="number" min="0" max="100000" required></label>
                 <label>点赞者获得积分<input name="galleryLikeLikerCredits" type="number" min="0" max="100000" required></label>
                 <label>被点赞作者获得积分<input name="galleryLikeAuthorCredits" type="number" min="0" max="100000" required></label>
               </div>
-              <p class="field-hint" style="margin-top:8px">用户将作品公开到花海可获一次积分；其他用户点赞时，点赞者与作者分别按配置加分（同一用户对同一作品只能赞一次）。</p>
+              <p class="field-hint" style="margin-top:8px">用户将作品分享到花海可获一次积分；其他用户点赞时，点赞者与作者分别按配置加分（同一用户对同一作品只能赞一次）。</p>
             </div>
             <div class="form-actions"><button class="button button--primary" type="submit">保存奖励规则</button></div>
           </form>
@@ -194,7 +194,7 @@
           <div><h3>充值与消费记录</h3><p>包含充值、作品消费、签到、赠送、退款和后台调整。</p></div>
           <form id="transactionFilterForm" class="filter-bar">
             <input name="query" placeholder="昵称、用户 ID 或摘要">
-            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="cdk_redeem">CDK 兑换</option><option value="share_friend">分享好友</option><option value="share_timeline">分享朋友圈</option><option value="invite_login">邀请登录</option><option value="invite_first_job">邀请首作</option><option value="gallery_publish">公开共享</option><option value="gallery_like_give">点赞花海</option><option value="gallery_like_receive">作品被赞</option><option value="admin_adjust">后台调整</option></select>
+            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="cdk_redeem">CDK 兑换</option><option value="share_friend">分享好友</option><option value="share_timeline">分享朋友圈</option><option value="invite_login">邀请登录</option><option value="invite_first_job">邀请首作</option><option value="gallery_publish">分享到花海</option><option value="gallery_like_give">点赞花海</option><option value="gallery_like_receive">作品被赞</option><option value="admin_adjust">后台调整</option></select>
             <button class="button button--quiet" type="submit">查询</button>
           </form>
         </div>

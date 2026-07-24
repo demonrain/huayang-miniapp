@@ -34,10 +34,11 @@ const buttonIcons = {
   'wand-sparkles': 'wand-sparkles'
 }
 
-async function render(iconName, filename, color, size = 81) {
+async function render(iconName, filename, color, size = 81, { fill = 'none' } = {}) {
   const source = await readFile(path.join(sourceDir, `${iconName}.svg`), 'utf8')
-  const svg = source
+  let svg = source
     .replace('stroke="currentColor"', `stroke="${color}"`)
+    .replace(/fill="none"/, `fill="${fill}"`)
     .replace('width="24"', `width="${size}"`)
     .replace('height="24"', `height="${size}"`)
     .replace('viewBox="0 0 24 24"', 'viewBox="-4 -4 32 32"')
@@ -63,4 +64,8 @@ for (const [name, icon] of Object.entries(solidWhiteIcons)) {
   await render(icon, `${name}.png`, '#ffffff', 64)
 }
 
-console.log(`Generated ${Object.keys(tabIcons).length * 2 + Object.keys(actionIcons).length + Object.keys(buttonIcons).length + Object.keys(solidWhiteIcons).length} Lucide PNG icons.`)
+// 花海点赞：小花图标（描边 / 填充），契合花漾主题
+await render('flower', 'like.png', '#c56f60', 72, { fill: 'none' })
+await render('flower', 'like-active.png', '#e76d82', 72, { fill: '#f8a0ad' })
+
+console.log(`Generated ${Object.keys(tabIcons).length * 2 + Object.keys(actionIcons).length + Object.keys(buttonIcons).length + Object.keys(solidWhiteIcons).length + 2} Lucide PNG icons.`)

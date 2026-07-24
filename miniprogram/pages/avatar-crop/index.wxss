@@ -1,0 +1,131 @@
+.crop-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #1a1718;
+  color: #fff;
+}
+
+.crop-tip {
+  padding: 12rpx 24rpx 8rpx;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 22rpx;
+}
+
+.crop-stage {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+  background: #0f0d0e;
+}
+
+.crop-area {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.crop-view {
+  z-index: 1;
+}
+
+.crop-image {
+  display: block;
+  pointer-events: none;
+}
+
+.crop-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.crop-mask__shade {
+  background: rgba(10, 8, 9, 0.62);
+}
+
+.crop-mask__top,
+.crop-mask__bottom {
+  width: 100%;
+}
+
+.crop-mask__bottom {
+  flex: 1;
+}
+
+.crop-mask__mid {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+}
+
+.crop-mask__side {
+  flex: none;
+  height: 100%;
+}
+
+.crop-frame {
+  flex: none;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 2rpx rgba(231, 109, 130, 0.35);
+}
+
+.crop-frame.is-circle {
+  border-radius: 50%;
+}
+
+.crop-toolbar {
+  padding: 20rpx 24rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: #221e20;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+}
+
+.crop-shapes {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 18rpx;
+}
+
+.crop-shape {
+  flex: 1;
+  padding: 18rpx 0;
+  text-align: center;
+  border-radius: 14rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 28rpx;
+  font-weight: 650;
+}
+
+.crop-shape.is-active {
+  border-color: #e76d82;
+  background: rgba(231, 109, 130, 0.18);
+  color: #ffc4cf;
+}
+
+.crop-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.crop-btn {
+  flex: 1;
+  margin: 0;
+}
+
+.export-canvas {
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+  width: 600px;
+  height: 600px;
+}
