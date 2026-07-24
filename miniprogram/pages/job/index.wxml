@@ -136,12 +136,13 @@
         </view>
       </view>
 
-      <view class="job-row-actions {{!demo && !showcase && job.results.length > 1 ? '' : 'job-row-actions--single'}}">
-        <view wx:if="{{!demo && !showcase && job.results.length > 1}}" class="job-row-actions__cell">
+      <!-- Showcase 页底部固定 dock 已有「用同款风格创作」，此处隐藏避免重复 -->
+      <view wx:if="{{!showcase}}" class="job-row-actions {{!demo && job.results.length > 1 ? '' : 'job-row-actions--single'}}">
+        <view wx:if="{{!demo && job.results.length > 1}}" class="job-row-actions__cell">
           <button class="primary-button job-row-btn" loading="{{saving}}" disabled="{{saving}}" bindtap="saveAll">保存全部作品</button>
         </view>
         <view class="job-row-actions__cell">
-          <button class="{{!demo && !showcase && job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">{{demo ? '再练一次' : (showcase ? '用同款风格创作' : '继续创作')}}</button>
+          <button class="{{!demo && job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">{{demo ? '再练一次' : '继续创作'}}</button>
         </view>
       </view>
 
