@@ -2,6 +2,7 @@
   "pages": [
     "pages/home/index",
     "pages/history/index",
+    "pages/gallery/index",
     "pages/wallet/index",
     "pages/profile/index",
     "pages/template/index",
@@ -34,6 +35,7 @@
     "list": [
       { "pagePath": "pages/home/index", "text": "创作", "iconPath": "assets/icons/create.png", "selectedIconPath": "assets/icons/create-active.png" },
       { "pagePath": "pages/history/index", "text": "作品", "iconPath": "assets/icons/works.png", "selectedIconPath": "assets/icons/works-active.png" },
+      { "pagePath": "pages/gallery/index", "text": "画廊", "iconPath": "assets/icons/gallery.png", "selectedIconPath": "assets/icons/gallery-active.png" },
       { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "assets/icons/profile.png", "selectedIconPath": "assets/icons/profile-active.png" }
     ]
   },

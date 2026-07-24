@@ -16,7 +16,9 @@
 | `GET` | `/api/jobs` | 当前用户任务列表（可选 `page`/`pageSize`；不传则全量） |
 | `GET` | `/api/jobs/:id` | 任务状态与结果 |
 | `GET` | `/api/showcase/jobs/:id` | 公开作品展示（需作者开启公开共享；原图取决于作者设置） |
-| `POST` | `/api/jobs/:id/public-share` | 作者公开/取消公开作品（`enabled`、`showOriginals`） |
+| `POST` | `/api/jobs/:id/public-share` | 作者公开/取消公开作品（`enabled`、`showOriginals`；首次公开可获积分） |
+| `GET` | `/api/gallery` | 画廊列表（公开作品，`page`/`pageSize`） |
+| `POST` | `/api/gallery/:jobId/like` | 点赞画廊作品（点赞者/作者分别加分，每人每作品一次） |
 | `DELETE` | `/api/jobs/:id` | 删除失败任务记录（仅 `failed`） |
 | `GET/POST` | `/api/admin/categories` | 模板分类列表 / 新建 |
 | `PATCH/DELETE` | `/api/admin/categories/:id` | 更新 / 删除模板分类 |
@@ -54,6 +56,7 @@
 | `POST` | `/api/admin/jobs/:id/public-share` | 管理员公开/取消公开作品（供 Banner 跳转） |
 | `POST` | `/api/admin/jobs/:id/banner` | 一键用该作品创建 Banner（封面=生成图、公开任务、跳转作品展示） |
 | `POST/PATCH` | `/api/admin/banners` | 支持 `coverJobId`：用作品生成图作为 Banner 封面 |
+| `DELETE` | `/api/admin/banners/:id` | 删除 Banner |
 | `POST` | `/api/admin/jobs/:id/samples` | 将任务某张结果加入模板「更多效果参考」 |
 | `DELETE` | `/api/admin/jobs/:id/samples` | 从模板「更多效果参考」中移除该结果（body: `resultId`） |
 | `GET` | `/api/admin/feedbacks` | 用户建议反馈列表（`type`/`status`/`page`/`pageSize`） |

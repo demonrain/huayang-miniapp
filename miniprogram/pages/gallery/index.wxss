@@ -1,0 +1,206 @@
+.gallery-page {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 48rpx);
+}
+
+.gallery-heading {
+  min-height: 120rpx;
+  margin: 6rpx 0 16rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.gallery-kicker {
+  margin-bottom: 8rpx;
+  color: var(--coral);
+  font-family: Georgia, serif;
+  font-size: 17rpx;
+}
+
+.gallery-heading .section-title__sub {
+  margin-top: 9rpx;
+}
+
+.album-count {
+  margin-bottom: 5rpx;
+  padding: 8rpx 13rpx;
+  background: var(--mint-soft);
+  border-radius: 8rpx;
+  color: var(--green);
+  font-size: 19rpx;
+}
+
+.gallery-tip {
+  margin-bottom: 18rpx;
+  padding: 16rpx 18rpx;
+  background: #fff8f0;
+  border: 2rpx solid #f5e6d4;
+  border-radius: 12rpx;
+  color: #9a7040;
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.list-footer {
+  padding: 28rpx 16rpx 12rpx;
+  text-align: center;
+  color: var(--muted);
+  font-size: 22rpx;
+}
+
+.works-waterfall {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+}
+
+.works-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.gallery-card {
+  overflow: hidden;
+  background: #fff;
+  border: 2rpx solid #f0e8ea;
+  border-radius: 16rpx;
+  box-shadow: 0 10rpx 24rpx rgba(108, 81, 92, 0.08);
+}
+
+.gallery-card__media {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #ebe6e8;
+}
+
+.gallery-card__cover {
+  display: block;
+  width: 100%;
+  vertical-align: top;
+}
+
+.gallery-card__placeholder {
+  min-height: 260rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: "Kaiti SC", "STKaiti", serif;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.gallery-card__meta {
+  padding: 14rpx 16rpx 16rpx;
+}
+
+.gallery-card__name {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 24rpx;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gallery-card__sub {
+  display: block;
+  margin-top: 6rpx;
+  color: var(--muted);
+  font-size: 18rpx;
+}
+
+.gallery-card__actions {
+  margin-top: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gallery-like {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx 12rpx;
+  background: #fff5f7;
+  border-radius: 999rpx;
+  color: #c56f60;
+  font-size: 22rpx;
+}
+
+.gallery-like.is-liked {
+  background: #ffe8ec;
+  color: #e04b66;
+  font-weight: 650;
+}
+
+.gallery-like__icon {
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+.gallery-card__open {
+  color: var(--green);
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.skeleton {
+  border-radius: 16rpx;
+  background: linear-gradient(90deg, #f4eef0 25%, #faf6f7 50%, #f4eef0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.empty-mark {
+  position: relative;
+  width: 110rpx;
+  height: 110rpx;
+  margin: 0 auto 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--pink-soft);
+  border: 2rpx solid #f4dfe3;
+  border-radius: 50%;
+  color: var(--coral);
+  font-family: "Kaiti SC", "STKaiti", serif;
+  font-size: 44rpx;
+}
+
+.empty-flower-dot {
+  position: absolute;
+  top: 7rpx;
+  right: 7rpx;
+  width: 28rpx;
+  height: 28rpx;
+  background: var(--yellow);
+  border: 5rpx solid #fff;
+  border-radius: 50%;
+}
+
+.empty-title {
+  color: var(--ink);
+  font-size: 29rpx;
+  font-weight: 650;
+}
+
+.empty-sub {
+  margin: 12rpx 0 34rpx;
+  font-size: 21rpx;
+}
+
+.empty-work .primary-button {
+  width: 280rpx;
+  margin: 0 auto;
+}

@@ -377,7 +377,10 @@ const transactionLabels = {
   share_timeline: '分享作品到朋友圈',
   invite_login: '邀请新用户登录',
   invite_first_job: '邀请新用户完成首作',
-  cdk_redeem: 'CDK 兑换积分'
+  cdk_redeem: 'CDK 兑换积分',
+  gallery_publish: '公开共享作品',
+  gallery_like_give: '点赞画廊作品',
+  gallery_like_receive: '作品被点赞'
 }
 
 const feedbackTypeLabels = {
@@ -1046,6 +1049,9 @@ export async function createApplication() {
             if ('inviteRewardEnabled' in body) draft.settings.inviteRewardEnabled = Boolean(body.inviteRewardEnabled)
             if ('inviteLoginCredits' in body) draft.settings.inviteLoginCredits = boundedInteger(body.inviteLoginCredits, '邀请登录积分', 0, 100000)
             if ('inviteFirstJobCredits' in body) draft.settings.inviteFirstJobCredits = boundedInteger(body.inviteFirstJobCredits, '邀请首作积分', 0, 100000)
+            if ('galleryPublishCredits' in body) draft.settings.galleryPublishCredits = boundedInteger(body.galleryPublishCredits, '公开共享积分', 0, 100000)
+            if ('galleryLikeLikerCredits' in body) draft.settings.galleryLikeLikerCredits = boundedInteger(body.galleryLikeLikerCredits, '点赞者积分', 0, 100000)
+            if ('galleryLikeAuthorCredits' in body) draft.settings.galleryLikeAuthorCredits = boundedInteger(body.galleryLikeAuthorCredits, '被点赞作者积分', 0, 100000)
             return draft.settings
           })
           json(response, 200, {
@@ -1550,6 +1556,17 @@ export async function createApplication() {
           }
           const state = store.read()
           json(response, 200, { banner: publicBanners(state, true).find(item => item.id === bannerId) })
+          return
+        }
+
+        if (request.method === 'DELETE' && adminBannerMatch) {
+          const bannerId = adminBannerMatch[1]
+          await store.transaction(draft => {
+            const index = draft.banners.findIndex(entry => entry.id === bannerId)
+            if (index === -1) throw new HttpError(404, 'BANNER_NOT_FOUND', 'Banner 不存在')
+            draft.banners.splice(index, 1)
+          })
+          json(response, 200, { ok: true, id: bannerId, message: 'Banner 已删除' })
           return
         }
 
@@ -2279,37 +2296,174 @@ export async function createApplication() {
         return
       }
 
-      // Owner publishes job so others can open via Banner / showcase link
+      // Owner publishes job so others can open via Banner / showcase / gallery
       const jobPublicShareMatch = pathname.match(/^\/api\/jobs\/([^/]+)\/public-share$/)
       if (request.method === 'POST' && jobPublicShareMatch) {
         const jobId = jobPublicShareMatch[1]
         const body = await readJson(request)
         const enabled = body.enabled !== false && body.enabled !== 'false' && body.enabled !== 0
         const showOriginals = Boolean(body.showOriginals)
-        const updated = await store.transaction(draft => {
+        const result = await store.transaction(draft => {
           const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
           if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
           if (job.status !== 'succeeded') {
             throw new HttpError(409, 'JOB_NOT_READY', '仅已完成的作品可以公开共享')
           }
+          const wasPublic = Boolean(job.publicShareEnabled)
           job.publicShareEnabled = enabled
           if (enabled) {
             job.publicShareShowOriginals = showOriginals
-            job.publicShareAt = now()
-          } else {
-            job.publicShareShowOriginals = false
-            job.publicShareAt = ''
+            job.publicShareAt = job.publicShareAt || now()
+            // One-time publish reward per job
+            let publishReward = 0
+            if (!wasPublic && !job.publicSharePublishRewarded) {
+              const rewards = publicShareRewardSettings(draft.settings)
+              const amount = Number(rewards.galleryPublishCredits || 0)
+              if (amount > 0) {
+                creditUser(draft, user.id, amount, 'gallery_publish', '公开共享作品奖励', job.id)
+                job.publicSharePublishRewarded = true
+                publishReward = amount
+              }
+            }
+            job.updatedAt = now()
+            return { job, publishReward, enabled: true }
           }
+          job.publicShareShowOriginals = false
+          // Keep publicShareAt / rewarded flag so re-publish doesn't re-grant
           job.updatedAt = now()
-          return job
+          return { job, publishReward: 0, enabled: false }
+        })
+        const state = store.read()
+        const rewards = publicShareRewardSettings(state.settings)
+        let message = result.enabled
+          ? (showOriginals ? '已公开共享（含原图）' : '已公开共享（不显示原图）')
+          : '已取消公开共享'
+        if (result.publishReward > 0) {
+          message += `，获得 ${result.publishReward} 积分`
+        } else if (result.enabled && Number(rewards.galleryPublishCredits || 0) > 0 && result.job.publicSharePublishRewarded) {
+          message += '（本作品公开奖励已领取）'
+        }
+        json(response, 200, {
+          ok: true,
+          job: publicJob(result.job, state),
+          publishReward: result.publishReward,
+          user: publicUser(state.users.find(item => item.id === user.id), state),
+          galleryRewards: {
+            publishCredits: Number(rewards.galleryPublishCredits || 0),
+            likeLikerCredits: Number(rewards.galleryLikeLikerCredits || 0),
+            likeAuthorCredits: Number(rewards.galleryLikeAuthorCredits || 0)
+          },
+          message
+        })
+        return
+      }
+
+      // Public gallery of shared works
+      if (request.method === 'GET' && pathname === '/api/gallery') {
+        const state = store.read()
+        const viewerId = (() => {
+          try {
+            const token = bearerToken(request)
+            if (!token || isAdminToken(token)) return ''
+            const payload = verifyToken(token)
+            return payload?.sub || payload?.userId || ''
+          } catch {
+            return ''
+          }
+        })()
+        const likes = Array.isArray(state.jobLikes) ? state.jobLikes : []
+        const filtered = state.jobs
+          .filter(item => item.status === 'succeeded' && item.publicShareEnabled)
+          .sort((a, b) => String(b.publicShareAt || b.completedAt || b.createdAt)
+            .localeCompare(String(a.publicShareAt || a.completedAt || a.createdAt)))
+        const page = paginateArray(filtered, url, { defaultPageSize: 12 })
+        const items = page.items.map(job => {
+          const pub = publicSharedJob(job, state)
+          const owner = state.users.find(u => u.id === job.userId)
+          const jobLikes = likes.filter(like => like.jobId === job.id)
+          return {
+            id: pub.id,
+            templateId: pub.templateId,
+            templateName: pub.templateName,
+            templateShortName: pub.templateShortName,
+            templatePalette: pub.templatePalette,
+            coverUrl: pub.coverUrl,
+            coverFullUrl: pub.coverFullUrl,
+            resultCount: (pub.results || []).length,
+            publicShareShowOriginals: pub.publicShareShowOriginals,
+            publicShareAt: job.publicShareAt || job.completedAt || job.createdAt,
+            authorNickname: owner?.nickname || '花漾用户',
+            authorId: job.userId,
+            likeCount: jobLikes.length,
+            likedByMe: viewerId ? jobLikes.some(like => like.userId === viewerId) : false
+          }
+        })
+        const rewards = publicShareRewardSettings(state.settings)
+        json(response, 200, {
+          items,
+          total: page.total,
+          page: page.page,
+          pageSize: page.pageSize,
+          pages: page.pages,
+          hasMore: page.page < page.pages,
+          galleryRewards: {
+            publishCredits: Number(rewards.galleryPublishCredits || 0),
+            likeLikerCredits: Number(rewards.galleryLikeLikerCredits || 0),
+            likeAuthorCredits: Number(rewards.galleryLikeAuthorCredits || 0)
+          }
+        })
+        return
+      }
+
+      const galleryLikeMatch = pathname.match(/^\/api\/gallery\/([^/]+)\/like$/)
+      if (request.method === 'POST' && galleryLikeMatch) {
+        const jobId = galleryLikeMatch[1]
+        const outcome = await store.transaction(draft => {
+          if (!Array.isArray(draft.jobLikes)) draft.jobLikes = []
+          const job = draft.jobs.find(item => item.id === jobId)
+          if (!job || job.status !== 'succeeded' || !job.publicShareEnabled) {
+            throw new HttpError(404, 'JOB_NOT_FOUND', '作品未公开或不存在')
+          }
+          if (job.userId === user.id) {
+            throw new HttpError(409, 'LIKE_SELF', '不能给自己的作品点赞')
+          }
+          if (draft.jobLikes.some(item => item.jobId === jobId && item.userId === user.id)) {
+            throw new HttpError(409, 'ALREADY_LIKED', '你已经点过赞了')
+          }
+          const rewards = publicShareRewardSettings(draft.settings)
+          const likerCredits = Number(rewards.galleryLikeLikerCredits || 0)
+          const authorCredits = Number(rewards.galleryLikeAuthorCredits || 0)
+          draft.jobLikes.push({
+            id: randomUUID(),
+            jobId,
+            userId: user.id,
+            createdAt: now()
+          })
+          if (likerCredits > 0) {
+            creditUser(draft, user.id, likerCredits, 'gallery_like_give', '点赞画廊作品', jobId)
+          }
+          if (authorCredits > 0) {
+            creditUser(draft, job.userId, authorCredits, 'gallery_like_receive', '作品被点赞', jobId)
+          }
+          const likeCount = draft.jobLikes.filter(item => item.jobId === jobId).length
+          return {
+            likeCount,
+            likerCredits,
+            authorCredits,
+            user: draft.users.find(item => item.id === user.id)
+          }
         })
         const state = store.read()
         json(response, 200, {
           ok: true,
-          job: publicJob(updated, state),
-          message: enabled
-            ? (showOriginals ? '已公开共享（含原图）' : '已公开共享（不显示原图）')
-            : '已取消公开共享'
+          liked: true,
+          likeCount: outcome.likeCount,
+          likerCredits: outcome.likerCredits,
+          authorCredits: outcome.authorCredits,
+          user: publicUser(outcome.user, state),
+          message: outcome.likerCredits > 0
+            ? `点赞成功，积分 +${outcome.likerCredits}`
+            : '点赞成功'
         })
         return
       }

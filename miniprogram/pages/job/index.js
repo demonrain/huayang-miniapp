@@ -59,7 +59,12 @@ Page({
     isOwner: false,
     publicShareEnabled: false,
     publicShareShowOriginals: false,
-    publicShareSaving: false
+    publicShareSaving: false,
+    galleryPublishCredits: 0,
+    galleryLikeLikerCredits: 0,
+    galleryLikeAuthorCredits: 0,
+    avatarMaking: false,
+    avatarShape: 'square'
   },
 
   onLoad(query) {
@@ -80,6 +85,7 @@ Page({
     wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
     this.loadJob()
     this.loadShareRewardConfig()
+    this.loadGalleryRewardTips()
   },
 
   onUnload() {
@@ -302,6 +308,18 @@ Page({
     this.setData({ publicShareShowOriginals: Boolean(event.detail.value) })
   },
 
+  async loadGalleryRewardTips() {
+    try {
+      const config = await api.get('/api/config')
+      const sr = config.shareRewards || {}
+      this.setData({
+        galleryPublishCredits: Number(sr.galleryPublishCredits || 0),
+        galleryLikeLikerCredits: Number(sr.galleryLikeLikerCredits || 0),
+        galleryLikeAuthorCredits: Number(sr.galleryLikeAuthorCredits || 0)
+      })
+    } catch (error) {}
+  },
+
   async savePublicShare() {
     if (this.data.publicShareSaving || this.data.demo || this.data.showcase) return
     const enabled = Boolean(this.data.publicShareEnabled)
@@ -313,15 +331,22 @@ Page({
         showOriginals: enabled ? showOriginals : false
       })
       const job = result.job || this.data.job
+      if (result.user) getApp().setUser(result.user)
+      const rewards = result.galleryRewards || {}
       this.setData({
         job: { ...this.data.job, ...job },
         publicShareEnabled: Boolean(job.publicShareEnabled),
         publicShareShowOriginals: Boolean(job.publicShareShowOriginals),
-        publicShareSaving: false
+        publicShareSaving: false,
+        credits: result.user?.credits ?? this.data.credits,
+        galleryPublishCredits: Number(rewards.publishCredits != null ? rewards.publishCredits : this.data.galleryPublishCredits),
+        galleryLikeLikerCredits: Number(rewards.likeLikerCredits != null ? rewards.likeLikerCredits : this.data.galleryLikeLikerCredits),
+        galleryLikeAuthorCredits: Number(rewards.likeAuthorCredits != null ? rewards.likeAuthorCredits : this.data.galleryLikeAuthorCredits)
       })
       wx.showToast({
         title: result.message || (enabled ? '已公开共享' : '已取消公开'),
-        icon: 'none'
+        icon: 'none',
+        duration: 2800
       })
     } catch (error) {
       this.setData({ publicShareSaving: false })
@@ -467,6 +492,143 @@ Page({
         .finally(() => { this.sharePromise = null })
     }
     return this.sharePromise
+  },
+
+  setAvatarShape(event) {
+    const shape = event.currentTarget.dataset.shape === 'circle' ? 'circle' : 'square'
+    this.setData({ avatarShape: shape })
+  },
+
+  /**
+   * Center-crop result image to square (optionally mask as circle) and save to album.
+   */
+  async makeAvatar(event) {
+    if (this.data.demo) {
+      wx.showToast({ title: '练习模式不支持导出头像', icon: 'none' })
+      return
+    }
+    if (this.data.avatarMaking) return
+    const results = (this.data.job && this.data.job.results) || []
+    const index = Number(event.currentTarget.dataset.index)
+    const result = results[Number.isFinite(index) ? index : 0] || results[0]
+    const url = result && (result.url || result.thumbUrl)
+    if (!url) {
+      wx.showToast({ title: '暂无可制作的图片', icon: 'none' })
+      return
+    }
+    const shape = this.data.avatarShape === 'circle' ? 'circle' : 'square'
+    this.setData({ avatarMaking: true })
+    try {
+      await ensureAlbumPermission()
+      wx.showLoading({ title: '制作中', mask: true })
+      const tempFilePath = await this.download(url)
+      const avatarPath = await this.exportAvatarFromFile(tempFilePath, shape)
+      await saveImageToAlbum(avatarPath)
+      hideLoadingQuiet()
+      wx.showToast({ title: shape === 'circle' ? '圆形头像已保存' : '方形头像已保存', icon: 'success' })
+    } catch (error) {
+      hideLoadingQuiet()
+      wx.showModal({
+        title: error.code === 'ALBUM_DENIED' ? '需要相册权限' : '制作失败',
+        content: error.message || '请稍后重试',
+        showCancel: false
+      })
+    } finally {
+      this.setData({ avatarMaking: false })
+    }
+  },
+
+  exportAvatarFromFile(filePath, shape) {
+    const size = 600
+    return new Promise((resolve, reject) => {
+      wx.getImageInfo({
+        src: filePath,
+        success: (info) => {
+          const query = wx.createSelectorQuery()
+          query.select('#avatarCanvas').fields({ node: true, size: true }).exec(async (res) => {
+            try {
+              const canvas = res && res[0] && res[0].node
+              if (!canvas) {
+                // Fallback: old canvas API
+                resolve(await this.exportAvatarLegacy(filePath, info, shape, size))
+                return
+              }
+              const ctx = canvas.getContext('2d')
+              const dpr = (wx.getWindowInfo && wx.getWindowInfo().pixelRatio) || 2
+              canvas.width = size * dpr
+              canvas.height = size * dpr
+              ctx.scale(dpr, dpr)
+              ctx.clearRect(0, 0, size, size)
+              if (shape === 'circle') {
+                ctx.beginPath()
+                ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+                ctx.closePath()
+                ctx.clip()
+              }
+              const sw = info.width
+              const sh = info.height
+              const side = Math.min(sw, sh)
+              const sx = (sw - side) / 2
+              const sy = (sh - side) / 2
+              const img = canvas.createImage()
+              img.onload = () => {
+                ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size)
+                wx.canvasToTempFilePath({
+                  canvas,
+                  x: 0,
+                  y: 0,
+                  width: size * dpr,
+                  height: size * dpr,
+                  destWidth: size,
+                  destHeight: size,
+                  fileType: 'png',
+                  success: r => resolve(r.tempFilePath),
+                  fail: reject
+                })
+              }
+              img.onerror = () => reject(new Error('图片加载失败'))
+              img.src = filePath
+            } catch (error) {
+              reject(error)
+            }
+          })
+        },
+        fail: reject
+      })
+    })
+  },
+
+  exportAvatarLegacy(filePath, info, shape, size) {
+    return new Promise((resolve, reject) => {
+      const ctx = wx.createCanvasContext('avatarCanvasLegacy', this)
+      if (shape === 'circle') {
+        ctx.beginPath()
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+        ctx.clip()
+      }
+      const sw = info.width
+      const sh = info.height
+      const side = Math.min(sw, sh)
+      const sx = (sw - side) / 2
+      const sy = (sh - side) / 2
+      ctx.drawImage(filePath, sx, sy, side, side, 0, 0, size, size)
+      ctx.draw(false, () => {
+        setTimeout(() => {
+          wx.canvasToTempFilePath({
+            canvasId: 'avatarCanvasLegacy',
+            x: 0,
+            y: 0,
+            width: size,
+            height: size,
+            destWidth: size,
+            destHeight: size,
+            fileType: 'png',
+            success: r => resolve(r.tempFilePath),
+            fail: reject
+          }, this)
+        }, 80)
+      })
+    })
   },
 
   async saveAll() {

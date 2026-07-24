@@ -301,7 +301,7 @@ Page({
     // switchTab only accepts path without query
     const qIndex = path.indexOf('?')
     const pathOnly = qIndex >= 0 ? path.slice(0, qIndex) : path
-    const tabPages = ['/pages/home/index', '/pages/history/index', '/pages/profile/index']
+    const tabPages = ['/pages/home/index', '/pages/history/index', '/pages/gallery/index', '/pages/profile/index']
     if (tabPages.includes(pathOnly)) {
       wx.switchTab({
         url: pathOnly,

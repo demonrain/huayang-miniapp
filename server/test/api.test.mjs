@@ -458,6 +458,7 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(publishJob.response.status, 200)
     assert.equal(publishJob.body.job.publicShareEnabled, true)
     assert.equal(publishJob.body.job.publicShareShowOriginals, false)
+    assert.equal(publishJob.body.publishReward, 5)
 
     const showcaseOk = await api(`/api/showcase/jobs/${created.body.job.id}`)
     assert.equal(showcaseOk.response.status, 200)
@@ -471,6 +472,7 @@ test('complete login, generation, idempotency and recharge flow', async () => {
       json: { enabled: true, showOriginals: true }
     })
     assert.equal(publishWithOrig.body.job.publicShareShowOriginals, true)
+    assert.equal(publishWithOrig.body.publishReward, 0) // only once per job
     const showcaseOrig = await api(`/api/showcase/jobs/${created.body.job.id}`)
     assert.ok(showcaseOrig.body.job.originals.length >= 1)
 
@@ -478,6 +480,23 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     const otherUser = await api('/api/auth/wechat', { method: 'POST', json: { code: 'public-view-user' } })
     const otherPrivate = await api(`/api/jobs/${created.body.job.id}`, { token: otherUser.body.token })
     assert.equal(otherPrivate.response.status, 404)
+
+    // Gallery list + like
+    const gallery = await api('/api/gallery?page=1&pageSize=10', { token: otherUser.body.token })
+    assert.equal(gallery.response.status, 200)
+    assert.ok(gallery.body.items.some(item => item.id === created.body.job.id))
+    const like = await api(`/api/gallery/${created.body.job.id}/like`, {
+      method: 'POST',
+      token: otherUser.body.token
+    })
+    assert.equal(like.response.status, 200)
+    assert.equal(like.body.liked, true)
+    assert.equal(like.body.likerCredits, 1)
+    const likeDup = await api(`/api/gallery/${created.body.job.id}/like`, {
+      method: 'POST',
+      token: otherUser.body.token
+    })
+    assert.equal(likeDup.response.status, 409)
 
     // Admin one-shot: job as banner with cover from result
     const asBanner = await api(`/api/admin/jobs/${created.body.job.id}/banner`, {
@@ -488,19 +507,20 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(asBanner.response.status, 201)
     assert.ok(asBanner.body.banner.imageUrl)
     assert.match(asBanner.body.banner.targetPath, /showcase=1/)
+    const delBanner = await api(`/api/admin/banners/${asBanner.body.banner.id}`, {
+      method: 'DELETE',
+      token: adminToken
+    })
+    assert.equal(delBanner.response.status, 200)
 
     // Admin users expose full openid
     const usersAdmin = await api('/api/admin/users?page=1&pageSize=10', { token: adminToken })
     assert.equal(usersAdmin.response.status, 200)
     assert.ok(usersAdmin.body.users.some(u => u.openid && u.openid.length > 8))
 
-    // After multi redeem +15 +3, credits were 62 then +3 = 65 before recharge
-    // Fix: multiRedeem1 adds 3 to main user token
-    // inviter credits after first redeem 62, after multi 65
-
+    // After multi redeem 65 + gallery publish 5 + author like 3 = 73
     const beforeRecharge = await api('/api/me', { token })
-    // 62 after first cdk + 3 multi-use = 65
-    assert.equal(beforeRecharge.body.user.credits, 65)
+    assert.equal(beforeRecharge.body.user.credits, 73)
 
     const recharge = await api('/api/payments/orders', {
       method: 'POST', token, json: { packageId: 'popular' }
@@ -508,13 +528,13 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(recharge.response.status, 201)
     assert.equal(recharge.body.payment.mode, 'mock')
     assert.equal(recharge.body.order.credits, 90)
-    assert.equal(recharge.body.user.credits, 155)
+    assert.equal(recharge.body.user.credits, 163)
 
     const wallet = await api('/api/wallet', { token })
     assert.equal(wallet.body.checkin.claimedToday, true)
     assert.equal(wallet.body.packages.find(item => item.id === 'popular').totalCredits, 90)
-    // Newest first: recharge 90, multi cdk 3, cdk 15, invite first job 10, invite login 5, share friend 2, checkin 7, admin 5, job -2, welcome 20
-    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [90, 3, 15, 10, 5, 2, 7, 5, -2, 20])
+    // Newest first: recharge 90, like receive 3, publish 5, multi cdk 3, cdk 15, invite first 10, invite login 5, share friend 2, checkin 7, admin 5, job -2, welcome 20
+    assert.deepEqual(wallet.body.transactions.map(item => item.amount), [90, 3, 5, 3, 15, 10, 5, 2, 7, 5, -2, 20])
   } finally {
     await new Promise(resolve => application.server.close(resolve))
     config.dataDir = original.dataDir

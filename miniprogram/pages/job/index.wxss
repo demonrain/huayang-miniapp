@@ -561,6 +561,98 @@
   width: 100%;
 }
 
+.public-share-reward-tip {
+  margin-top: 12rpx;
+  padding: 12rpx 14rpx;
+  background: #fff8f0;
+  border-radius: 10rpx;
+  color: #9a7040;
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.avatar-panel {
+  margin-top: 24rpx;
+  padding: 28rpx 24rpx;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 16rpx;
+  box-shadow: 0 10rpx 26rpx rgba(108, 82, 92, 0.05);
+}
+
+.avatar-panel__title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #2a2f2d;
+}
+
+.avatar-panel__desc {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.avatar-shape-row {
+  margin-top: 18rpx;
+  display: flex;
+  gap: 12rpx;
+}
+
+.avatar-shape {
+  flex: 1;
+  padding: 16rpx 0;
+  text-align: center;
+  border: 2rpx solid #eadfe3;
+  border-radius: 12rpx;
+  color: #6a6064;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.avatar-shape.is-active {
+  border-color: #e76d82;
+  background: #fff5f7;
+  color: #e76d82;
+}
+
+.avatar-make-btn {
+  margin-top: 18rpx;
+  width: 100%;
+}
+
+.avatar-multi {
+  margin-top: 16rpx;
+}
+
+.avatar-multi__label {
+  font-size: 22rpx;
+  color: var(--muted);
+}
+
+.avatar-multi__list {
+  margin-top: 10rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.avatar-multi__item {
+  padding: 8rpx 16rpx;
+  background: #f6f2f3;
+  border-radius: 999rpx;
+  color: #5a5054;
+  font-size: 22rpx;
+}
+
+.avatar-canvas-hidden {
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+  width: 600px;
+  height: 600px;
+}
+
 .share-actions {
   margin-top: 16rpx;
   display: flex;

@@ -40,7 +40,11 @@ export const DEFAULT_SHARE_REWARD_SETTINGS = {
   shareTimelineDailyLimit: 1,
   inviteRewardEnabled: true,
   inviteLoginCredits: 5,
-  inviteFirstJobCredits: 10
+  inviteFirstJobCredits: 10,
+  // Gallery / public-share rewards
+  galleryPublishCredits: 5,
+  galleryLikeLikerCredits: 1,
+  galleryLikeAuthorCredits: 3
 }
 
 export function publicShareRewardSettings(settings = {}) {
@@ -52,7 +56,10 @@ export function publicShareRewardSettings(settings = {}) {
     shareTimelineDailyLimit: Number(settings.shareTimelineDailyLimit ?? DEFAULT_SHARE_REWARD_SETTINGS.shareTimelineDailyLimit),
     inviteRewardEnabled: settings.inviteRewardEnabled !== false,
     inviteLoginCredits: Number(settings.inviteLoginCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.inviteLoginCredits),
-    inviteFirstJobCredits: Number(settings.inviteFirstJobCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.inviteFirstJobCredits)
+    inviteFirstJobCredits: Number(settings.inviteFirstJobCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.inviteFirstJobCredits),
+    galleryPublishCredits: Number(settings.galleryPublishCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.galleryPublishCredits),
+    galleryLikeLikerCredits: Number(settings.galleryLikeLikerCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.galleryLikeLikerCredits),
+    galleryLikeAuthorCredits: Number(settings.galleryLikeAuthorCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.galleryLikeAuthorCredits)
   }
 }
 
@@ -129,6 +136,10 @@ export function seedConfig(draft) {
   }
   if (!Array.isArray(draft.feedbacks)) {
     draft.feedbacks = []
+    changed = true
+  }
+  if (!Array.isArray(draft.jobLikes)) {
+    draft.jobLikes = []
     changed = true
   }
   if (!draft.banners.length) {
@@ -342,17 +353,20 @@ export function publicJob(job, state) {
     // List / grid uses thumb; keep full for preview / share
     coverUrl: coverThumb,
     coverFullUrl: coverFull,
-    // Owner can publish for Banner / deep-link viewing by others
+    // Owner can publish for Banner / deep-link / gallery
     publicShareEnabled: Boolean(job.publicShareEnabled),
     publicShareShowOriginals: Boolean(job.publicShareShowOriginals),
-    publicShareAt: job.publicShareAt || ''
+    publicShareAt: job.publicShareAt || '',
+    publicSharePublishRewarded: Boolean(job.publicSharePublishRewarded),
+    likeCount: (Array.isArray(state.jobLikes) ? state.jobLikes : []).filter(item => item.jobId === job.id).length
   }
 }
 
 /** Public view of a shared job (hides originals unless owner allowed). */
-export function publicSharedJob(job, state) {
+export function publicSharedJob(job, state, { viewerUserId = '' } = {}) {
   const pub = publicJob(job, state)
   const showOriginals = Boolean(job.publicShareEnabled && job.publicShareShowOriginals)
+  const likes = (Array.isArray(state.jobLikes) ? state.jobLikes : []).filter(item => item.jobId === job.id)
   return {
     ...pub,
     originals: showOriginals ? pub.originals : [],
@@ -360,7 +374,10 @@ export function publicSharedJob(job, state) {
     showcase: true,
     isPublicView: true,
     publicShareEnabled: true,
-    publicShareShowOriginals: showOriginals
+    publicShareShowOriginals: showOriginals,
+    likeCount: likes.length,
+    likedByMe: viewerUserId ? likes.some(item => item.userId === viewerUserId) : false,
+    publicSharePublishRewarded: Boolean(job.publicSharePublishRewarded)
   }
 }
 

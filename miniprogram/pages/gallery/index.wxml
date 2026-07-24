@@ -1,0 +1,123 @@
+<view class="page gallery-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav credits="{{user ? user.credits : null}}"></custom-nav>
+
+  <view class="gallery-heading">
+    <view>
+      <view class="gallery-kicker">GALLERY</view>
+      <view class="section-title__main">花漾画廊</view>
+      <view class="section-title__sub">发现大家公开分享的作品</view>
+    </view>
+    <view class="album-count">{{total || items.length}} 件</view>
+  </view>
+
+  <view wx:if="{{galleryRewards}}" class="gallery-tip">
+    点赞可获得 {{galleryRewards.likeLikerCredits || 0}} 积分 · 作者获得 {{galleryRewards.likeAuthorCredits || 0}} 积分
+  </view>
+
+  <view wx:if="{{!isLoggedIn && !loading}}" class="empty empty-work">
+    <view class="empty-mark">
+      <view class="empty-flower-dot"></view>
+      <text>廊</text>
+    </view>
+    <view class="empty-title">登录后逛画廊</view>
+    <view class="empty-sub">看看大家公开的作品，点个赞支持一下</view>
+    <button class="primary-button" bindtap="doLogin">微信登录</button>
+  </view>
+
+  <view wx:elif="{{loading}}" class="works-waterfall">
+    <view class="works-col">
+      <view class="gallery-card skeleton" style="height: 340rpx"></view>
+      <view class="gallery-card skeleton" style="height: 280rpx"></view>
+    </view>
+    <view class="works-col">
+      <view class="gallery-card skeleton" style="height: 300rpx"></view>
+      <view class="gallery-card skeleton" style="height: 320rpx"></view>
+    </view>
+  </view>
+
+  <block wx:elif="{{items.length}}">
+    <view class="works-waterfall">
+      <view class="works-col">
+        <view
+          wx:for="{{leftItems}}"
+          wx:key="id"
+          class="gallery-card"
+        >
+          <view class="gallery-card__media" style="background: {{item.templatePalette || '#ebe6e8'}}" data-id="{{item.id}}" bindtap="openJob">
+            <image
+              wx:if="{{item.coverUrl}}"
+              class="gallery-card__cover"
+              src="{{item.coverUrl}}"
+              mode="widthFix"
+              lazy-load
+            ></image>
+            <view wx:else class="gallery-card__placeholder">
+              <text>{{item.templateShortName}}</text>
+            </view>
+          </view>
+          <view class="gallery-card__meta">
+            <text class="gallery-card__name">{{item.templateName}}</text>
+            <text class="gallery-card__sub">{{item.authorNickname}} · {{item.relativeTime}}</text>
+            <view class="gallery-card__actions">
+              <view
+                class="gallery-like {{item.likedByMe ? 'is-liked' : ''}}"
+                data-id="{{item.id}}"
+                catchtap="onLike"
+              >
+                <text class="gallery-like__icon">{{item.likedByMe ? '♥' : '♡'}}</text>
+                <text class="gallery-like__count">{{item.likeCount || 0}}</text>
+              </view>
+              <text class="gallery-card__open" data-id="{{item.id}}" catchtap="openJob">查看</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="works-col">
+        <view
+          wx:for="{{rightItems}}"
+          wx:key="id"
+          class="gallery-card"
+        >
+          <view class="gallery-card__media" style="background: {{item.templatePalette || '#ebe6e8'}}" data-id="{{item.id}}" bindtap="openJob">
+            <image
+              wx:if="{{item.coverUrl}}"
+              class="gallery-card__cover"
+              src="{{item.coverUrl}}"
+              mode="widthFix"
+              lazy-load
+            ></image>
+            <view wx:else class="gallery-card__placeholder">
+              <text>{{item.templateShortName}}</text>
+            </view>
+          </view>
+          <view class="gallery-card__meta">
+            <text class="gallery-card__name">{{item.templateName}}</text>
+            <text class="gallery-card__sub">{{item.authorNickname}} · {{item.relativeTime}}</text>
+            <view class="gallery-card__actions">
+              <view
+                class="gallery-like {{item.likedByMe ? 'is-liked' : ''}}"
+                data-id="{{item.id}}"
+                catchtap="onLike"
+              >
+                <text class="gallery-like__icon">{{item.likedByMe ? '♥' : '♡'}}</text>
+                <text class="gallery-like__count">{{item.likeCount || 0}}</text>
+              </view>
+              <text class="gallery-card__open" data-id="{{item.id}}" catchtap="openJob">查看</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{listFooter}}" class="list-footer">{{listFooter}}</view>
+  </block>
+
+  <view wx:else class="empty empty-work">
+    <view class="empty-mark">
+      <view class="empty-flower-dot"></view>
+      <text>花</text>
+    </view>
+    <view class="empty-title">画廊还空着</view>
+    <view class="empty-sub">在「作品」里开启公开共享，你的作品就会出现在这里</view>
+    <button class="primary-button" bindtap="goPublish">去我的作品</button>
+  </view>
+</view>

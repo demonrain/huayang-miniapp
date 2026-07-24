@@ -367,6 +367,9 @@ function fillShareRewardForm(settings = {}) {
   if (form.inviteRewardEnabled) form.inviteRewardEnabled.checked = settings.inviteRewardEnabled !== false
   if (form.inviteLoginCredits) form.inviteLoginCredits.value = Number(settings.inviteLoginCredits ?? 5)
   if (form.inviteFirstJobCredits) form.inviteFirstJobCredits.value = Number(settings.inviteFirstJobCredits ?? 10)
+  if (form.galleryPublishCredits) form.galleryPublishCredits.value = Number(settings.galleryPublishCredits ?? 5)
+  if (form.galleryLikeLikerCredits) form.galleryLikeLikerCredits.value = Number(settings.galleryLikeLikerCredits ?? 1)
+  if (form.galleryLikeAuthorCredits) form.galleryLikeAuthorCredits.value = Number(settings.galleryLikeAuthorCredits ?? 3)
 }
 
 async function loadShareGrowth() {
@@ -530,6 +533,7 @@ function renderBanners() {
         <button class="row-button" data-banner-action="edit" data-id="${escapeHtml(banner.id)}">编辑</button>
         <button class="row-button" data-banner-action="image" data-id="${escapeHtml(banner.id)}">上传图片</button>
         <button class="row-button" data-banner-action="toggle" data-id="${escapeHtml(banner.id)}">${banner.enabled ? '停用' : '启用'}</button>
+        <button class="row-button row-button--danger" data-banner-action="delete" data-id="${escapeHtml(banner.id)}">删除</button>
       </div></td>
     </tr>`
   }).join('') || emptyRow(6, '暂无 Banner')
@@ -1041,6 +1045,7 @@ const BANNER_JUMP_FIXED = {
   none: { path: '', label: '无跳转' },
   home: { path: '/pages/home/index', label: '首页（创作）' },
   history: { path: '/pages/history/index', label: '作品列表' },
+  gallery: { path: '/pages/gallery/index', label: '画廊' },
   profile: { path: '/pages/profile/index', label: '我的' },
   wallet: { path: '/pages/wallet/index', label: '钱包 / 充值' },
   redeem: { path: '/pages/redeem/index', label: '积分兑换' },
@@ -1567,7 +1572,10 @@ elements.shareRewardForm?.addEventListener('submit', async event => {
         shareTimelineDailyLimit: Number(values.get('shareTimelineDailyLimit')),
         inviteRewardEnabled: Boolean(form.inviteRewardEnabled?.checked),
         inviteLoginCredits: Number(values.get('inviteLoginCredits')),
-        inviteFirstJobCredits: Number(values.get('inviteFirstJobCredits'))
+        inviteFirstJobCredits: Number(values.get('inviteFirstJobCredits')),
+        galleryPublishCredits: Number(values.get('galleryPublishCredits')),
+        galleryLikeLikerCredits: Number(values.get('galleryLikeLikerCredits')),
+        galleryLikeAuthorCredits: Number(values.get('galleryLikeAuthorCredits'))
       }
     })
     if (state.data) state.data.settings = { ...state.data.settings, ...result.settings }
@@ -1811,6 +1819,14 @@ elements.bannerRows.addEventListener('click', async event => {
       await api(`/api/admin/banners/${encodeURIComponent(banner.id)}`, { method: 'PATCH', json: { enabled: !banner.enabled } })
       await loadOverview()
       showToast(banner.enabled ? 'Banner 已停用' : 'Banner 已启用')
+    } catch (error) { showToast(error.message, true) }
+  }
+  if (button.dataset.bannerAction === 'delete') {
+    if (!window.confirm(`确认删除 Banner「${banner.title || banner.id}」？此操作不可恢复。`)) return
+    try {
+      await api(`/api/admin/banners/${encodeURIComponent(banner.id)}`, { method: 'DELETE' })
+      await loadOverview()
+      showToast('Banner 已删除')
     } catch (error) { showToast(error.message, true) }
   }
 })
