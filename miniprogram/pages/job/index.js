@@ -64,7 +64,12 @@ Page({
     galleryLikeLikerCredits: 0,
     galleryLikeAuthorCredits: 0,
     avatarMaking: false,
-    avatarShape: 'square'
+    avatarShape: 'square',
+    likeCount: 0,
+    likedByMe: false,
+    liking: false,
+    authorId: '',
+    authorNickname: ''
   },
 
   onLoad(query) {
@@ -206,19 +211,28 @@ Page({
   async loadShowcaseJob() {
     try {
       const app = getApp()
-      // Soft session for credit pill; not required for public content
+      // Soft session for credit pill + likedByMe / isOwner
       try { await app.ensureSession() } catch (e) {}
-      const { job } = await api.get(`/api/showcase/jobs/${this.data.id}`)
+      const result = await api.get(`/api/showcase/jobs/${this.data.id}`)
+      const job = result.job
+      const rewards = result.galleryRewards || {}
+      const isOwner = Boolean(job.isOwner)
       this.setData({
         job,
         statusText: STATUS_TEXT[job.status] || '作品展示',
         isWaiting: false,
         credits: getApp().globalData.user?.credits ?? null,
         showcase: true,
-        isOwner: false,
+        isOwner,
         shareRewardEnabled: false,
         publicShareEnabled: true,
-        publicShareShowOriginals: Boolean(job.publicShareShowOriginals)
+        publicShareShowOriginals: Boolean(job.publicShareShowOriginals),
+        likeCount: Number(job.likeCount || 0),
+        likedByMe: Boolean(job.likedByMe),
+        authorId: job.authorId || '',
+        authorNickname: job.authorNickname || '',
+        galleryLikeLikerCredits: Number(rewards.likeLikerCredits != null ? rewards.likeLikerCredits : this.data.galleryLikeLikerCredits),
+        galleryLikeAuthorCredits: Number(rewards.likeAuthorCredits != null ? rewards.likeAuthorCredits : this.data.galleryLikeAuthorCredits)
       })
     } catch (error) {
       wx.showModal({
@@ -227,6 +241,35 @@ Page({
         showCancel: false,
         success: () => wx.switchTab({ url: '/pages/home/index' })
       })
+    }
+  },
+
+  async onShowcaseLike() {
+    if (!this.data.showcase || this.data.isOwner || this.data.liking || this.data.likedByMe) return
+    const app = getApp()
+    if (!app.isLoggedIn()) {
+      try {
+        await app.requireLogin('登录后可为作品点赞')
+      } catch (error) {
+        return
+      }
+    }
+    this.setData({ liking: true })
+    try {
+      const result = await api.post(`/api/gallery/${encodeURIComponent(this.data.id)}/like`, {})
+      if (result.user) {
+        app.setUser(result.user)
+        this.setData({ credits: result.user.credits })
+      }
+      this.setData({
+        likedByMe: true,
+        likeCount: Number(result.likeCount != null ? result.likeCount : (this.data.likeCount || 0) + 1),
+        liking: false
+      })
+      wx.showToast({ title: result.message || '点赞成功', icon: 'none' })
+    } catch (error) {
+      this.setData({ liking: false })
+      wx.showToast({ title: error.message || '点赞失败', icon: 'none' })
     }
   },
 

@@ -8,7 +8,7 @@ const outputDir = path.join(process.cwd(), 'miniprogram', 'assets', 'icons')
 const tabIcons = {
   create: 'wand-sparkles',
   works: 'images',
-  gallery: 'flower-2',
+  gallery: 'flower',
   wallet: 'coins',
   profile: 'user-round'
 }

@@ -3,12 +3,31 @@
 
   <block wx:if="{{job}}">
     <view wx:if="{{demo}}" class="demo-banner">练习模式 · 真实进度界面 · 演示出图不扣积分、不写入作品库</view>
-    <view wx:elif="{{showcase}}" class="demo-banner">精选作品展示 · 点击图片可查看大图 · 去创作同款风格</view>
+    <view wx:elif="{{showcase}}" class="demo-banner">花海作品 · 点击图片可查看大图 · 去创作同款风格</view>
     <view class="job-meta">
       <view><text>风格</text><text class="job-meta__value">{{job.templateName}}</text></view>
       <view wx:if="{{!showcase}}"><text>数量</text><text class="job-meta__value">{{job.assetIds.length}} 张</text></view>
       <view wx:if="{{!showcase}}"><text>消耗</text><text class="job-meta__value">{{demo ? '0（演示）' : (job.cost + ' 积分')}}</text></view>
       <view wx:else><text>展示</text><text class="job-meta__value">{{job.results.length}} 张效果</text></view>
+    </view>
+
+    <!-- Showcase / 花海: like or just count for owner -->
+    <view wx:if="{{showcase && !demo}}" class="showcase-like-bar">
+      <view wx:if="{{authorNickname}}" class="showcase-like-bar__author">作者 · {{authorNickname}}</view>
+      <view wx:if="{{isOwner}}" class="showcase-like-count">
+        <text class="showcase-like-count__icon">♥</text>
+        <text>{{likeCount}} 次点赞</text>
+      </view>
+      <button
+        wx:else
+        class="showcase-like-btn {{likedByMe ? 'is-liked' : ''}}"
+        loading="{{liking}}"
+        disabled="{{liking || likedByMe}}"
+        bindtap="onShowcaseLike"
+      >
+        {{likedByMe ? '已点赞' : '点赞'}} · {{likeCount}}
+        <text wx:if="{{!likedByMe && galleryLikeLikerCredits > 0}}" class="showcase-like-btn__sub">+{{galleryLikeLikerCredits}}积分</text>
+      </button>
     </view>
 
     <view wx:if="{{isWaiting}}" class="generating">

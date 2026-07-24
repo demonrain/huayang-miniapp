@@ -908,7 +908,32 @@ export async function createApplication() {
         if (!job.publicShareEnabled) {
           throw new HttpError(403, 'JOB_NOT_PUBLIC', '作者尚未公开此作品，无法查看')
         }
-        json(response, 200, { job: publicSharedJob(job, state) })
+        let viewerUserId = ''
+        try {
+          const token = bearerToken(request)
+          if (token && !isAdminToken(token)) {
+            const payload = verifyToken(token)
+            viewerUserId = payload?.sub || ''
+          }
+        } catch {
+          viewerUserId = ''
+        }
+        const shared = publicSharedJob(job, state, { viewerUserId })
+        const owner = state.users.find(u => u.id === job.userId)
+        const rewards = publicShareRewardSettings(state.settings)
+        json(response, 200, {
+          job: {
+            ...shared,
+            authorId: job.userId,
+            authorNickname: owner?.nickname || '花漾用户',
+            isOwner: Boolean(viewerUserId && viewerUserId === job.userId)
+          },
+          galleryRewards: {
+            publishCredits: Number(rewards.galleryPublishCredits || 0),
+            likeLikerCredits: Number(rewards.galleryLikeLikerCredits || 0),
+            likeAuthorCredits: Number(rewards.galleryLikeAuthorCredits || 0)
+          }
+        })
         return
       }
 
