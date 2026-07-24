@@ -2,6 +2,11 @@
   padding-bottom: calc(env(safe-area-inset-bottom) + 48rpx);
 }
 
+/* Room for fixed showcase dock */
+.job-page--showcase {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 140rpx);
+}
+
 .job-meta {
   margin-top: 8rpx;
   display: grid;
@@ -11,6 +16,13 @@
   border: 2rpx solid var(--line);
   border-radius: 16rpx;
   box-shadow: 0 10rpx 26rpx rgba(108, 82, 92, 0.05);
+}
+
+.job-meta--showcase .job-meta__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .generating {
@@ -653,75 +665,107 @@
   height: 600px;
 }
 
-.showcase-like-bar {
-  margin-top: 16rpx;
-  padding: 20rpx 22rpx;
+/* Fixed bottom dock for 花海 detail — primary create + like */
+.showcase-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16rpx;
-  background: #fff;
-  border: 2rpx solid var(--line);
-  border-radius: 16rpx;
-  box-shadow: 0 10rpx 26rpx rgba(108, 82, 92, 0.05);
+  background: rgba(255, 249, 248, 0.96);
+  border-top: 2rpx solid rgba(234, 223, 227, 0.9);
+  box-shadow: 0 -12rpx 32rpx rgba(108, 82, 92, 0.08);
+  backdrop-filter: blur(12px);
 }
 
-.showcase-like-bar__author {
+.showcase-dock__create {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 24rpx;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.showcase-like-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 8rpx;
-  padding: 10rpx 18rpx;
-  background: #fff5f7;
-  border-radius: 999rpx;
-  color: #e04b66;
-  font-size: 24rpx;
-  font-weight: 650;
-}
-
-.showcase-like-count__icon {
-  font-size: 28rpx;
-  line-height: 1;
-}
-
-.showcase-like-btn {
   margin: 0;
-  padding: 12rpx 22rpx;
-  display: inline-flex;
+  height: 88rpx;
+  padding: 0 24rpx;
+  display: flex;
   align-items: center;
-  gap: 8rpx;
+  justify-content: center;
   background: linear-gradient(135deg, #f8a0ad, #e76d82);
   border-radius: 999rpx;
   color: #fff;
-  font-size: 24rpx;
-  font-weight: 650;
-  line-height: 1.2;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 10rpx 24rpx rgba(231, 109, 130, 0.28);
 }
 
-.showcase-like-btn::after {
+.showcase-dock__create::after {
   border: none;
 }
 
-.showcase-like-btn.is-liked,
-.showcase-like-btn[disabled].is-liked {
-  background: #ffe8ec;
-  color: #e04b66;
-  opacity: 1;
+.showcase-dock__like,
+.showcase-dock__stats {
+  flex: none;
+  min-width: 168rpx;
+  height: 88rpx;
+  padding: 0 22rpx 0 18rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  border: 2rpx solid #f0d5db;
+  box-shadow: 0 8rpx 20rpx rgba(108, 82, 92, 0.06);
 }
 
-.showcase-like-btn__sub {
-  opacity: 0.92;
-  font-size: 20rpx;
-  font-weight: 500;
+.showcase-dock__like {
+  background: #fff;
+}
+
+.showcase-dock__like.is-liked {
+  background: #fff5f7;
+  border-color: #f2c4cd;
+}
+
+.showcase-dock__like.is-loading {
+  opacity: 0.7;
+}
+
+.showcase-dock__heart {
+  width: 48rpx;
+  text-align: center;
+  color: #e04b66;
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.showcase-dock__like:not(.is-liked) .showcase-dock__heart {
+  color: #c56f60;
+}
+
+.showcase-dock__stats-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2rpx;
+}
+
+.showcase-dock__count {
+  color: #2a2f2d;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.showcase-dock__label {
+  color: var(--muted);
+  font-size: 18rpx;
+  line-height: 1.1;
+}
+
+.showcase-dock__like.is-liked .showcase-dock__label {
+  color: #e04b66;
 }
 
 .share-actions {

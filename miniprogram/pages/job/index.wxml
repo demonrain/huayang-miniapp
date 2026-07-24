@@ -1,33 +1,15 @@
-<view class="page job-page page-enter" style="padding-top: {{navSpacer}}rpx">
+<view class="page job-page page-enter {{showcase && !demo ? 'job-page--showcase' : ''}}" style="padding-top: {{navSpacer}}rpx">
   <custom-nav show-back credits="{{credits}}"></custom-nav>
 
   <block wx:if="{{job}}">
     <view wx:if="{{demo}}" class="demo-banner">练习模式 · 真实进度界面 · 演示出图不扣积分、不写入作品库</view>
     <view wx:elif="{{showcase}}" class="demo-banner">花海作品 · 点击图片可查看大图 · 去创作同款风格</view>
-    <view class="job-meta">
+    <view class="job-meta {{showcase ? 'job-meta--showcase' : ''}}">
       <view><text>风格</text><text class="job-meta__value">{{job.templateName}}</text></view>
       <view wx:if="{{!showcase}}"><text>数量</text><text class="job-meta__value">{{job.assetIds.length}} 张</text></view>
       <view wx:if="{{!showcase}}"><text>消耗</text><text class="job-meta__value">{{demo ? '0（演示）' : (job.cost + ' 积分')}}</text></view>
-      <view wx:else><text>展示</text><text class="job-meta__value">{{job.results.length}} 张效果</text></view>
-    </view>
-
-    <!-- Showcase / 花海: like or just count for owner -->
-    <view wx:if="{{showcase && !demo}}" class="showcase-like-bar">
-      <view wx:if="{{authorNickname}}" class="showcase-like-bar__author">作者 · {{authorNickname}}</view>
-      <view wx:if="{{isOwner}}" class="showcase-like-count">
-        <text class="showcase-like-count__icon">♥</text>
-        <text>{{likeCount}} 次点赞</text>
-      </view>
-      <button
-        wx:else
-        class="showcase-like-btn {{likedByMe ? 'is-liked' : ''}}"
-        loading="{{liking}}"
-        disabled="{{liking || likedByMe}}"
-        bindtap="onShowcaseLike"
-      >
-        {{likedByMe ? '已点赞' : '点赞'}} · {{likeCount}}
-        <text wx:if="{{!likedByMe && galleryLikeLikerCredits > 0}}" class="showcase-like-btn__sub">+{{galleryLikeLikerCredits}}积分</text>
-      </button>
+      <view wx:else><text>作者</text><text class="job-meta__value">{{authorNickname || '花漾用户'}}</text></view>
+      <view wx:if="{{showcase}}"><text>效果</text><text class="job-meta__value">{{job.results.length}} 张</text></view>
     </view>
 
     <view wx:if="{{isWaiting}}" class="generating">
@@ -227,6 +209,28 @@
       </view>
       <view class="job-row-actions__cell">
         <button class="primary-button job-row-btn" bindtap="goHome">返回首页</button>
+      </view>
+    </view>
+    <!-- Showcase / 花海: fixed bottom dock — create + like / like count -->
+    <view wx:elif="{{showcase && !demo && job.status === 'succeeded'}}" class="showcase-dock">
+      <button class="showcase-dock__create" bindtap="createAgain">用同款风格创作</button>
+      <view wx:if="{{isOwner}}" class="showcase-dock__stats" aria-label="点赞数">
+        <text class="showcase-dock__heart">♥</text>
+        <view class="showcase-dock__stats-text">
+          <text class="showcase-dock__count">{{likeCount}}</text>
+          <text class="showcase-dock__label">次点赞</text>
+        </view>
+      </view>
+      <view
+        wx:else
+        class="showcase-dock__like {{likedByMe ? 'is-liked' : ''}} {{liking ? 'is-loading' : ''}}"
+        bindtap="onShowcaseLike"
+      >
+        <text class="showcase-dock__heart">{{likedByMe ? '♥' : '♡'}}</text>
+        <view class="showcase-dock__stats-text">
+          <text class="showcase-dock__count">{{likeCount}}</text>
+          <text class="showcase-dock__label">{{likedByMe ? '已赞' : (galleryLikeLikerCredits > 0 ? '点赞 +' + galleryLikeLikerCredits : '点赞')}}</text>
+        </view>
       </view>
     </view>
     <view wx:elif="{{job.status === 'succeeded'}}" class="job-footer-actions job-row-actions job-row-actions--single">
