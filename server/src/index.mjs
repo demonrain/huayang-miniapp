@@ -140,7 +140,7 @@ function boundedInteger(value, label, min, max) {
 }
 
 /** Slice a filtered list with page / pageSize query params. */
-function paginateArray(list, url, { defaultPageSize = 20, maxPageSize = 100 } = {}) {
+function paginateArray(list, url, { defaultPageSize = 10, maxPageSize = 100 } = {}) {
   const pageRaw = Number(url.searchParams.get('page') || 1)
   const pageSizeRaw = Number(url.searchParams.get('pageSize') || defaultPageSize)
   const page = Math.max(1, Number.isFinite(pageRaw) ? Math.floor(pageRaw) : 1)

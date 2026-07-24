@@ -1,7 +1,7 @@
 function createPageQuery(extra = {}) {
   return {
     page: 1,
-    pageSize: 20,
+    pageSize: 10,
     total: 0,
     pages: 1,
     loading: false,
@@ -212,8 +212,8 @@ function fillTemplateFilterCategories() {
 
 function syncPageSizeFromSelect(selectEl, query) {
   if (!selectEl) return
-  const size = Number(selectEl.value) || 20
-  query.pageSize = [20, 50, 100].includes(size) ? size : 20
+  const size = Number(selectEl.value) || 10
+  query.pageSize = [10, 20, 50, 100].includes(size) ? size : 10
 }
 
 function applyPageResult(query, result) {
