@@ -167,12 +167,13 @@ Page({
   },
 
   async fetchTemplatesPage({ page, category }) {
-    const params = new URLSearchParams({
-      page: String(page || 1),
-      pageSize: String(PAGE_SIZE),
-      category: category && category !== 'all' ? category : 'all'
-    })
-    const result = await api.get(`/api/templates?${params}`)
+    // Mini program runtime has no URLSearchParams — build query manually
+    const query = [
+      `page=${encodeURIComponent(String(page || 1))}`,
+      `pageSize=${encodeURIComponent(String(PAGE_SIZE))}`,
+      `category=${encodeURIComponent(category && category !== 'all' ? category : 'all')}`
+    ].join('&')
+    const result = await api.get(`/api/templates?${query}`)
     const list = (Array.isArray(result.templates) ? result.templates : []).map(mapTemplate)
     const hasMore = typeof result.hasMore === 'boolean'
       ? result.hasMore
