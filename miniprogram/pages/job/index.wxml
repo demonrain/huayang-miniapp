@@ -229,7 +229,7 @@
         <text class="showcase-dock__heart">{{likedByMe ? '♥' : '♡'}}</text>
         <view class="showcase-dock__stats-text">
           <text class="showcase-dock__count">{{likeCount}}</text>
-          <text class="showcase-dock__label">{{likedByMe ? '已赞' : (galleryLikeLikerCredits > 0 ? '点赞 +' + galleryLikeLikerCredits : '点赞')}}</text>
+          <text class="showcase-dock__label">{{likedByMe ? '已赞' : '点赞'}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? ' +' : ''}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? galleryLikeLikerCredits : ''}}</text>
         </view>
       </view>
     </view>
