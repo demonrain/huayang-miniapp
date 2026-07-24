@@ -479,6 +479,16 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     const otherPrivate = await api(`/api/jobs/${created.body.job.id}`, { token: otherUser.body.token })
     assert.equal(otherPrivate.response.status, 404)
 
+    // Admin one-shot: job as banner with cover from result
+    const asBanner = await api(`/api/admin/jobs/${created.body.job.id}/banner`, {
+      method: 'POST',
+      token: adminToken,
+      json: { title: '作品 Banner', enabled: true }
+    })
+    assert.equal(asBanner.response.status, 201)
+    assert.ok(asBanner.body.banner.imageUrl)
+    assert.match(asBanner.body.banner.targetPath, /showcase=1/)
+
     // Admin users expose full openid
     const usersAdmin = await api('/api/admin/users?page=1&pageSize=10', { token: adminToken })
     assert.equal(usersAdmin.response.status, 200)

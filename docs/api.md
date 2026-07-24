@@ -52,6 +52,8 @@
 | `GET` | `/api/admin/transactions` | 查询充值、消费及其他积分流水（`page`/`pageSize`） |
 | `GET` | `/api/admin/jobs` | 查询作品任务（`page`/`pageSize`/`status`/`share`：all\|public\|private\|public_with_originals） |
 | `POST` | `/api/admin/jobs/:id/public-share` | 管理员公开/取消公开作品（供 Banner 跳转） |
+| `POST` | `/api/admin/jobs/:id/banner` | 一键用该作品创建 Banner（封面=生成图、公开任务、跳转作品展示） |
+| `POST/PATCH` | `/api/admin/banners` | 支持 `coverJobId`：用作品生成图作为 Banner 封面 |
 | `POST` | `/api/admin/jobs/:id/samples` | 将任务某张结果加入模板「更多效果参考」 |
 | `DELETE` | `/api/admin/jobs/:id/samples` | 从模板「更多效果参考」中移除该结果（body: `resultId`） |
 | `GET` | `/api/admin/feedbacks` | 用户建议反馈列表（`type`/`status`/`page`/`pageSize`） |

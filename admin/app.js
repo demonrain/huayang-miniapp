@@ -1185,33 +1185,39 @@ function applyBannerJumpToForm(path) {
   return parsed
 }
 
-function openBannerFromJob(job) {
+async function openBannerFromJob(job) {
   if (!job || job.status !== 'succeeded') {
     showToast('仅已完成的作品可设为 Banner', true)
     return
   }
-  openBannerDialog(null).then(async () => {
-    const form = elements.bannerForm.elements
-    form.title.value = `${job.templateName || '精选作品'}`
-    form.subtitle.value = '点击查看作品效果'
-    form.badge.value = form.badge.value || '作品'
-    form.palette.value = form.palette.value || job.templatePalette || '#e9f7f2'
-    if (form.jumpType) form.jumpType.value = 'job'
-    if (form.jumpJobId) form.jumpJobId.value = job.id
-    form.sortOrder.value = ((state.data?.banners?.length || 0) + 1) * 10
-    form.enabled.checked = true
-    updateBannerJumpUI()
-    // Banner deep-link requires job publicShareEnabled — enable without originals
-    try {
-      await api(`/api/admin/jobs/${encodeURIComponent(job.id)}/public-share`, {
-        method: 'POST',
-        json: { enabled: true, showOriginals: false }
-      })
-      showToast('已设为作品展示，并已公开该任务（不含原图）')
-    } catch (error) {
-      showToast(`路径已填入，但公开失败：${error.message}`, true)
-    }
-  })
+  if (!(job.results || []).length && !job.coverUrl && !job.coverFullUrl) {
+    showToast('该作品没有可用的生成图', true)
+    return
+  }
+  try {
+    showToast('正在创建 Banner…')
+    const result = await api(`/api/admin/jobs/${encodeURIComponent(job.id)}/banner`, {
+      method: 'POST',
+      json: {
+        title: job.templateName || '精选作品',
+        subtitle: '点击查看作品效果',
+        badge: '作品',
+        palette: job.templatePalette || '#e9f7f2',
+        titleColor: '#ffffff',
+        subtitleColor: '#f5f7f6',
+        badgeColor: '#ffffff',
+        showOriginals: false,
+        enabled: true
+      }
+    })
+    await loadOverview()
+    showToast(result.message || '已创建 Banner，封面已使用作品图')
+    // Switch to banners view so admin can see the new entry
+    const bannersNav = document.querySelector('[data-view="banners"]')
+    if (bannersNav) bannersNav.click()
+  } catch (error) {
+    showToast(error.message || '创建 Banner 失败', true)
+  }
 }
 
 async function loadMessagesPage() {
@@ -1481,7 +1487,7 @@ function bannerPayload(form) {
   if (type === 'custom' && !targetPath) {
     throw new Error('请填写自定义跳转路径')
   }
-  return {
+  const payload = {
     title: String(values.get('title') || ''),
     subtitle: String(values.get('subtitle') || ''),
     badge: String(values.get('badge') || ''),
@@ -1493,6 +1499,12 @@ function bannerPayload(form) {
     sortOrder: Number(values.get('sortOrder')),
     enabled: form.elements.enabled.checked
   }
+  // When linking to a job showcase, also use that job's result as banner cover
+  if (type === 'job') {
+    const jobId = String(values.get('jumpJobId') || '').trim()
+    if (jobId) payload.coverJobId = jobId
+  }
+  return payload
 }
 
 elements.loginForm.addEventListener('submit', async event => {
@@ -1810,7 +1822,11 @@ elements.bannerForm.addEventListener('submit', async event => {
     else await api('/api/admin/banners', { method: 'POST', json: payload })
     elements.bannerDialog.close()
     await loadOverview()
-    showToast(jumpType === 'job' ? 'Banner 已保存（作品已公开，不含原图）' : 'Banner 已保存')
+    showToast(
+      jumpType === 'job'
+        ? 'Banner 已保存（作品已公开，封面已用生成图）'
+        : 'Banner 已保存'
+    )
   } catch (error) { showToast(error.message, true) }
 })
 

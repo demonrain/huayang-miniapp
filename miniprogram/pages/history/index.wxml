@@ -20,39 +20,84 @@
     <button class="primary-button" bindtap="doLogin">微信登录</button>
   </view>
 
-  <view wx:elif="{{loading}}" class="works-grid">
-    <view wx:for="{{[1,2,3,4]}}" wx:key="*this" class="work-item skeleton"></view>
+  <view wx:elif="{{loading}}" class="works-waterfall">
+    <view class="works-col">
+      <view class="work-card skeleton" style="height: 360rpx"></view>
+      <view class="work-card skeleton" style="height: 280rpx"></view>
+    </view>
+    <view class="works-col">
+      <view class="work-card skeleton" style="height: 300rpx"></view>
+      <view class="work-card skeleton" style="height: 340rpx"></view>
+    </view>
   </view>
 
   <block wx:elif="{{jobs.length}}">
-    <view class="works-grid">
-      <view
-        wx:for="{{jobs}}"
-        wx:key="id"
-        class="work-item {{item.status === 'failed' ? 'work-item--failed' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="openJob"
-      >
-        <image
-          wx:if="{{item.coverUrl}}"
-          class="work-item__cover"
-          src="{{item.coverUrl}}"
-          mode="widthFix"
-          lazy-load
-        ></image>
-        <view wx:else class="work-item__placeholder" style="background: {{item.templatePalette}}">
-          <text>{{item.templateShortName}}</text>
-        </view>
-        <view class="work-item__badge status status--{{item.status}}">{{item.statusLabel}}</view>
+    <!-- Two-column waterfall: left / right distributed by estimated height -->
+    <view class="works-waterfall">
+      <view class="works-col">
         <view
-          wx:if="{{item.status === 'failed'}}"
-          class="work-item__delete"
+          wx:for="{{leftJobs}}"
+          wx:key="id"
+          class="work-card {{item.status === 'failed' ? 'work-card--failed' : ''}}"
           data-id="{{item.id}}"
-          catchtap="deleteFailedJob"
-        >删除</view>
-        <view class="work-item__meta">
-          <text class="work-item__name">{{item.templateName}}</text>
-          <text class="work-item__sub">{{item.relativeTime}} · {{item.assetIds.length}} 张</text>
+          bindtap="openJob"
+        >
+          <view class="work-card__media" style="background: {{item.templatePalette || '#ebe6e8'}}">
+            <image
+              wx:if="{{item.coverUrl}}"
+              class="work-card__cover"
+              src="{{item.coverUrl}}"
+              mode="widthFix"
+              lazy-load
+            ></image>
+            <view wx:else class="work-card__placeholder">
+              <text>{{item.templateShortName}}</text>
+            </view>
+            <view class="work-card__badge status status--{{item.status}}">{{item.statusLabel}}</view>
+            <view
+              wx:if="{{item.status === 'failed'}}"
+              class="work-card__delete"
+              data-id="{{item.id}}"
+              catchtap="deleteFailedJob"
+            >删除</view>
+          </view>
+          <view class="work-card__meta">
+            <text class="work-card__name">{{item.templateName}}</text>
+            <text class="work-card__sub">{{item.relativeTime}} · {{item.assetIds.length || 0}} 张</text>
+          </view>
+        </view>
+      </view>
+      <view class="works-col">
+        <view
+          wx:for="{{rightJobs}}"
+          wx:key="id"
+          class="work-card {{item.status === 'failed' ? 'work-card--failed' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="openJob"
+        >
+          <view class="work-card__media" style="background: {{item.templatePalette || '#ebe6e8'}}">
+            <image
+              wx:if="{{item.coverUrl}}"
+              class="work-card__cover"
+              src="{{item.coverUrl}}"
+              mode="widthFix"
+              lazy-load
+            ></image>
+            <view wx:else class="work-card__placeholder">
+              <text>{{item.templateShortName}}</text>
+            </view>
+            <view class="work-card__badge status status--{{item.status}}">{{item.statusLabel}}</view>
+            <view
+              wx:if="{{item.status === 'failed'}}"
+              class="work-card__delete"
+              data-id="{{item.id}}"
+              catchtap="deleteFailedJob"
+            >删除</view>
+          </view>
+          <view class="work-card__meta">
+            <text class="work-card__name">{{item.templateName}}</text>
+            <text class="work-card__sub">{{item.relativeTime}} · {{item.assetIds.length || 0}} 张</text>
+          </view>
         </view>
       </view>
     </view>

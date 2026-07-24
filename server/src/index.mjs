@@ -1,6 +1,6 @@
 import { createServer } from 'node:http'
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, stat, writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import { config, assertProductionConfig } from './config.mjs'
@@ -257,6 +257,58 @@ function applyBannerFields(target, body, creating = false) {
   }
   if (creating || 'sortOrder' in body) target.sortOrder = boundedInteger(body.sortOrder ?? 0, '排序值', 0, 100000)
   if ('enabled' in body) target.enabled = Boolean(body.enabled)
+}
+
+/** Copy a succeeded job's first result image onto a banner as cover. */
+async function setBannerCoverFromJob(store, bannerId, jobId) {
+  const state = store.read()
+  const banner = state.banners.find(item => item.id === bannerId)
+  if (!banner) throw new HttpError(404, 'BANNER_NOT_FOUND', 'Banner 不存在')
+  const job = state.jobs.find(item => item.id === jobId)
+  if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+  if (job.status !== 'succeeded') throw new HttpError(409, 'JOB_NOT_READY', '仅已完成作品可设为 Banner 封面')
+  const result = (job.results || [])[0]
+  if (!result?.storagePath) throw new HttpError(409, 'JOB_NO_RESULT', '该作品还没有生成图')
+
+  const sourceAbs = path.join(config.mediaDir, result.storagePath)
+  try {
+    await stat(sourceAbs)
+  } catch {
+    throw new HttpError(404, 'MEDIA_NOT_FOUND', '作品图片文件不存在')
+  }
+
+  const ext = path.extname(result.storagePath) || '.jpg'
+  const mime = result.mime || (ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg')
+  const assetId = randomUUID()
+  const relativePath = path.join('banners', `${bannerId}-${assetId}${ext}`).replaceAll('\\', '/')
+  const destAbs = path.join(config.mediaDir, relativePath)
+  await mkdir(path.dirname(destAbs), { recursive: true })
+  await copyFile(sourceAbs, destAbs)
+  ensureThumb(relativePath).catch(error => console.warn('[thumbs] banner-from-job', error.message))
+
+  let fileSize = 0
+  try {
+    fileSize = (await stat(destAbs)).size
+  } catch {
+    fileSize = 0
+  }
+
+  await store.transaction(draft => {
+    const target = draft.banners.find(item => item.id === bannerId)
+    if (!target) throw new HttpError(404, 'BANNER_NOT_FOUND', 'Banner 不存在')
+    draft.assets.push({
+      id: assetId,
+      userId: 'admin',
+      originalName: `job-${jobId.slice(0, 8)}${ext}`,
+      mime,
+      size: fileSize,
+      storagePath: relativePath,
+      createdAt: now()
+    })
+    target.imageAssetId = assetId
+    target.updatedAt = now()
+  })
+  return store.read(s => publicBanners(s, true).find(item => item.id === bannerId))
 }
 
 function adminUser(user, state) {
@@ -1441,6 +1493,11 @@ export async function createApplication() {
             applyBannerFields(item, body, true)
             draft.banners.push(item)
           })
+          // Optional: set cover from a job result in the same request
+          const coverJobId = String(body.coverJobId || body.jobId || '').trim()
+          if (coverJobId) {
+            await setBannerCoverFromJob(store, id, coverJobId)
+          }
           const state = store.read()
           json(response, 201, { banner: publicBanners(state, true).find(item => item.id === id) })
           return
@@ -1455,8 +1512,60 @@ export async function createApplication() {
             if (!item) throw new HttpError(404, 'BANNER_NOT_FOUND', 'Banner 不存在')
             applyBannerFields(item, body)
           })
+          const coverJobId = String(body.coverJobId || body.jobId || '').trim()
+          if (coverJobId) {
+            await setBannerCoverFromJob(store, bannerId, coverJobId)
+          }
           const state = store.read()
           json(response, 200, { banner: publicBanners(state, true).find(item => item.id === bannerId) })
+          return
+        }
+
+        // One-shot: create banner from a succeeded job (cover + public share + deep link)
+        const adminJobAsBannerMatch = pathname.match(/^\/api\/admin\/jobs\/([^/]+)\/banner$/)
+        if (request.method === 'POST' && adminJobAsBannerMatch) {
+          const jobId = adminJobAsBannerMatch[1]
+          const body = await readJson(request).catch(() => ({}))
+          const state0 = store.read()
+          const job = state0.jobs.find(item => item.id === jobId)
+          if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+          if (job.status !== 'succeeded') throw new HttpError(409, 'JOB_NOT_READY', '仅已完成作品可设为 Banner')
+          if (!(job.results || []).length) throw new HttpError(409, 'JOB_NO_RESULT', '该作品还没有生成图')
+
+          const template = findTemplate(state0, job.templateId, true)
+          const targetPath = `/pages/job/index?id=${encodeURIComponent(jobId)}&showcase=1`
+          const bannerId = randomUUID()
+          await store.transaction(draft => {
+            const jobRef = draft.jobs.find(item => item.id === jobId)
+            if (jobRef) {
+              jobRef.publicShareEnabled = true
+              jobRef.publicShareShowOriginals = Boolean(body.showOriginals)
+              jobRef.publicShareAt = now()
+              jobRef.updatedAt = now()
+            }
+            const item = {
+              id: bannerId,
+              imageAssetId: '',
+              enabled: body.enabled !== false,
+              title: cleanText(body.title || template?.name || '精选作品', 'Banner 标题', 40, true),
+              subtitle: cleanText(body.subtitle || '点击查看作品效果', 'Banner 副标题', 80, false),
+              badge: cleanText(body.badge || '作品', 'Banner 角标', 12, false),
+              palette: cleanText(body.palette || template?.palette || '#e9f7f2', 'Banner 配色', 240, true),
+              titleColor: normalizeCssColor(body.titleColor || '#ffffff', '标题颜色'),
+              subtitleColor: normalizeCssColor(body.subtitleColor || '#f5f7f6', '副标题颜色'),
+              badgeColor: normalizeCssColor(body.badgeColor || '#ffffff', '角标颜色'),
+              targetPath,
+              sortOrder: boundedInteger(body.sortOrder ?? ((draft.banners.length + 1) * 10), '排序值', 0, 100000)
+            }
+            draft.banners.push(item)
+          })
+          await setBannerCoverFromJob(store, bannerId, jobId)
+          const state = store.read()
+          json(response, 201, {
+            ok: true,
+            banner: publicBanners(state, true).find(item => item.id === bannerId),
+            message: '已创建 Banner，封面使用该作品生成图'
+          })
           return
         }
 

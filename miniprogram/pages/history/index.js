@@ -4,9 +4,37 @@ const { getNavMetrics } = require('../../utils/nav')
 
 const PAGE_SIZE = 12
 
+/**
+ * Split jobs into two columns for waterfall layout.
+ * Prefer shorter column; use a stable height estimate so layout
+ * stays balanced across varied aspect ratios.
+ */
+function splitWaterfall(jobs) {
+  const left = []
+  const right = []
+  let leftH = 0
+  let rightH = 0
+  ;(jobs || []).forEach((job, index) => {
+    // Vary estimate so different statuses / positions don't stack equally
+    const base = job.status === 'failed' ? 220 : 300
+    const wobble = ((index * 37) % 90)
+    const est = base + wobble
+    if (leftH <= rightH) {
+      left.push(job)
+      leftH += est
+    } else {
+      right.push(job)
+      rightH += est
+    }
+  })
+  return { leftJobs: left, rightJobs: right }
+}
+
 Page({
   data: {
     jobs: [],
+    leftJobs: [],
+    rightJobs: [],
     loading: true,
     loadingMore: false,
     hasMore: false,
@@ -41,6 +69,16 @@ Page({
     return '已经到底啦'
   },
 
+  applyJobs(jobs, extra = {}) {
+    const { leftJobs, rightJobs } = splitWaterfall(jobs)
+    this.setData({
+      jobs,
+      leftJobs,
+      rightJobs,
+      ...extra
+    })
+  },
+
   async fetchJobsPage(page) {
     const query = [
       `page=${encodeURIComponent(String(page || 1))}`,
@@ -49,7 +87,9 @@ Page({
     const result = await api.get(`/api/jobs?${query}`)
     const jobs = (Array.isArray(result.jobs) ? result.jobs : []).map(job => ({
       ...job,
-      relativeTime: relativeTime(job.createdAt)
+      relativeTime: relativeTime(job.createdAt),
+      // Prefer full cover for widthFix natural aspect ratio in waterfall
+      coverUrl: job.coverFullUrl || job.coverUrl || (job.results && job.results[0] && (job.results[0].url || job.results[0].thumbUrl)) || ''
     }))
     const hasMore = typeof result.hasMore === 'boolean'
       ? result.hasMore
@@ -73,6 +113,8 @@ Page({
           user: null,
           isLoggedIn: false,
           jobs: [],
+          leftJobs: [],
+          rightJobs: [],
           loading: false,
           loadingMore: false,
           hasMore: false,
@@ -88,10 +130,9 @@ Page({
       }
 
       const result = await this.fetchJobsPage(1)
-      this.setData({
+      this.applyJobs(result.jobs, {
         user,
         isLoggedIn: true,
-        jobs: result.jobs,
         page: result.page,
         total: result.total,
         hasMore: result.hasMore,
@@ -103,7 +144,9 @@ Page({
       this.setData({
         loading: false,
         loadingMore: false,
-        jobs: reset ? [] : this.data.jobs
+        jobs: reset ? [] : this.data.jobs,
+        leftJobs: reset ? [] : this.data.leftJobs,
+        rightJobs: reset ? [] : this.data.rightJobs
       })
       if (error.statusCode !== 401) {
         wx.showToast({ title: error.message, icon: 'none' })
@@ -122,8 +165,7 @@ Page({
       const seen = new Set(this.data.jobs.map(item => item.id))
       const appended = result.jobs.filter(item => item && item.id && !seen.has(item.id))
       const jobs = this.data.jobs.concat(appended)
-      this.setData({
-        jobs,
+      this.applyJobs(jobs, {
         page: result.page,
         total: result.total,
         hasMore: result.hasMore,
@@ -170,8 +212,7 @@ Page({
       wx.hideLoading()
       const jobs = this.data.jobs.filter(item => item.id !== id)
       const total = Math.max(0, (this.data.total || jobs.length) - 1)
-      this.setData({
-        jobs,
+      this.applyJobs(jobs, {
         total,
         listFooter: this.footerText(jobs.length, this.data.hasMore)
       })
