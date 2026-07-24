@@ -269,11 +269,32 @@ Page({
   },
 
   openBanner(event) {
-    const path = event.currentTarget.dataset.path
+    let path = String(event.currentTarget.dataset.path || '').trim()
     if (!path) return
+    // Normalize: ensure leading slash; reject non-mini-program schemes
+    if (!path.startsWith('/')) path = `/${path}`
+    if (/^\/[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith('//')) {
+      wx.showToast({ title: '跳转路径无效', icon: 'none' })
+      return
+    }
+    // switchTab only accepts path without query
+    const qIndex = path.indexOf('?')
+    const pathOnly = qIndex >= 0 ? path.slice(0, qIndex) : path
     const tabPages = ['/pages/home/index', '/pages/history/index', '/pages/profile/index']
-    if (tabPages.includes(path)) wx.switchTab({ url: path })
-    else wx.navigateTo({ url: path })
+    if (tabPages.includes(pathOnly)) {
+      wx.switchTab({
+        url: pathOnly,
+        fail: () => wx.showToast({ title: '页面打开失败', icon: 'none' })
+      })
+      return
+    }
+    wx.navigateTo({
+      url: path,
+      fail: (err) => {
+        console.warn('[banner navigate]', path, err)
+        wx.showToast({ title: '页面打开失败，请检查路径', icon: 'none' })
+      }
+    })
   },
 
   markOnboardingDone() {

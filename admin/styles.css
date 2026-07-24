@@ -352,6 +352,60 @@ tr:last-child td { border-bottom: 0; }
 .cdk-status--exhausted,
 .cdk-status--redeemed { background: #eef0f1; color: #6a6f73; }
 .cdk-status--expired { background: #fff0f2; color: #bd4f4f; }
+.cdk-status--revoked { background: #f3e8ff; color: #6b4a9b; }
+
+.cdk-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.chip-button {
+  border: 1px solid var(--line, #e4e6e7);
+  background: #fff;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.chip-button:hover { border-color: #c9ced1; color: #333; }
+.chip-button.is-active {
+  background: var(--mint-soft, #e7f5f0);
+  border-color: #a9d5c6;
+  color: #367b6d;
+  font-weight: 600;
+}
+
+.row-button--danger { color: #bd4f4f; }
+.openid-cell { max-width: 220px; }
+.openid-code {
+  display: block;
+  font-size: 11px;
+  word-break: break-all;
+  cursor: pointer;
+  color: #3b6ea5;
+}
+.openid-code:hover { text-decoration: underline; }
+.field-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.field-hint code {
+  font-size: 11px;
+  background: #f4f5f5;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.inline-fields {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.inline-fields input { flex: 1; min-width: 0; }
 
 /* —— 消息推送页 —— */
 .messages-toolbar { margin-bottom: 16px; align-items: flex-end; }

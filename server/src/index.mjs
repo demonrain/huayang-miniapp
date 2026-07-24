@@ -205,16 +205,32 @@ function applyTemplateFields(target, body, creating = false, categories = DEFAUL
   if ('enabled' in body) target.enabled = Boolean(body.enabled)
 }
 
+/** Normalize mini program path: ensure leading slash, strip whitespace; empty stays empty. */
+function normalizeMiniProgramPath(raw) {
+  let path = String(raw || '').trim()
+  if (!path) return ''
+  // Allow pasting path without leading slash
+  if (!path.startsWith('/')) path = `/${path}`
+  // Reject external schemes — mini program cannot open them via navigateTo
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path.slice(1)) || path.startsWith('//')) {
+    throw new HttpError(400, 'INVALID_PATH', '跳转路径请填写小程序内页面路径，例如 /pages/template/index?id=xxx')
+  }
+  if (path.length > 200) throw new HttpError(400, 'INVALID_PATH', '跳转路径过长')
+  return path
+}
+
 function applyBannerFields(target, body, creating = false) {
   const textFields = [
     ['title', 'Banner 标题', 40, true],
     ['subtitle', 'Banner 副标题', 80, false],
     ['badge', 'Banner 角标', 12, false],
-    ['palette', 'Banner 配色', 240, true],
-    ['targetPath', '跳转路径', 200, false]
+    ['palette', 'Banner 配色', 240, true]
   ]
   for (const [key, label, maxLength, required] of textFields) {
     if (creating || key in body) target[key] = cleanText(body[key], label, maxLength, required)
+  }
+  if (creating || 'targetPath' in body) {
+    target.targetPath = normalizeMiniProgramPath(body.targetPath)
   }
   if (creating || 'sortOrder' in body) target.sortOrder = boundedInteger(body.sortOrder ?? 0, '排序值', 0, 100000)
   if ('enabled' in body) target.enabled = Boolean(body.enabled)
@@ -223,10 +239,15 @@ function applyBannerFields(target, body, creating = false) {
 function adminUser(user, state) {
   const transactions = state.transactions.filter(item => item.userId === user.id)
   const jobs = state.jobs.filter(item => item.userId === user.id)
+  const openid = String(user.openid || '')
+  const unionid = String(user.unionid || '')
   return {
     id: user.id,
-    nickname: user.nickname,
-    maskedOpenid: user.openid ? `${user.openid.slice(0, 4)}...${user.openid.slice(-4)}` : '',
+    nickname: user.nickname || '微信用户',
+    // 微信不提供可展示的「微信号」；后台用 openid/unionid 区分账号
+    openid,
+    unionid,
+    maskedOpenid: openid ? `${openid.slice(0, 6)}...${openid.slice(-4)}` : '',
     credits: Number(user.credits || 0),
     enabled: user.enabled !== false,
     createdAt: user.createdAt,
@@ -350,6 +371,7 @@ function cdkMaxUses(item) {
 }
 
 function cdkStatus(item, at = Date.now()) {
+  if (item.revoked) return 'revoked'
   if (item.expiresAt && new Date(item.expiresAt).getTime() <= at) return 'expired'
   const used = cdkRedeemCount(item)
   const maxUses = cdkMaxUses(item)
@@ -377,8 +399,11 @@ function publicCdk(item, state = null) {
     active: '使用中',
     exhausted: '已兑完',
     redeemed: '已兑换',
-    expired: '已过期'
+    expired: '已过期',
+    revoked: '已撤销'
   }
+  // Universal / multi-use codes (maxUses !== 1) can edit remaining quota & credits while not revoked
+  const canEdit = status !== 'revoked' && status !== 'expired'
   return {
     id: item.id,
     code: item.code,
@@ -397,7 +422,12 @@ function publicCdk(item, state = null) {
     redeemerNickname: redeemer?.nickname || '',
     status,
     statusLabel: statusLabels[status] || status,
-    note: item.note || ''
+    note: item.note || '',
+    revoked: Boolean(item.revoked),
+    revokedAt: item.revokedAt || '',
+    revokedTime: item.revokedAt ? displayTime(item.revokedAt) : '',
+    canEdit,
+    canRevoke: status !== 'revoked'
   }
 }
 
@@ -757,6 +787,27 @@ export async function createApplication() {
         return
       }
 
+      // Public showcase for Banner → job deep links (succeeded jobs only; no originals)
+      const showcaseJobMatch = pathname.match(/^\/api\/showcase\/jobs\/([^/]+)$/)
+      if (request.method === 'GET' && showcaseJobMatch) {
+        const state = store.read()
+        const job = state.jobs.find(item => item.id === showcaseJobMatch[1])
+        if (!job || job.status !== 'succeeded') {
+          throw new HttpError(404, 'JOB_NOT_FOUND', '展示作品不存在或尚未完成')
+        }
+        const pub = publicJob(job, state)
+        json(response, 200, {
+          job: {
+            ...pub,
+            // Privacy: hide user originals in public showcase
+            originals: [],
+            assetIds: [],
+            showcase: true
+          }
+        })
+        return
+      }
+
       if (request.method === 'GET' && pathname.startsWith('/api/shares/')) {
         const token = pathname.slice('/api/shares/'.length)
         if (!token || token.includes('/')) throw new HttpError(404, 'SHARE_NOT_FOUND', '分享不存在')
@@ -1058,7 +1109,13 @@ export async function createApplication() {
           const status = String(url.searchParams.get('status') || 'all')
           const filtered = state.users
             .filter(item => status === 'all' || (status === 'enabled' ? item.enabled !== false : item.enabled === false))
-            .filter(item => !query || item.id.toLowerCase().includes(query) || String(item.nickname || '').toLowerCase().includes(query) || String(item.openid || '').toLowerCase().includes(query))
+            .filter(item => {
+              if (!query) return true
+              return item.id.toLowerCase().includes(query)
+                || String(item.nickname || '').toLowerCase().includes(query)
+                || String(item.openid || '').toLowerCase().includes(query)
+                || String(item.unionid || '').toLowerCase().includes(query)
+            })
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
           const page = paginateArray(filtered, url)
           json(response, 200, {
@@ -1527,7 +1584,8 @@ export async function createApplication() {
               active: all.filter(s => s === 'active').length,
               exhausted: all.filter(s => s === 'exhausted' || s === 'redeemed').length,
               redeemed: all.filter(s => s === 'exhausted' || s === 'redeemed').length,
-              expired: all.filter(s => s === 'expired').length
+              expired: all.filter(s => s === 'expired').length,
+              revoked: all.filter(s => s === 'revoked').length
             }
           })
           return
@@ -1596,6 +1654,59 @@ export async function createApplication() {
         }
 
         const adminCdkMatch = pathname.match(/^\/api\/admin\/cdks\/([^/]+)$/)
+        if (request.method === 'PATCH' && adminCdkMatch) {
+          const cdkId = adminCdkMatch[1]
+          const body = await readJson(request)
+          const updated = await store.transaction(draft => {
+            if (!Array.isArray(draft.cdks)) draft.cdks = []
+            const item = draft.cdks.find(entry => entry.id === cdkId)
+            if (!item) throw new HttpError(404, 'CDK_NOT_FOUND', 'CDK 不存在')
+            if (item.revoked) throw new HttpError(409, 'CDK_REVOKED', '已撤销的兑换码不能修改')
+            if (cdkStatus(item) === 'expired') throw new HttpError(409, 'CDK_EXPIRED', '已过期的兑换码不能修改')
+
+            if ('credits' in body) {
+              item.credits = boundedInteger(body.credits, 'CDK 积分', 1, 1000000)
+            }
+            if ('maxUses' in body) {
+              const nextMax = boundedInteger(body.maxUses, '可兑换次数', 0, 1000000)
+              const used = cdkRedeemCount(item)
+              // 0 = unlimited is always ok; otherwise cannot go below already-redeemed count
+              if (nextMax !== 0 && nextMax < used) {
+                throw new HttpError(400, 'INVALID_MAX_USES', `可兑换次数不能小于已兑换次数（已兑 ${used} 次）`)
+              }
+              item.maxUses = nextMax
+            }
+            if ('note' in body) {
+              item.note = cleanText(body.note || '', '备注', 80, false)
+            }
+            if (body.revoked === true) {
+              item.revoked = true
+              item.revokedAt = now()
+            }
+            return item
+          })
+          const state = store.read()
+          json(response, 200, { cdk: publicCdk(updated, state) })
+          return
+        }
+
+        const adminCdkRevokeMatch = pathname.match(/^\/api\/admin\/cdks\/([^/]+)\/revoke$/)
+        if (request.method === 'POST' && adminCdkRevokeMatch) {
+          const cdkId = adminCdkRevokeMatch[1]
+          const updated = await store.transaction(draft => {
+            if (!Array.isArray(draft.cdks)) draft.cdks = []
+            const item = draft.cdks.find(entry => entry.id === cdkId)
+            if (!item) throw new HttpError(404, 'CDK_NOT_FOUND', 'CDK 不存在')
+            if (item.revoked) throw new HttpError(409, 'CDK_REVOKED', '该兑换码已撤销')
+            item.revoked = true
+            item.revokedAt = now()
+            return item
+          })
+          const state = store.read()
+          json(response, 200, { ok: true, cdk: publicCdk(updated, state) })
+          return
+        }
+
         if (request.method === 'DELETE' && adminCdkMatch) {
           const cdkId = adminCdkMatch[1]
           await store.transaction(draft => {
@@ -1603,7 +1714,7 @@ export async function createApplication() {
             const index = draft.cdks.findIndex(item => item.id === cdkId)
             if (index === -1) throw new HttpError(404, 'CDK_NOT_FOUND', 'CDK 不存在')
             const item = draft.cdks[index]
-            if (cdkRedeemCount(item) > 0) throw new HttpError(409, 'CDK_REDEEMED', '已有兑换记录的 CDK 不能删除')
+            if (cdkRedeemCount(item) > 0) throw new HttpError(409, 'CDK_REDEEMED', '已有兑换记录的 CDK 不能删除，请使用「撤销」')
             draft.cdks.splice(index, 1)
           })
           json(response, 200, { ok: true, id: cdkId })
@@ -2209,6 +2320,7 @@ export async function createApplication() {
           if (item.maxUses == null) item.maxUses = 1
 
           const status = cdkStatus(item)
+          if (status === 'revoked') throw new HttpError(409, 'CDK_REVOKED', '该兑换码已被撤销')
           if (status === 'expired') throw new HttpError(409, 'CDK_EXPIRED', '该兑换码已过期')
           if (status === 'exhausted' || status === 'redeemed') {
             throw new HttpError(409, 'CDK_EXHAUSTED', '该兑换码已达使用次数上限')

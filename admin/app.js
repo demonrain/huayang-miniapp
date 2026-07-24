@@ -33,7 +33,9 @@ const state = {
   editingCategoryId: '',
   creditUserId: '',
   feedbacks: [],
-  replyingFeedbackId: ''
+  replyingFeedbackId: '',
+  editingCdkId: '',
+  cdkListCache: []
 }
 
 const elements = {
@@ -113,6 +115,14 @@ const elements = {
   cdkSummaryHint: document.querySelector('#cdkSummaryHint'),
   cdkExpireType: document.querySelector('#cdkExpireType'),
   cdkCustomExpireField: document.querySelector('#cdkCustomExpireField'),
+  cdkStatusSelect: document.querySelector('#cdkStatusSelect'),
+  cdkStatusChips: document.querySelector('#cdkStatusChips'),
+  cdkFilterUnused: document.querySelector('#cdkFilterUnused'),
+  cdkEditDialog: document.querySelector('#cdkEditDialog'),
+  cdkEditForm: document.querySelector('#cdkEditForm'),
+  cdkEditCodeLabel: document.querySelector('#cdkEditCodeLabel'),
+  cdkEditHint: document.querySelector('#cdkEditHint'),
+  bannerFillJobPath: document.querySelector('#bannerFillJobPath'),
   announcementForm: document.querySelector('#announcementForm'),
   announcementRows: document.querySelector('#announcementRows'),
   subscribeBroadcastForm: document.querySelector('#subscribeBroadcastForm'),
@@ -554,7 +564,7 @@ async function loadUsers({ resetPage = false } = {}) {
   }
   syncPageSizeFromSelect(elements.userPageSize, q)
   q.loading = true
-  elements.userRows.innerHTML = emptyRow(8, '加载中...')
+  elements.userRows.innerHTML = emptyRow(9, '加载中...')
   renderListPager({
     infoEl: elements.userPagerInfo,
     prevEl: elements.userPrevPage,
@@ -572,9 +582,20 @@ async function loadUsers({ resetPage = false } = {}) {
     const result = await api(`/api/admin/users?${params}`)
     state.users = result.users || []
     applyPageResult(q, result)
-    elements.userRows.innerHTML = state.users.map(user => `
+    elements.userRows.innerHTML = state.users.map(user => {
+      const openid = user.openid || ''
+      const unionid = user.unionid || ''
+      return `
     <tr>
-      <td><strong>${escapeHtml(user.nickname)}</strong><span class="cell-subtitle">${escapeHtml(shortId(user.id))} · ${escapeHtml(user.maskedOpenid)}</span></td>
+      <td><strong>${escapeHtml(user.nickname || '微信用户')}</strong><span class="cell-subtitle">UID ${escapeHtml(shortId(user.id, 12))}</span></td>
+      <td class="openid-cell">
+        ${openid
+          ? `<code class="openid-code" title="点击复制 OpenID" data-copy="${escapeHtml(openid)}">${escapeHtml(openid)}</code>`
+          : '<span class="muted">—</span>'}
+        ${unionid
+          ? `<span class="cell-subtitle" title="unionid">union ${escapeHtml(shortId(unionid, 16))}</span>`
+          : ''}
+      </td>
       <td><strong>${Number(user.credits).toLocaleString('zh-CN')}</strong></td>
       <td>${Number(user.completedJobs)} / ${Number(user.jobCount)}</td>
       <td class="amount-positive">+${Number(user.rechargedCredits)}</td>
@@ -585,10 +606,10 @@ async function loadUsers({ resetPage = false } = {}) {
         <button class="row-button" data-user-action="credits" data-id="${escapeHtml(user.id)}">调积分</button>
         <button class="row-button" data-user-action="toggle" data-id="${escapeHtml(user.id)}">${user.enabled ? '停用' : '启用'}</button>
       </div></td>
-    </tr>
-  `).join('') || emptyRow(8, '没有符合条件的用户')
+    </tr>`
+    }).join('') || emptyRow(9, '没有符合条件的用户')
   } catch (error) {
-    elements.userRows.innerHTML = emptyRow(8, error.message || '加载失败')
+    elements.userRows.innerHTML = emptyRow(9, error.message || '加载失败')
     throw error
   } finally {
     q.loading = false
@@ -710,7 +731,11 @@ async function loadJobs({ resetPage = false } = {}) {
       <td>${escapeHtml(job.createdTime)}</td>
       <td>${escapeHtml(job.completedTime || '-')}</td>
       <td>${job.durationSeconds === null ? '-' : `${Number(job.durationSeconds)} 秒`}</td>
-      <td class="error-cell" title="${escapeHtml(job.error)}">${escapeHtml(job.error || '-')}</td>
+      <td class="error-cell" title="${escapeHtml(job.error)}">
+        ${job.status === 'succeeded'
+          ? `<div class="row-actions"><button class="row-button" data-job-action="banner" data-id="${escapeHtml(job.id)}" type="button">设为 Banner</button></div>${job.error ? `<span class="cell-subtitle">${escapeHtml(job.error)}</span>` : ''}`
+          : escapeHtml(job.error || '-')}
+      </td>
     </tr>
   `).join('') || emptyRow(9, '没有符合条件的作品任务')
   } catch (error) {
@@ -848,6 +873,24 @@ function syncCdkExpireFields() {
   if (input) input.required = custom
 }
 
+function syncCdkStatusChips(status) {
+  if (!elements.cdkStatusChips) return
+  elements.cdkStatusChips.querySelectorAll('[data-cdk-status]').forEach(btn => {
+    btn.classList.toggle('is-active', btn.dataset.cdkStatus === status)
+  })
+  if (elements.cdkStatusSelect) elements.cdkStatusSelect.value = status
+}
+
+function setCdkStatusFilter(status, { reload = true } = {}) {
+  const next = status || 'all'
+  state.cdkQuery.status = next
+  if (elements.cdkFilterForm?.elements?.status) {
+    elements.cdkFilterForm.elements.status.value = next
+  }
+  syncCdkStatusChips(next)
+  if (reload) loadCdks({ resetPage: true }).catch(error => showToast(error.message, true))
+}
+
 async function loadCdks({ resetPage = false } = {}) {
   if (!elements.cdkRows) return
   const q = state.cdkQuery
@@ -855,8 +898,9 @@ async function loadCdks({ resetPage = false } = {}) {
   if (elements.cdkFilterForm) {
     const values = new FormData(elements.cdkFilterForm)
     q.query = String(values.get('query') || '').trim()
-    q.status = String(values.get('status') || 'all')
+    q.status = String(values.get('status') || q.status || 'all')
   }
+  syncCdkStatusChips(q.status)
   syncPageSizeFromSelect(elements.cdkPageSize, q)
   q.loading = true
   elements.cdkRows.innerHTML = emptyRow(8, '加载中...')
@@ -878,13 +922,26 @@ async function loadCdks({ resetPage = false } = {}) {
     const summary = result.summary || {}
     if (elements.cdkSummaryHint) {
       elements.cdkSummaryHint.textContent =
-        `共 ${Number(summary.total || 0)} 个 · 未使用 ${Number(summary.unused || 0)} · 使用中 ${Number(summary.active || 0)} · 已兑完 ${Number(summary.exhausted || 0)} · 已过期 ${Number(summary.expired || 0)}`
+        `共 ${Number(summary.total || 0)} 个 · 未使用 ${Number(summary.unused || 0)} · 使用中 ${Number(summary.active || 0)} · 已兑完 ${Number(summary.exhausted || 0)} · 已过期 ${Number(summary.expired || 0)} · 已撤销 ${Number(summary.revoked || 0)}`
     }
     applyPageResult(q, result)
+    state.cdkListCache = result.cdks || []
     elements.cdkRows.innerHTML = (result.cdks || []).map(item => {
       const usesText = item.maxUses === 0
         ? `已兑 ${Number(item.redeemCount || 0)} / 不限`
         : `已兑 ${Number(item.redeemCount || 0)} / ${Number(item.maxUses)}`
+      const actions = [
+        `<button class="row-button" data-cdk-action="copy" data-code="${escapeHtml(item.code)}" type="button">复制</button>`
+      ]
+      if (item.canEdit) {
+        actions.push(`<button class="row-button" data-cdk-action="edit" data-id="${escapeHtml(item.id)}" type="button">编辑</button>`)
+      }
+      if (item.canRevoke) {
+        actions.push(`<button class="row-button row-button--danger" data-cdk-action="revoke" data-id="${escapeHtml(item.id)}" data-code="${escapeHtml(item.code)}" type="button">撤销</button>`)
+      }
+      if (item.redeemCount === 0 && item.status !== 'revoked') {
+        actions.push(`<button class="row-button" data-cdk-action="delete" data-id="${escapeHtml(item.id)}" type="button">删除</button>`)
+      }
       return `
     <tr>
       <td><code class="cdk-code">${escapeHtml(item.code)}</code></td>
@@ -896,12 +953,7 @@ async function loadCdks({ resetPage = false } = {}) {
       <td>${item.redeemCount > 0
         ? `<strong>${escapeHtml(item.redeemerNickname || '用户')}</strong><span class="cell-subtitle">${escapeHtml(item.redeemedTime || '')}</span>`
         : '<span class="muted">—</span>'}</td>
-      <td class="row-actions">
-        <button class="row-button" data-cdk-action="copy" data-code="${escapeHtml(item.code)}" type="button">复制</button>
-        ${item.redeemCount === 0
-          ? `<button class="row-button" data-cdk-action="delete" data-id="${escapeHtml(item.id)}" type="button">删除</button>`
-          : ''}
-      </td>
+      <td class="row-actions">${actions.join('')}</td>
     </tr>`
     }).join('') || emptyRow(8, '还没有 CDK，请先生成')
   } catch (error) {
@@ -917,6 +969,46 @@ async function loadCdks({ resetPage = false } = {}) {
       query: q
     })
   }
+}
+
+function openCdkEditDialog(item) {
+  if (!elements.cdkEditDialog || !elements.cdkEditForm || !item) return
+  state.editingCdkId = item.id
+  if (elements.cdkEditCodeLabel) {
+    elements.cdkEditCodeLabel.textContent = `兑换码 ${item.code} · 已兑 ${Number(item.redeemCount || 0)} 次`
+  }
+  if (elements.cdkEditHint) {
+    elements.cdkEditHint.textContent = item.maxUses === 0
+      ? `当前不限次数 · 已兑 ${Number(item.redeemCount || 0)} 次。次数填 0 表示不限。`
+      : `可兑换次数不能小于已兑次数（${Number(item.redeemCount || 0)}）。填 0 表示不限。`
+  }
+  const form = elements.cdkEditForm.elements
+  form.credits.value = Number(item.credits)
+  form.maxUses.value = Number(item.maxUses)
+  form.note.value = item.note || ''
+  elements.cdkEditDialog.showModal()
+}
+
+function jobBannerPath(jobId) {
+  return `/pages/job/index?id=${encodeURIComponent(jobId)}&showcase=1`
+}
+
+function openBannerFromJob(job) {
+  if (!job || job.status !== 'succeeded') {
+    showToast('仅已完成的作品可设为 Banner', true)
+    return
+  }
+  openBannerDialog(null)
+  const form = elements.bannerForm.elements
+  form.title.value = `${job.templateName || '精选作品'}`
+  form.subtitle.value = '点击查看作品效果'
+  form.badge.value = form.badge.value || '作品'
+  form.palette.value = form.palette.value || job.templatePalette || '#e9f7f2'
+  form.targetPath.value = jobBannerPath(job.id)
+  if (form.jobIdHelper) form.jobIdHelper.value = job.id
+  form.sortOrder.value = ((state.data?.banners?.length || 0) + 1) * 10
+  form.enabled.checked = true
+  showToast('已填入作品跳转路径，保存后记得上传 Banner 图')
 }
 
 async function loadMessagesPage() {
@@ -1068,9 +1160,13 @@ function openBannerDialog(banner = null) {
   if (banner) {
     for (const key of ['title', 'subtitle', 'badge', 'palette', 'targetPath', 'sortOrder']) form[key].value = banner[key] ?? ''
     form.enabled.checked = banner.enabled
+    const match = String(banner.targetPath || '').match(/[?&]id=([^&]+)/)
+    if (form.jobIdHelper && match && String(banner.targetPath).includes('/pages/job/')) {
+      form.jobIdHelper.value = decodeURIComponent(match[1])
+    }
   } else {
     form.enabled.checked = true
-    form.sortOrder.value = (state.data.banners.length + 1) * 10
+    form.sortOrder.value = ((state.data?.banners?.length || 0) + 1) * 10
     form.palette.value = 'linear-gradient(135deg, #dff3ec, #fff0f3)'
   }
   elements.bannerDialog.showModal()
@@ -1232,6 +1328,16 @@ wireListPager({
 })
 
 elements.jobRows?.addEventListener('click', async event => {
+  const bannerBtn = event.target.closest('[data-job-action="banner"]')
+  if (bannerBtn) {
+    const job = (state.jobs || []).find(item => item.id === bannerBtn.dataset.id)
+    if (!job) {
+      showToast('请刷新列表后重试', true)
+      return
+    }
+    openBannerFromJob(job)
+    return
+  }
   const button = event.target.closest('[data-job-action="add-sample"], [data-job-action="remove-sample"]')
   if (!button) return
   const jobId = button.dataset.jobId
@@ -1293,6 +1399,11 @@ elements.feedbackReplyForm?.addEventListener('submit', async event => {
 })
 
 elements.userRows.addEventListener('click', async event => {
+  const copyEl = event.target.closest('[data-copy]')
+  if (copyEl?.dataset.copy) {
+    await copyText(copyEl.dataset.copy, 'OpenID 已复制')
+    return
+  }
   const button = event.target.closest('[data-user-action]')
   if (!button) return
   const user = state.users.find(item => item.id === button.dataset.id)
@@ -1581,9 +1692,40 @@ elements.cdkGenerateForm?.addEventListener('submit', async event => {
   } catch (error) { showToast(error.message, true) }
 })
 
+async function copyText(text, okMessage) {
+  const value = String(text || '')
+  if (!value) return
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value)
+    else {
+      const input = document.createElement('input')
+      input.value = value
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand('copy')
+      input.remove()
+    }
+    showToast(okMessage || '已复制')
+  } catch (error) {
+    showToast('复制失败，请手动选择', true)
+  }
+}
+
 elements.cdkFilterForm?.addEventListener('submit', event => {
   event.preventDefault()
+  const values = new FormData(elements.cdkFilterForm)
+  setCdkStatusFilter(String(values.get('status') || 'all'), { reload: false })
   loadCdks({ resetPage: true }).catch(error => showToast(error.message, true))
+})
+
+elements.cdkFilterUnused?.addEventListener('click', () => {
+  setCdkStatusFilter('unused')
+})
+
+elements.cdkStatusChips?.addEventListener('click', event => {
+  const button = event.target.closest('[data-cdk-status]')
+  if (!button) return
+  setCdkStatusFilter(button.dataset.cdkStatus)
 })
 
 document.querySelector('#refreshCdkList')?.addEventListener('click', () => {
@@ -1594,21 +1736,26 @@ elements.cdkRows?.addEventListener('click', async event => {
   const button = event.target.closest('[data-cdk-action]')
   if (!button) return
   if (button.dataset.cdkAction === 'copy') {
-    const code = button.dataset.code || ''
-    try {
-      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(code)
-      else {
-        const input = document.createElement('input')
-        input.value = code
-        document.body.appendChild(input)
-        input.select()
-        document.execCommand('copy')
-        input.remove()
-      }
-      showToast(`已复制 ${code}`)
-    } catch (error) {
-      showToast('复制失败，请手动选择', true)
+    await copyText(button.dataset.code || '', `已复制 ${button.dataset.code || ''}`)
+    return
+  }
+  if (button.dataset.cdkAction === 'edit') {
+    const item = state.cdkListCache.find(entry => entry.id === button.dataset.id)
+    if (!item) {
+      showToast('请刷新列表后重试', true)
+      return
     }
+    openCdkEditDialog(item)
+    return
+  }
+  if (button.dataset.cdkAction === 'revoke') {
+    const code = button.dataset.code || ''
+    if (!window.confirm(`确认撤销兑换码 ${code}？\n撤销后不可再兑换，历史兑换记录保留。`)) return
+    try {
+      await api(`/api/admin/cdks/${encodeURIComponent(button.dataset.id)}/revoke`, { method: 'POST' })
+      showToast('兑换码已撤销')
+      await loadCdks()
+    } catch (error) { showToast(error.message, true) }
     return
   }
   if (button.dataset.cdkAction === 'delete') {
@@ -1619,6 +1766,37 @@ elements.cdkRows?.addEventListener('click', async event => {
       await loadCdks()
     } catch (error) { showToast(error.message, true) }
   }
+})
+
+elements.cdkEditForm?.addEventListener('submit', async event => {
+  event.preventDefault()
+  if (!state.editingCdkId) return
+  const values = new FormData(elements.cdkEditForm)
+  try {
+    await api(`/api/admin/cdks/${encodeURIComponent(state.editingCdkId)}`, {
+      method: 'PATCH',
+      json: {
+        credits: Number(values.get('credits')),
+        maxUses: Number(values.get('maxUses')),
+        note: String(values.get('note') || '')
+      }
+    })
+    elements.cdkEditDialog.close()
+    state.editingCdkId = ''
+    showToast('兑换码已更新')
+    await loadCdks()
+  } catch (error) { showToast(error.message, true) }
+})
+
+elements.bannerFillJobPath?.addEventListener('click', () => {
+  const form = elements.bannerForm.elements
+  const jobId = String(form.jobIdHelper?.value || '').trim()
+  if (!jobId) {
+    showToast('请先粘贴作品任务 ID', true)
+    return
+  }
+  form.targetPath.value = jobBannerPath(jobId)
+  showToast('已填入作品展示路径')
 })
 
 elements.announcementForm?.addEventListener('submit', async event => {

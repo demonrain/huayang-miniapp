@@ -391,6 +391,57 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.ok(cdkList.body.summary.exhausted >= 1)
     assert.ok(cdkList.body.summary.unused >= 1)
 
+    // Edit universal CDK credits / maxUses
+    const editable = await api('/api/admin/cdks', {
+      method: 'POST',
+      token: adminToken,
+      json: { credits: 8, count: 1, maxUses: 5, customCode: 'EDITABLE2026', expireType: 'never' }
+    })
+    assert.equal(editable.response.status, 201)
+    const editId = editable.body.cdks[0].id
+    const patched = await api(`/api/admin/cdks/${editId}`, {
+      method: 'PATCH',
+      token: adminToken,
+      json: { credits: 12, maxUses: 10, note: 'raised quota' }
+    })
+    assert.equal(patched.response.status, 200)
+    assert.equal(patched.body.cdk.credits, 12)
+    assert.equal(patched.body.cdk.maxUses, 10)
+    assert.equal(patched.body.cdk.note, 'raised quota')
+
+    // Revoke blocks further redeem
+    const revokeBatch = await api('/api/admin/cdks', {
+      method: 'POST',
+      token: adminToken,
+      json: { credits: 9, count: 1, maxUses: 3, customCode: 'REVOKE2026', expireType: 'never' }
+    })
+    const revokeId = revokeBatch.body.cdks[0].id
+    const revoked = await api(`/api/admin/cdks/${revokeId}/revoke`, {
+      method: 'POST',
+      token: adminToken
+    })
+    assert.equal(revoked.response.status, 200)
+    assert.equal(revoked.body.cdk.status, 'revoked')
+    const redeemRevoked = await api('/api/cdks/redeem', {
+      method: 'POST',
+      token,
+      json: { code: 'REVOKE2026' }
+    })
+    assert.equal(redeemRevoked.response.status, 409)
+    assert.equal(redeemRevoked.body.code, 'CDK_REVOKED')
+
+    // Showcase public job
+    const showcaseOk = await api(`/api/showcase/jobs/${created.body.job.id}`)
+    assert.equal(showcaseOk.response.status, 200)
+    assert.equal(showcaseOk.body.job.status, 'succeeded')
+    assert.equal(showcaseOk.body.job.originals.length, 0)
+    assert.equal(showcaseOk.body.job.showcase, true)
+
+    // Admin users expose full openid
+    const usersAdmin = await api('/api/admin/users?page=1&pageSize=10', { token: adminToken })
+    assert.equal(usersAdmin.response.status, 200)
+    assert.ok(usersAdmin.body.users.some(u => u.openid && u.openid.length > 8))
+
     // After multi redeem +15 +3, credits were 62 then +3 = 65 before recharge
     // Fix: multiRedeem1 adds 3 to main user token
     // inviter credits after first redeem 62, after multi 65

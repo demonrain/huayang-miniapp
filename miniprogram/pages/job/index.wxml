@@ -3,10 +3,12 @@
 
   <block wx:if="{{job}}">
     <view wx:if="{{demo}}" class="demo-banner">练习模式 · 真实进度界面 · 演示出图不扣积分、不写入作品库</view>
+    <view wx:elif="{{showcase}}" class="demo-banner">精选作品展示 · 点击图片可查看大图 · 去创作同款风格</view>
     <view class="job-meta">
       <view><text>风格</text><text class="job-meta__value">{{job.templateName}}</text></view>
-      <view><text>数量</text><text class="job-meta__value">{{job.assetIds.length}} 张</text></view>
-      <view><text>消耗</text><text class="job-meta__value">{{demo ? '0（演示）' : (job.cost + ' 积分')}}</text></view>
+      <view wx:if="{{!showcase}}"><text>数量</text><text class="job-meta__value">{{job.assetIds.length}} 张</text></view>
+      <view wx:if="{{!showcase}}"><text>消耗</text><text class="job-meta__value">{{demo ? '0（演示）' : (job.cost + ' 积分')}}</text></view>
+      <view wx:else><text>展示</text><text class="job-meta__value">{{job.results.length}} 张效果</text></view>
     </view>
 
     <view wx:if="{{isWaiting}}" class="generating">
@@ -51,7 +53,7 @@
 
     <view wx:if="{{job.status === 'succeeded'}}">
       <view class="section-title">
-        <view class="section-title__main">{{demo ? '演示作品' : '你的作品'}}</view>
+        <view class="section-title__main">{{demo ? '演示作品' : (showcase ? '精选效果' : '你的作品')}}</view>
         <view class="section-title__sub">{{job.results.length}} 张已完成 · {{demo ? '效果图为风格封面演示' : '点击查看大图'}}</view>
       </view>
       <view class="result-list">
@@ -67,7 +69,7 @@
         </view>
       </view>
 
-      <view wx:if="{{job.originals.length}}" class="original-section">
+      <view wx:if="{{!showcase && job.originals.length}}" class="original-section">
         <view class="section-title original-section__title">
           <view class="section-title__main">原图对照</view>
           <view class="section-title__sub">点击查看原图大图</view>
@@ -88,16 +90,16 @@
         </scroll-view>
       </view>
 
-      <view class="job-row-actions {{!demo && job.results.length > 1 ? '' : 'job-row-actions--single'}}">
-        <view wx:if="{{!demo && job.results.length > 1}}" class="job-row-actions__cell">
+      <view class="job-row-actions {{!demo && !showcase && job.results.length > 1 ? '' : 'job-row-actions--single'}}">
+        <view wx:if="{{!demo && !showcase && job.results.length > 1}}" class="job-row-actions__cell">
           <button class="primary-button job-row-btn" loading="{{saving}}" disabled="{{saving}}" bindtap="saveAll">保存全部作品</button>
         </view>
         <view class="job-row-actions__cell">
-          <button class="{{!demo && job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">{{demo ? '再练一次' : '继续创作'}}</button>
+          <button class="{{!demo && !showcase && job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">{{demo ? '再练一次' : (showcase ? '用同款风格创作' : '继续创作')}}</button>
         </view>
       </view>
 
-      <view wx:if="{{!demo && shareRewardEnabled && (shareFriendTip || shareTimelineTip)}}" class="share-reward-panel">
+      <view wx:if="{{!demo && !showcase && shareRewardEnabled && (shareFriendTip || shareTimelineTip)}}" class="share-reward-panel">
         <view class="share-reward-panel__title">分享领积分</view>
         <view wx:if="{{shareFriendTip}}" class="share-reward-panel__row">
           <text class="share-reward-panel__channel">微信好友</text>
@@ -109,7 +111,7 @@
         </view>
         <view class="share-reward-panel__note">同一作品同一渠道每天最多领 1 次；好友打开链接并登录/完成首作，你还可获得邀请奖励</view>
       </view>
-      <view wx:if="{{!demo}}" class="share-actions">
+      <view wx:if="{{!demo && !showcase}}" class="share-actions">
         <view class="share-action-cell">
           <button class="share-action" open-type="share" disabled="{{!share}}">
             <image class="share-action__icon" src="/assets/icons/share.png" mode="aspectFit"></image>

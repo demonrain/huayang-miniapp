@@ -54,16 +54,23 @@ Page({
     shareTimelineRemaining: null,
     shareRewardEnabled: false,
     navSpacer: 176,
-    demo: false
+    demo: false,
+    showcase: false
   },
 
   onLoad(query) {
     const demo = isDemoQuery(query) || isDemoJobId(query.id)
-    this.setData({ ...getNavMetrics(), id: query.id, demo })
+    const showcase = String(query.showcase || '') === '1' || String(query.showcase || '') === 'true'
+    this.setData({ ...getNavMetrics(), id: query.id, demo, showcase })
     this.tipIndex = 0
     this.shareRewardLocks = {}
     if (demo) {
       this.runDemoJob()
+      return
+    }
+    if (showcase) {
+      // Banner / public deep-link: show succeeded job without ownership
+      this.loadShowcaseJob()
       return
     }
     wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
@@ -183,6 +190,30 @@ Page({
     if (this.tipTimer) {
       clearInterval(this.tipTimer)
       this.tipTimer = null
+    }
+  },
+
+  async loadShowcaseJob() {
+    try {
+      const app = getApp()
+      // Soft session for credit pill; not required for showcase content
+      try { await app.ensureSession() } catch (e) {}
+      const { job } = await api.get(`/api/showcase/jobs/${this.data.id}`)
+      this.setData({
+        job,
+        statusText: STATUS_TEXT[job.status] || '作品展示',
+        isWaiting: false,
+        credits: getApp().globalData.user?.credits ?? null,
+        showcase: true,
+        shareRewardEnabled: false
+      })
+    } catch (error) {
+      wx.showModal({
+        title: '作品暂不可展示',
+        content: error.message || '该作品不存在或尚未完成',
+        showCancel: false,
+        success: () => wx.switchTab({ url: '/pages/home/index' })
+      })
     }
   },
 

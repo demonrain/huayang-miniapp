@@ -15,6 +15,7 @@
 | `POST` | `/api/jobs` | 创建生成任务 |
 | `GET` | `/api/jobs` | 当前用户任务列表（可选 `page`/`pageSize`；不传则全量） |
 | `GET` | `/api/jobs/:id` | 任务状态与结果 |
+| `GET` | `/api/showcase/jobs/:id` | 公开作品展示（仅 `succeeded`，不含原图；供 Banner 跳转） |
 | `DELETE` | `/api/jobs/:id` | 删除失败任务记录（仅 `failed`） |
 | `GET/POST` | `/api/admin/categories` | 模板分类列表 / 新建 |
 | `PATCH/DELETE` | `/api/admin/categories/:id` | 更新 / 删除模板分类 |
@@ -29,8 +30,10 @@
 | `POST` | `/api/cdks/redeem` | 使用 CDK 兑换积分（需登录） |
 | `GET` | `/api/feedbacks` | 当前用户反馈历史（含官方回复） |
 | `POST` | `/api/feedbacks` | 提交建议反馈（需登录；`type`: problem/feature/template_request） |
-| `GET/POST` | `/api/admin/cdks` | CDK 列表（`page`/`pageSize`）/ 批量生成 |
-| `DELETE` | `/api/admin/cdks/:id` | 删除未使用的 CDK |
+| `GET/POST` | `/api/admin/cdks` | CDK 列表（`page`/`pageSize`/`status` 含 unused/active/exhausted/expired/revoked）/ 批量生成 |
+| `PATCH` | `/api/admin/cdks/:id` | 修改积分/可兑换次数/备注，或 `revoked:true` 撤销 |
+| `POST` | `/api/admin/cdks/:id/revoke` | 撤销兑换码（不可再兑，保留历史） |
+| `DELETE` | `/api/admin/cdks/:id` | 删除无兑换记录的 CDK |
 | `POST` | `/api/share-rewards` | 上报分享并发放分享积分（需登录） |
 | `GET` | `/api/share-rewards/me` | 当前用户分享/邀请统计 |
 | `GET` | `/api/admin/share-stats` | 分享与邀请汇总 |

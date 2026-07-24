@@ -155,14 +155,14 @@
 
       <section id="usersView" class="view-panel" hidden>
         <div class="toolbar">
-          <div><h3>用户管理</h3><p>查看用户活跃与积分情况，并执行启停或积分调整。</p></div>
+          <div><h3>用户管理</h3><p>微信不开放「微信号」字段；列表展示 OpenID（及 unionid）用于区分账号。可按昵称 / OpenID 搜索。</p></div>
           <form id="userFilterForm" class="filter-bar">
-            <input name="query" placeholder="昵称、用户 ID 或 OpenID">
+            <input name="query" placeholder="昵称、用户 ID、OpenID 或 unionid">
             <select name="status"><option value="all">全部状态</option><option value="enabled">正常</option><option value="disabled">已停用</option></select>
             <button class="button button--quiet" type="submit">查询</button>
           </form>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>用户</th><th>积分</th><th>作品</th><th>累计充值</th><th>累计消费</th><th>注册/登录</th><th>状态</th><th>操作</th></tr></thead><tbody id="userRows"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>用户</th><th>微信 OpenID</th><th>积分</th><th>作品</th><th>累计充值</th><th>累计消费</th><th>注册/登录</th><th>状态</th><th>操作</th></tr></thead><tbody id="userRows"></tbody></table></div>
         <div class="pager" id="userPager">
           <span class="pager-info" id="userPagerInfo">—</span>
           <div class="pager-actions">
@@ -209,7 +209,7 @@
 
       <section id="jobsView" class="view-panel" hidden>
         <div class="toolbar">
-          <div><h3>作品生成记录</h3><p>可查看原图与生成结果；已完成作品可将单张结果加入或取消「更多效果参考」。</p></div>
+          <div><h3>作品生成记录</h3><p>可查看原图与生成结果；已完成作品可加入效果参考，或「设为 Banner」让首页点击跳转到该作品展示页。</p></div>
           <form id="jobFilterForm" class="filter-bar">
             <input name="query" placeholder="昵称、任务 ID 或模板">
             <select name="status"><option value="all">全部状态</option><option value="queued">排队中</option><option value="processing">生成中</option><option value="succeeded">已完成</option><option value="failed">失败</option></select>
@@ -405,15 +405,25 @@
             <div><h3 style="margin:0;font-size:15px">CDK 列表</h3></div>
             <form id="cdkFilterForm" class="filter-bar">
               <input name="query" placeholder="搜索兑换码">
-              <select name="status">
+              <select name="status" id="cdkStatusSelect">
                 <option value="all">全部状态</option>
                 <option value="unused">未使用</option>
                 <option value="active">使用中</option>
                 <option value="exhausted">已兑完</option>
                 <option value="expired">已过期</option>
+                <option value="revoked">已撤销</option>
               </select>
               <button class="button button--quiet" type="submit">查询</button>
+              <button class="button button--quiet" type="button" id="cdkFilterUnused" title="仅看未使用">快捷：未使用</button>
             </form>
+          </div>
+          <div class="cdk-status-chips" id="cdkStatusChips" aria-label="按状态筛选">
+            <button type="button" class="chip-button is-active" data-cdk-status="all">全部</button>
+            <button type="button" class="chip-button" data-cdk-status="unused">未使用</button>
+            <button type="button" class="chip-button" data-cdk-status="active">使用中</button>
+            <button type="button" class="chip-button" data-cdk-status="exhausted">已兑完</button>
+            <button type="button" class="chip-button" data-cdk-status="expired">已过期</button>
+            <button type="button" class="chip-button" data-cdk-status="revoked">已撤销</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -597,17 +607,48 @@
 
   <dialog id="bannerDialog" class="dialog dialog--small">
     <form id="bannerForm" method="dialog">
-      <div class="dialog-heading"><div><h3 id="bannerDialogTitle">新增 Banner</h3><p>跳转路径可留空，例如 /pages/template/index?id=film-diary。</p></div><button class="icon-button" type="button" data-close="bannerDialog" aria-label="关闭">×</button></div>
+      <div class="dialog-heading"><div><h3 id="bannerDialogTitle">新增 Banner</h3><p>跳转须为小程序内路径（以 / 开头）。可从「作品任务」对已完成作品点「设为 Banner」自动填入。</p></div><button class="icon-button" type="button" data-close="bannerDialog" aria-label="关闭">×</button></div>
       <div class="form-grid form-grid--dialog">
         <label>标题<input name="title" maxlength="40" required></label>
         <label>角标<input name="badge" maxlength="12"></label>
         <label class="field-wide">副标题<input name="subtitle" maxlength="80"></label>
         <label class="field-wide">背景配色<input name="palette" maxlength="240" required></label>
-        <label class="field-wide">点击跳转路径<input name="targetPath" maxlength="200"></label>
+        <label class="field-wide">点击跳转路径
+          <input name="targetPath" maxlength="200" placeholder="例如 /pages/template/index?id=film-diary 或作品展示路径">
+        </label>
+        <label class="field-wide">快捷：填入作品展示页
+          <span class="inline-fields">
+            <input name="jobIdHelper" maxlength="80" placeholder="粘贴作品任务 ID（已完成）">
+            <button class="button button--quiet" type="button" id="bannerFillJobPath">填入路径</button>
+          </span>
+        </label>
+        <p class="field-hint">示例：模板 <code>/pages/template/index?id=xxx</code> · 作品展示 <code>/pages/job/index?id=xxx&amp;showcase=1</code> · Tab 页 <code>/pages/home/index</code></p>
         <label>排序值<input name="sortOrder" type="number" min="0" max="100000" required></label>
         <label class="toggle-field"><input name="enabled" type="checkbox" checked><span>启用 Banner</span></label>
       </div>
       <div class="dialog-actions"><button class="button button--quiet" type="button" data-close="bannerDialog">取消</button><button class="button button--primary" type="submit">保存 Banner</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="cdkEditDialog" class="dialog dialog--small">
+    <form id="cdkEditForm" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <h3>编辑兑换码</h3>
+          <p id="cdkEditCodeLabel">可修改积分额度与可兑换次数（不能小于已兑换次数）。</p>
+        </div>
+        <button class="icon-button" type="button" data-close="cdkEditDialog" aria-label="关闭">×</button>
+      </div>
+      <div class="form-grid form-grid--dialog">
+        <label>积分额度<input name="credits" type="number" min="1" max="1000000" required></label>
+        <label>可兑换次数（0=不限）<input name="maxUses" type="number" min="0" max="1000000" required></label>
+        <label class="field-wide">备注<input name="note" maxlength="80"></label>
+        <p class="field-hint" id="cdkEditHint">已兑 0 次</p>
+      </div>
+      <div class="dialog-actions">
+        <button class="button button--quiet" type="button" data-close="cdkEditDialog">取消</button>
+        <button class="button button--primary" type="submit">保存修改</button>
+      </div>
     </form>
   </dialog>
 
