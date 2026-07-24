@@ -732,7 +732,10 @@ async function loadJobs({ resetPage = false } = {}) {
             </div>
           </div>
         </div>
-        <span class="cell-subtitle">${escapeHtml(shortId(job.id, 12))}</span>
+        <div class="job-id-row">
+          <code class="job-id-code" title="点击复制完整任务 ID" data-copy="${escapeHtml(job.id)}">${escapeHtml(shortId(job.id, 12))}</code>
+          <button class="row-button" type="button" data-job-action="copy-id" data-id="${escapeHtml(job.id)}" title="复制任务 ID">复制 ID</button>
+        </div>
       </td>
       <td><strong>${escapeHtml(job.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(job.userMaskedId)}</span></td>
       <td>${escapeHtml(job.templateName)}</td>
@@ -1594,6 +1597,16 @@ wireListPager({
 })
 
 elements.jobRows?.addEventListener('click', async event => {
+  const copyEl = event.target.closest('[data-copy]')
+  if (copyEl?.dataset.copy) {
+    await copyText(copyEl.dataset.copy, '任务 ID 已复制')
+    return
+  }
+  const copyIdBtn = event.target.closest('[data-job-action="copy-id"]')
+  if (copyIdBtn) {
+    await copyText(copyIdBtn.dataset.id || '', '任务 ID 已复制')
+    return
+  }
   const bannerBtn = event.target.closest('[data-job-action="banner"]')
   if (bannerBtn) {
     const job = (state.jobs || []).find(item => item.id === bannerBtn.dataset.id)
