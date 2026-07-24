@@ -618,7 +618,49 @@
         <label>标题<input name="title" maxlength="40" required></label>
         <label>角标<input name="badge" maxlength="12"></label>
         <label class="field-wide">副标题<input name="subtitle" maxlength="80"></label>
-        <label class="field-wide">背景配色<input name="palette" maxlength="240" required></label>
+
+        <label class="field-wide">背景配色
+          <span class="color-field">
+            <input type="color" name="palettePicker" value="#dff3ec" title="取色器（纯色）" aria-label="背景取色">
+            <input name="palette" maxlength="240" required placeholder="#dff3ec 或 linear-gradient(...)">
+          </span>
+        </label>
+        <p class="field-hint">纯色可点左侧取色器；渐变请在输入框手写 CSS，例如 linear-gradient(135deg, #dff3ec, #fff0f3)</p>
+
+        <fieldset class="color-fieldset field-wide">
+          <legend>文字颜色</legend>
+          <div class="color-presets">
+            <button type="button" class="chip-button" data-banner-text-preset="dark">深色字</button>
+            <button type="button" class="chip-button" data-banner-text-preset="light">白色字</button>
+            <button type="button" class="chip-button" data-banner-text-preset="clear">跟随默认</button>
+          </div>
+          <div class="color-grid">
+            <label>标题颜色
+              <span class="color-field">
+                <input type="color" name="titleColorPicker" value="#385c54" aria-label="标题取色">
+                <input name="titleColor" maxlength="20" placeholder="空=默认">
+              </span>
+            </label>
+            <label>副标题颜色
+              <span class="color-field">
+                <input type="color" name="subtitleColorPicker" value="#71857f" aria-label="副标题取色">
+                <input name="subtitleColor" maxlength="20" placeholder="空=默认">
+              </span>
+            </label>
+            <label>角标颜色
+              <span class="color-field">
+                <input type="color" name="badgeColorPicker" value="#2f8f78" aria-label="角标取色">
+                <input name="badgeColor" maxlength="20" placeholder="空=默认">
+              </span>
+            </label>
+          </div>
+          <div class="banner-text-preview" id="bannerTextPreview" aria-hidden="true">
+            <span class="banner-text-preview__badge">角标</span>
+            <strong class="banner-text-preview__title">标题预览</strong>
+            <span class="banner-text-preview__sub">副标题预览</span>
+          </div>
+          <p class="field-hint">有配图且未设颜色时，小程序默认白字；可点「白色字」或自行取色覆盖。</p>
+        </fieldset>
 
         <label class="field-wide">点击跳转类型
           <select name="jumpType" id="bannerJumpType">

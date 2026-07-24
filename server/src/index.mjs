@@ -219,6 +219,19 @@ function normalizeMiniProgramPath(raw) {
   return path
 }
 
+function normalizeCssColor(raw, label, { allowEmpty = true } = {}) {
+  const value = String(raw || '').trim()
+  if (!value) {
+    if (allowEmpty) return ''
+    throw new HttpError(400, 'INVALID_COLOR', `${label}不能为空`)
+  }
+  // #RGB / #RRGGBB / #RRGGBBAA
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value)) return value.toLowerCase()
+  // rgb() / rgba()
+  if (/^rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+(?:\s*,\s*[\d.]+\s*)?\)$/i.test(value)) return value.replace(/\s+/g, '')
+  throw new HttpError(400, 'INVALID_COLOR', `${label}请使用 #RRGGBB 或 rgb/rgba 格式`)
+}
+
 function applyBannerFields(target, body, creating = false) {
   const textFields = [
     ['title', 'Banner 标题', 40, true],
@@ -228,6 +241,15 @@ function applyBannerFields(target, body, creating = false) {
   ]
   for (const [key, label, maxLength, required] of textFields) {
     if (creating || key in body) target[key] = cleanText(body[key], label, maxLength, required)
+  }
+  if (creating || 'titleColor' in body) {
+    target.titleColor = normalizeCssColor(body.titleColor, '标题颜色')
+  }
+  if (creating || 'subtitleColor' in body) {
+    target.subtitleColor = normalizeCssColor(body.subtitleColor, '副标题颜色')
+  }
+  if (creating || 'badgeColor' in body) {
+    target.badgeColor = normalizeCssColor(body.badgeColor, '角标颜色')
   }
   if (creating || 'targetPath' in body) {
     target.targetPath = normalizeMiniProgramPath(body.targetPath)

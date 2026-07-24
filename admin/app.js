@@ -1308,6 +1308,90 @@ function bannerById(id) {
   return state.data.banners.find(item => item.id === id)
 }
 
+const BANNER_TEXT_DEFAULTS = {
+  dark: { titleColor: '#385c54', subtitleColor: '#71857f', badgeColor: '#2f8f78' },
+  light: { titleColor: '#ffffff', subtitleColor: '#f5f7f6', badgeColor: '#ffffff' }
+}
+
+function toColorPickerValue(raw, fallback = '#385c54') {
+  const value = String(raw || '').trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(value)) return value
+  if (/^#[0-9a-fA-F]{3}$/.test(value)) {
+    const r = value[1]
+    const g = value[2]
+    const b = value[3]
+    return `#${r}${r}${g}${g}${b}${b}`
+  }
+  return fallback
+}
+
+function setBannerColorField(name, value, pickerFallback) {
+  const form = elements.bannerForm?.elements
+  if (!form?.[name]) return
+  const text = String(value || '').trim()
+  form[name].value = text
+  const picker = form[`${name}Picker`]
+  if (picker) picker.value = toColorPickerValue(text || pickerFallback, pickerFallback)
+}
+
+function applyBannerTextPreset(preset) {
+  const form = elements.bannerForm?.elements
+  if (!form) return
+  if (preset === 'clear') {
+    setBannerColorField('titleColor', '', '#385c54')
+    setBannerColorField('subtitleColor', '', '#71857f')
+    setBannerColorField('badgeColor', '', '#2f8f78')
+  } else {
+    const colors = BANNER_TEXT_DEFAULTS[preset]
+    if (!colors) return
+    setBannerColorField('titleColor', colors.titleColor, colors.titleColor)
+    setBannerColorField('subtitleColor', colors.subtitleColor, colors.subtitleColor)
+    setBannerColorField('badgeColor', colors.badgeColor, colors.badgeColor)
+  }
+  updateBannerTextPreview()
+}
+
+function updateBannerTextPreview() {
+  const preview = document.querySelector('#bannerTextPreview')
+  const form = elements.bannerForm?.elements
+  if (!preview || !form) return
+  const title = String(form.title?.value || '标题预览').trim() || '标题预览'
+  const subtitle = String(form.subtitle?.value || '副标题预览').trim() || '副标题预览'
+  const badge = String(form.badge?.value || '角标').trim() || '角标'
+  const titleColor = String(form.titleColor?.value || '').trim() || '#385c54'
+  const subtitleColor = String(form.subtitleColor?.value || '').trim() || '#71857f'
+  const badgeColor = String(form.badgeColor?.value || '').trim() || '#2f8f78'
+  const palette = String(form.palette?.value || '').trim() || 'linear-gradient(135deg, #dff3ec, #fff0f3)'
+  preview.style.background = palette
+  const badgeEl = preview.querySelector('.banner-text-preview__badge')
+  const titleEl = preview.querySelector('.banner-text-preview__title')
+  const subEl = preview.querySelector('.banner-text-preview__sub')
+  if (badgeEl) {
+    badgeEl.textContent = badge
+    badgeEl.style.color = badgeColor
+  }
+  if (titleEl) {
+    titleEl.textContent = title
+    titleEl.style.color = titleColor
+  }
+  if (subEl) {
+    subEl.textContent = subtitle
+    subEl.style.color = subtitleColor
+  }
+}
+
+function syncBannerColorPickersFromText() {
+  const form = elements.bannerForm?.elements
+  if (!form) return
+  if (form.palettePicker) {
+    const solid = String(form.palette?.value || '').trim()
+    if (/^#[0-9a-fA-F]{3,8}$/.test(solid)) form.palettePicker.value = toColorPickerValue(solid, '#dff3ec')
+  }
+  if (form.titleColorPicker) form.titleColorPicker.value = toColorPickerValue(form.titleColor?.value, '#385c54')
+  if (form.subtitleColorPicker) form.subtitleColorPicker.value = toColorPickerValue(form.subtitleColor?.value, '#71857f')
+  if (form.badgeColorPicker) form.badgeColorPicker.value = toColorPickerValue(form.badgeColor?.value, '#2f8f78')
+}
+
 async function openBannerDialog(banner = null) {
   state.editingBannerId = banner?.id || ''
   elements.bannerDialogTitle.textContent = banner ? '编辑 Banner' : '新增 Banner'
@@ -1316,6 +1400,9 @@ async function openBannerDialog(banner = null) {
   if (banner) {
     for (const key of ['title', 'subtitle', 'badge', 'palette', 'sortOrder']) form[key].value = banner[key] ?? ''
     form.enabled.checked = banner.enabled
+    setBannerColorField('titleColor', banner.titleColor || '', '#385c54')
+    setBannerColorField('subtitleColor', banner.subtitleColor || '', '#71857f')
+    setBannerColorField('badgeColor', banner.badgeColor || '', '#2f8f78')
     const parsed = applyBannerJumpToForm(banner.targetPath)
     await fillBannerTemplateOptions(parsed.templateId)
   } else {
@@ -1323,9 +1410,13 @@ async function openBannerDialog(banner = null) {
     form.sortOrder.value = ((state.data?.banners?.length || 0) + 1) * 10
     form.palette.value = 'linear-gradient(135deg, #dff3ec, #fff0f3)'
     if (form.jumpType) form.jumpType.value = 'none'
+    // Default readable dark text for gradient / soft backgrounds
+    applyBannerTextPreset('dark')
     await fillBannerTemplateOptions('')
   }
+  syncBannerColorPickersFromText()
   updateBannerJumpUI()
+  updateBannerTextPreview()
   elements.bannerDialog.showModal()
 }
 
@@ -1348,6 +1439,9 @@ function bannerPayload(form) {
     subtitle: String(values.get('subtitle') || ''),
     badge: String(values.get('badge') || ''),
     palette: String(values.get('palette') || ''),
+    titleColor: String(values.get('titleColor') || '').trim(),
+    subtitleColor: String(values.get('subtitleColor') || '').trim(),
+    badgeColor: String(values.get('badgeColor') || '').trim(),
     targetPath,
     sortOrder: Number(values.get('sortOrder')),
     enabled: form.elements.enabled.checked
@@ -1652,6 +1746,45 @@ function wireBannerJumpFields() {
   elements.bannerJumpCustomPath?.addEventListener('input', refresh)
 }
 wireBannerJumpFields()
+
+function wireBannerColorFields() {
+  const form = elements.bannerForm
+  if (!form) return
+  const els = form.elements
+
+  const bindPair = (textName, pickerName, onPicker) => {
+    const text = els[textName]
+    const picker = els[pickerName]
+    picker?.addEventListener('input', () => {
+      if (text) text.value = picker.value
+      if (onPicker) onPicker(picker.value)
+      updateBannerTextPreview()
+    })
+    text?.addEventListener('input', () => {
+      const v = String(text.value || '').trim()
+      if (picker && /^#[0-9a-fA-F]{6}$/.test(v)) picker.value = v
+      else if (picker && /^#[0-9a-fA-F]{3}$/.test(v)) picker.value = toColorPickerValue(v)
+      updateBannerTextPreview()
+    })
+  }
+
+  // Palette picker only writes solid hex (gradient stays in text field)
+  bindPair('palette', 'palettePicker', value => {
+    if (els.palette) els.palette.value = value
+  })
+  bindPair('titleColor', 'titleColorPicker')
+  bindPair('subtitleColor', 'subtitleColorPicker')
+  bindPair('badgeColor', 'badgeColorPicker')
+
+  form.querySelectorAll('[data-banner-text-preset]').forEach(btn => {
+    btn.addEventListener('click', () => applyBannerTextPreset(btn.dataset.bannerTextPreset))
+  })
+
+  ;['title', 'subtitle', 'badge'].forEach(name => {
+    els[name]?.addEventListener('input', updateBannerTextPreview)
+  })
+}
+wireBannerColorFields()
 
 elements.bannerImageInput.addEventListener('change', async () => {
   const file = elements.bannerImageInput.files[0]

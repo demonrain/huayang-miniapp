@@ -204,10 +204,25 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(jobs.body.jobs[0].userNickname, '微信用户')
 
     const banner = await api('/api/admin/banners', {
-      method: 'POST', token: adminToken,
-      json: { title: '春日上新', subtitle: '测试 Banner', badge: '上新', palette: '#dff3ec', targetPath: '', sortOrder: 20, enabled: true }
+      method: 'POST',
+      token: adminToken,
+      json: {
+        title: '春日上新',
+        subtitle: '测试 Banner',
+        badge: '上新',
+        palette: '#dff3ec',
+        titleColor: '#385c54',
+        subtitleColor: '#71857f',
+        badgeColor: '#2f8f78',
+        targetPath: '',
+        sortOrder: 20,
+        enabled: true
+      }
     })
     assert.equal(banner.response.status, 201)
+    assert.equal(banner.body.banner.titleColor, '#385c54')
+    assert.equal(banner.body.banner.subtitleColor, '#71857f')
+    assert.equal(banner.body.banner.badgeColor, '#2f8f78')
     const bannerForm = new FormData()
     bannerForm.append('image', new Blob([tinyPng], { type: 'image/png' }), 'banner.png')
     const bannerImage = await api(`/api/admin/banners/${banner.body.banner.id}/image`, {

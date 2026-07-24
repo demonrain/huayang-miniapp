@@ -233,14 +233,19 @@ export function publicTemplate(template, state, admin = false) {
 export function publicBanner(item, state, admin = false) {
   const image = item.imageAssetId ? state.assets.find(asset => asset.id === item.imageAssetId) : null
   const fullImage = assetUrl(image)
+  const imageUrl = assetThumbUrl(image) || fullImage
+  // Empty color → client uses CSS defaults (image banners default to white in miniapp)
   const value = {
     id: item.id,
     title: item.title,
     subtitle: item.subtitle || '',
     badge: item.badge || '',
     palette: item.palette || '#e9f7f2',
+    titleColor: String(item.titleColor || '').trim(),
+    subtitleColor: String(item.subtitleColor || '').trim(),
+    badgeColor: String(item.badgeColor || '').trim(),
     targetPath: item.targetPath || '',
-    imageUrl: assetThumbUrl(image) || fullImage,
+    imageUrl,
     imageFullUrl: fullImage,
     enabled: item.enabled !== false,
     sortOrder: Number(item.sortOrder || 0)
