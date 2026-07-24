@@ -18,7 +18,7 @@ const state = {
   templates: [],
   userQuery: createPageQuery({ query: '', status: 'all' }),
   transactionQuery: createPageQuery({ query: '', type: 'all' }),
-  jobQuery: createPageQuery({ query: '', status: 'all' }),
+  jobQuery: createPageQuery({ query: '', status: 'all', share: 'all' }),
   feedbackQuery: createPageQuery({ type: 'all', status: 'all' }),
   cdkQuery: createPageQuery({ query: '', status: 'all' }),
   templateQuery: createPageQuery({
@@ -66,6 +66,10 @@ const elements = {
   jobPrevPage: document.querySelector('#jobPrevPage'),
   jobNextPage: document.querySelector('#jobNextPage'),
   jobPageSize: document.querySelector('#jobPageSize'),
+  jobShareSelect: document.querySelector('#jobShareSelect'),
+  jobShareChips: document.querySelector('#jobShareChips'),
+  jobFilterPublic: document.querySelector('#jobFilterPublic'),
+  jobSummaryHint: document.querySelector('#jobSummaryHint'),
   feedbackRows: document.querySelector('#feedbackRows'),
   feedbackFilterForm: document.querySelector('#feedbackFilterForm'),
   feedbackPagerInfo: document.querySelector('#feedbackPagerInfo'),
@@ -688,6 +692,24 @@ async function loadTransactions({ resetPage = false } = {}) {
   }
 }
 
+function syncJobShareChips(share) {
+  if (!elements.jobShareChips) return
+  elements.jobShareChips.querySelectorAll('[data-job-share]').forEach(btn => {
+    btn.classList.toggle('is-active', btn.dataset.jobShare === share)
+  })
+  if (elements.jobShareSelect) elements.jobShareSelect.value = share
+  if (elements.jobFilterForm?.elements?.share) {
+    elements.jobFilterForm.elements.share.value = share
+  }
+}
+
+function setJobShareFilter(share, { reload = true } = {}) {
+  const next = share || 'all'
+  state.jobQuery.share = next
+  syncJobShareChips(next)
+  if (reload) loadJobs({ resetPage: true }).catch(error => showToast(error.message, true))
+}
+
 async function loadJobs({ resetPage = false } = {}) {
   const q = state.jobQuery
   if (resetPage) q.page = 1
@@ -695,7 +717,9 @@ async function loadJobs({ resetPage = false } = {}) {
     const values = new FormData(elements.jobFilterForm)
     q.query = String(values.get('query') || '').trim()
     q.status = String(values.get('status') || 'all')
+    q.share = String(values.get('share') || q.share || 'all')
   }
+  syncJobShareChips(q.share || 'all')
   syncPageSizeFromSelect(elements.jobPageSize, q)
   q.loading = true
   elements.jobRows.innerHTML = emptyRow(9, '加载中...')
@@ -711,11 +735,17 @@ async function loadJobs({ resetPage = false } = {}) {
       page: String(q.page),
       pageSize: String(q.pageSize),
       query: q.query,
-      status: q.status
+      status: q.status,
+      share: q.share || 'all'
     })
     const result = await api(`/api/admin/jobs?${params}`)
     state.jobs = result.jobs || []
     applyPageResult(q, result)
+    const summary = result.summary || {}
+    if (elements.jobSummaryHint) {
+      elements.jobSummaryHint.textContent =
+        `共 ${Number(summary.total ?? q.total)} 条 · 用户已公开 ${Number(summary.public || 0)} · 其中含原图 ${Number(summary.publicWithOriginals || 0)} · 未公开 ${Number(summary.private || 0)}。可筛选公开作品后设为 Banner。`
+    }
     elements.jobRows.innerHTML = state.jobs.map(job => `
     <tr>
       <td>
@@ -1564,7 +1594,19 @@ elements.transactionFilterForm.addEventListener('submit', event => {
 })
 elements.jobFilterForm.addEventListener('submit', event => {
   event.preventDefault()
+  const values = new FormData(elements.jobFilterForm)
+  setJobShareFilter(String(values.get('share') || 'all'), { reload: false })
   loadJobs({ resetPage: true }).catch(error => showToast(error.message, true))
+})
+
+elements.jobFilterPublic?.addEventListener('click', () => {
+  setJobShareFilter('public')
+})
+
+elements.jobShareChips?.addEventListener('click', event => {
+  const button = event.target.closest('[data-job-share]')
+  if (!button) return
+  setJobShareFilter(button.dataset.jobShare)
 })
 
 wireListPager({

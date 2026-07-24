@@ -50,7 +50,7 @@
 | `GET/PATCH` | `/api/admin/users[/:id]` | 查询用户或修改启用状态（列表支持 `page`/`pageSize`） |
 | `POST` | `/api/admin/users/:id/credits` | 调整用户积分并写入流水 |
 | `GET` | `/api/admin/transactions` | 查询充值、消费及其他积分流水（`page`/`pageSize`） |
-| `GET` | `/api/admin/jobs` | 查询作品任务、状态和生成时间（`page`/`pageSize`） |
+| `GET` | `/api/admin/jobs` | 查询作品任务（`page`/`pageSize`/`status`/`share`：all\|public\|private\|public_with_originals） |
 | `POST` | `/api/admin/jobs/:id/public-share` | 管理员公开/取消公开作品（供 Banner 跳转） |
 | `POST` | `/api/admin/jobs/:id/samples` | 将任务某张结果加入模板「更多效果参考」 |
 | `DELETE` | `/api/admin/jobs/:id/samples` | 从模板「更多效果参考」中移除该结果（body: `resultId`） |

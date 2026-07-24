@@ -1222,8 +1222,18 @@ export async function createApplication() {
           const state = store.read()
           const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
           const status = String(url.searchParams.get('status') || 'all')
+          // share: all | public | private | public_with_originals
+          const share = String(url.searchParams.get('share') || 'all')
           const filtered = state.jobs
             .filter(item => status === 'all' || item.status === status)
+            .filter(item => {
+              if (share === 'public') return Boolean(item.publicShareEnabled)
+              if (share === 'private') return !item.publicShareEnabled
+              if (share === 'public_with_originals') {
+                return Boolean(item.publicShareEnabled && item.publicShareShowOriginals)
+              }
+              return true
+            })
             .filter(item => {
               if (!query) return true
               const owner = state.users.find(user => user.id === item.userId)
@@ -1232,6 +1242,7 @@ export async function createApplication() {
             })
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
           const page = paginateArray(filtered, url)
+          const publicCount = state.jobs.filter(item => item.publicShareEnabled).length
           const jobs = page.items.map(item => {
             const owner = state.users.find(user => user.id === item.userId)
             const job = publicJob(item, state)
@@ -1258,7 +1269,13 @@ export async function createApplication() {
             total: page.total,
             page: page.page,
             pageSize: page.pageSize,
-            pages: page.pages
+            pages: page.pages,
+            summary: {
+              total: state.jobs.length,
+              public: publicCount,
+              private: state.jobs.length - publicCount,
+              publicWithOriginals: state.jobs.filter(item => item.publicShareEnabled && item.publicShareShowOriginals).length
+            }
           })
           return
         }

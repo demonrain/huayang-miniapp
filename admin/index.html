@@ -209,12 +209,34 @@
 
       <section id="jobsView" class="view-panel" hidden>
         <div class="toolbar">
-          <div><h3>作品生成记录</h3><p>可查看原图与生成结果；已完成作品可加入效果参考，或「设为 Banner」让首页点击跳转到该作品展示页。</p></div>
+          <div>
+            <h3>作品生成记录</h3>
+            <p id="jobSummaryHint">可查看原图与生成结果；已完成作品可加入效果参考，或「设为 Banner」。支持按用户公开共享筛选。</p>
+          </div>
           <form id="jobFilterForm" class="filter-bar">
             <input name="query" placeholder="昵称、任务 ID 或模板">
-            <select name="status"><option value="all">全部状态</option><option value="queued">排队中</option><option value="processing">生成中</option><option value="succeeded">已完成</option><option value="failed">失败</option></select>
+            <select name="status">
+              <option value="all">全部状态</option>
+              <option value="queued">排队中</option>
+              <option value="processing">生成中</option>
+              <option value="succeeded">已完成</option>
+              <option value="failed">失败</option>
+            </select>
+            <select name="share" id="jobShareSelect">
+              <option value="all">全部共享</option>
+              <option value="public">仅用户公开</option>
+              <option value="public_with_originals">公开且含原图</option>
+              <option value="private">未公开</option>
+            </select>
             <button class="button button--quiet" type="submit">查询</button>
+            <button class="button button--quiet" type="button" id="jobFilterPublic" title="仅看用户已公开的作品">快捷：已公开</button>
           </form>
+        </div>
+        <div class="cdk-status-chips" id="jobShareChips" aria-label="按共享状态筛选">
+          <button type="button" class="chip-button is-active" data-job-share="all">全部</button>
+          <button type="button" class="chip-button" data-job-share="public">已公开</button>
+          <button type="button" class="chip-button" data-job-share="public_with_originals">公开·含原图</button>
+          <button type="button" class="chip-button" data-job-share="private">未公开</button>
         </div>
         <div class="table-wrap"><table><thead><tr><th>图片</th><th>用户</th><th>模板</th><th>状态</th><th>数量/积分</th><th>生成时间</th><th>完成时间</th><th>耗时</th><th>异常 / 操作</th></tr></thead><tbody id="jobRows"></tbody></table></div>
         <div class="pager" id="jobPager">
