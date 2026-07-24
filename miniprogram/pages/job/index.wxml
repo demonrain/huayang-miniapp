@@ -57,6 +57,11 @@
         <view class="section-title__main">{{demo ? '演示作品' : (showcase ? '精选效果' : '你的作品')}}</view>
         <view class="section-title__sub">{{job.results.length}} 张已完成 · {{demo ? '效果图为风格封面演示' : '点击查看大图'}}</view>
       </view>
+      <view wx:if="{{!demo && !showcase && isOwner && job.status === 'succeeded'}}" class="owner-flower-chip">
+        <image class="owner-flower-chip__icon" src="/assets/icons/flower-gift-active.png" mode="aspectFit"></image>
+        <text>收到 {{likeCount || job.flowerCount || job.likeCount || 0}} 朵花</text>
+        <text wx:if="{{publicShareEnabled}}" class="owner-flower-chip__hint">已分享到花海</text>
+      </view>
       <view class="result-list">
         <view wx:for="{{job.results}}" wx:key="id" class="result-item">
           <image
@@ -94,10 +99,10 @@
       <!-- Owner: share to 花海 — switch auto-saves -->
       <view wx:if="{{!demo && !showcase && isOwner && job.status === 'succeeded'}}" class="public-share-panel">
         <view class="public-share-panel__title">分享到花海</view>
-        <view class="public-share-panel__desc">开启后作品会出现在「花海」，其他用户可浏览与点赞；同一作品分享奖励仅能获得一次。切换开关后自动保存。</view>
+        <view class="public-share-panel__desc">开启后作品会出现在「花海」，其他用户可浏览与送花；同一作品分享奖励仅能获得一次。切换开关后自动保存。</view>
         <view wx:if="{{galleryPublishCredits > 0 || galleryLikeAuthorCredits > 0}}" class="public-share-reward-tip">
           首次分享可获 {{galleryPublishCredits}} 积分
-          <text wx:if="{{galleryLikeAuthorCredits > 0}}">；被点赞你得 {{galleryLikeAuthorCredits}} 积分，点赞者得 {{galleryLikeLikerCredits}} 积分</text>
+          <text wx:if="{{galleryLikeAuthorCredits > 0}}">；收到花你得 {{galleryLikeAuthorCredits}} 积分，送花者得 {{galleryLikeLikerCredits}} 积分</text>
         </view>
         <label class="public-share-row">
           <text>分享到花海</text>
@@ -227,11 +232,11 @@
     <!-- Showcase / 花海: fixed bottom dock — create + like / like count -->
     <view wx:elif="{{showcase && !demo && job.status === 'succeeded'}}" class="showcase-dock">
       <button class="showcase-dock__create" bindtap="createAgain">用同款风格创作</button>
-      <view wx:if="{{isOwner}}" class="showcase-dock__stats" aria-label="点赞数">
-        <image class="showcase-dock__icon" src="/assets/icons/like-active.png" mode="aspectFit"></image>
+      <view wx:if="{{isOwner}}" class="showcase-dock__stats" aria-label="收到的花">
+        <image class="showcase-dock__icon" src="/assets/icons/flower-gift-active.png" mode="aspectFit"></image>
         <view class="showcase-dock__stats-text">
           <text class="showcase-dock__count">{{likeCount}}</text>
-          <text class="showcase-dock__label">次点赞</text>
+          <text class="showcase-dock__label">朵花</text>
         </view>
       </view>
       <view
@@ -239,10 +244,10 @@
         class="showcase-dock__like {{likedByMe ? 'is-liked' : ''}} {{liking ? 'is-loading' : ''}}"
         bindtap="onShowcaseLike"
       >
-        <image class="showcase-dock__icon" src="{{likedByMe ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"></image>
+        <image class="showcase-dock__icon" src="{{likedByMe ? '/assets/icons/flower-gift-active.png' : '/assets/icons/flower-gift.png'}}" mode="aspectFit"></image>
         <view class="showcase-dock__stats-text">
           <text class="showcase-dock__count">{{likeCount}}</text>
-          <text class="showcase-dock__label">{{likedByMe ? '已赞' : '点赞'}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? ' +' : ''}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? galleryLikeLikerCredits : ''}}</text>
+          <text class="showcase-dock__label">{{likedByMe ? '已送花' : '送花'}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? ' +' : ''}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? galleryLikeLikerCredits : ''}}</text>
         </view>
       </view>
     </view>

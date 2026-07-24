@@ -358,7 +358,9 @@ export function publicJob(job, state) {
     publicShareShowOriginals: Boolean(job.publicShareShowOriginals),
     publicShareAt: job.publicShareAt || '',
     publicSharePublishRewarded: Boolean(job.publicSharePublishRewarded),
-    likeCount: (Array.isArray(state.jobLikes) ? state.jobLikes : []).filter(item => item.jobId === job.id).length
+    likeCount: (Array.isArray(state.jobLikes) ? state.jobLikes : []).filter(item => item.jobId === job.id).length,
+    // Alias for product language「送花」
+    flowerCount: (Array.isArray(state.jobLikes) ? state.jobLikes : []).filter(item => item.jobId === job.id).length
   }
 }
 
@@ -376,6 +378,7 @@ export function publicSharedJob(job, state, { viewerUserId = '' } = {}) {
     publicShareEnabled: true,
     publicShareShowOriginals: showOriginals,
     likeCount: likes.length,
+    flowerCount: likes.length,
     likedByMe: viewerUserId ? likes.some(item => item.userId === viewerUserId) : false,
     publicSharePublishRewarded: Boolean(job.publicSharePublishRewarded)
   }

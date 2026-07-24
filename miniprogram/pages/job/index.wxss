@@ -610,6 +610,33 @@
   width: 100%;
 }
 
+.owner-flower-chip {
+  margin: 8rpx 0 16rpx;
+  padding: 12rpx 16rpx;
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  background: #fff5f7;
+  border: 2rpx solid #f5dbe1;
+  border-radius: 999rpx;
+  color: #e04b66;
+  font-size: 22rpx;
+  font-weight: 650;
+}
+
+.owner-flower-chip__icon {
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.owner-flower-chip__hint {
+  margin-left: 4rpx;
+  padding-left: 10rpx;
+  border-left: 2rpx solid #f0c8d1;
+  color: #b0707c;
+  font-weight: 500;
+}
+
 .author-works {
   margin-top: 28rpx;
 }

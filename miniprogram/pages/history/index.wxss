@@ -136,6 +136,41 @@
   font-size: 18rpx;
 }
 
+.work-card__sub-row {
+  margin-top: 6rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8rpx;
+}
+
+.work-card__sub-row .work-card__sub {
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-card__flowers {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 2rpx 8rpx;
+  background: #fff5f7;
+  border-radius: 999rpx;
+  color: #e04b66;
+  font-size: 18rpx;
+  font-weight: 650;
+}
+
+.work-card__flower-icon {
+  width: 22rpx;
+  height: 22rpx;
+}
+
 .status {
   flex: none;
   padding: 5rpx 10rpx;

@@ -178,36 +178,42 @@ Page({
     const app = getApp()
     if (!app.isLoggedIn()) {
       try {
-        await app.requireLogin('登录后可为作品点赞')
+        await app.requireLogin('登录后可为作品送花')
       } catch (error) {
         return
       }
     }
     const current = this.data.items.find(item => item.id === id)
     if (current && current.likedByMe) {
-      wx.showToast({ title: '已经点过赞了', icon: 'none' })
+      wx.showToast({ title: '已经送过花了', icon: 'none' })
       return
     }
     this.setData({ likingId: id })
     try {
       const result = await api.post(`/api/gallery/${encodeURIComponent(id)}/like`, {})
       if (result.user) app.setUser(result.user)
+      const nextCount = Number(
+        result.flowerCount != null
+          ? result.flowerCount
+          : (result.likeCount != null ? result.likeCount : (current?.likeCount || 0) + 1)
+      )
       const items = this.data.items.map(item => {
         if (item.id !== id) return item
         return {
           ...item,
           likedByMe: true,
-          likeCount: Number(result.likeCount != null ? result.likeCount : (item.likeCount || 0) + 1)
+          likeCount: nextCount,
+          flowerCount: nextCount
         }
       })
       this.applyItems(items, {
         likingId: '',
         user: result.user || this.data.user
       })
-      wx.showToast({ title: result.message || '点赞成功', icon: 'none' })
+      wx.showToast({ title: result.message || '送花成功', icon: 'none' })
     } catch (error) {
       this.setData({ likingId: '' })
-      wx.showToast({ title: error.message || '点赞失败', icon: 'none' })
+      wx.showToast({ title: error.message || '送花失败', icon: 'none' })
     }
   },
 

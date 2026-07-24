@@ -277,7 +277,7 @@ Page({
     const app = getApp()
     if (!app.isLoggedIn()) {
       try {
-        await app.requireLogin('登录后可为作品点赞')
+        await app.requireLogin('登录后可为作品送花')
       } catch (error) {
         return
       }
@@ -291,13 +291,17 @@ Page({
       }
       this.setData({
         likedByMe: true,
-        likeCount: Number(result.likeCount != null ? result.likeCount : (this.data.likeCount || 0) + 1),
+        likeCount: Number(
+          result.flowerCount != null
+            ? result.flowerCount
+            : (result.likeCount != null ? result.likeCount : (this.data.likeCount || 0) + 1)
+        ),
         liking: false
       })
-      wx.showToast({ title: result.message || '点赞成功', icon: 'none' })
+      wx.showToast({ title: result.message || '送花成功', icon: 'none' })
     } catch (error) {
       this.setData({ liking: false })
-      wx.showToast({ title: error.message || '点赞失败', icon: 'none' })
+      wx.showToast({ title: error.message || '送花失败', icon: 'none' })
     }
   },
 
@@ -334,7 +338,8 @@ Page({
         showcase: false,
         isOwner: true,
         publicShareEnabled: Boolean(job.publicShareEnabled),
-        publicShareShowOriginals: Boolean(job.publicShareShowOriginals)
+        publicShareShowOriginals: Boolean(job.publicShareShowOriginals),
+        likeCount: Number(job.flowerCount != null ? job.flowerCount : (job.likeCount || 0))
       }
 
       if (job.status === 'failed') {

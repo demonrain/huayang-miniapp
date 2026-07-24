@@ -2,7 +2,7 @@ const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
 
 function emptyStats() {
-  return { completedJobs: 0, generatedImages: 0 }
+  return { completedJobs: 0, generatedImages: 0, flowersReceived: 0, sharedJobs: 0 }
 }
 
 function buildCheckinView(checkin) {
@@ -34,6 +34,7 @@ Page({
     stats: emptyStats(),
     avatarUrl: '',
     nickname: '',
+    bio: '',
     avatarInitial: '画',
     profileComplete: false,
     checking: false,
@@ -96,14 +97,43 @@ Page({
 
   applyUser(user, stats) {
     const nickname = user.nickname || ''
+    const nextStats = {
+      ...emptyStats(),
+      ...(stats || this.data.stats || {}),
+      flowersReceived: Number(
+        (stats && stats.flowersReceived != null)
+          ? stats.flowersReceived
+          : (user.flowersReceived || 0)
+      )
+    }
     this.setData({
       user,
-      stats: stats || this.data.stats || emptyStats(),
+      stats: nextStats,
       avatarUrl: user.avatarUrl || '',
       nickname: nickname === '微信用户' ? '' : nickname,
+      bio: user.bio || '',
       avatarInitial: (nickname && nickname !== '微信用户' ? nickname : '画').slice(0, 1),
       profileComplete: Boolean(user.profileComplete)
     })
+  },
+
+  bioInput(event) {
+    this.setData({ bio: String(event.detail.value || '').slice(0, 80) })
+  },
+
+  async bioBlur() {
+    if (!this.data.user) return
+    const bio = String(this.data.bio || '').trim()
+    const prev = String(this.data.user.bio || '').trim()
+    if (bio === prev) return
+    try {
+      const { user } = await api.patch('/api/me', { bio })
+      getApp().setUser(user)
+      this.applyUser(user, this.data.stats)
+      wx.showToast({ title: '简介已保存', icon: 'none' })
+    } catch (error) {
+      wx.showToast({ title: error.message || '保存失败', icon: 'none' })
+    }
   },
 
   /**

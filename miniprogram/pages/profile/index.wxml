@@ -38,12 +38,28 @@
       </view>
     </view>
 
+    <view class="bio-card">
+      <view class="bio-card__head">
+        <text class="bio-card__title">个人简介</text>
+        <text class="bio-card__count">{{bio.length}}/80</text>
+      </view>
+      <textarea
+        class="bio-input"
+        value="{{bio}}"
+        maxlength="80"
+        placeholder="写一句属于你的花漾心情～"
+        auto-height
+        bindinput="bioInput"
+        bindblur="bioBlur"
+      ></textarea>
+    </view>
+
     <view wx:if="{{!profileComplete}}" class="profile-setup">
       <view class="profile-setup__title">完善微信资料</view>
       <view class="profile-setup__text">微信规定头像/昵称需你主动授权：点上方头像选择微信头像，点昵称栏使用微信昵称。完成后资料会自动保存。</view>
     </view>
 
-    <view class="stats-grid">
+    <view class="stats-grid stats-grid--4">
       <view class="stats-cell">
         <text class="stats-value">{{user.credits}}</text>
         <text class="stats-label">可用积分</text>
@@ -55,6 +71,13 @@
       <view class="stats-cell">
         <text class="stats-value">{{stats.generatedImages}}</text>
         <text class="stats-label">生成作品</text>
+      </view>
+      <view class="stats-cell stats-cell--flower">
+        <view class="stats-flower">
+          <image class="stats-flower__icon" src="/assets/icons/flower-gift-active.png" mode="aspectFit"></image>
+          <text class="stats-value">{{stats.flowersReceived || user.flowersReceived || 0}}</text>
+        </view>
+        <text class="stats-label">收到的花</text>
       </view>
     </view>
 

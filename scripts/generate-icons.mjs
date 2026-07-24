@@ -64,8 +64,10 @@ for (const [name, icon] of Object.entries(solidWhiteIcons)) {
   await render(icon, `${name}.png`, '#ffffff', 64)
 }
 
-// 花海点赞：小花图标（描边 / 填充），契合花漾主题
-await render('flower', 'like.png', '#c56f60', 72, { fill: 'none' })
-await render('flower', 'like-active.png', '#e76d82', 72, { fill: '#f8a0ad' })
+// 花海「送花」：双花 / 单花（描边=未送，填充=已送）
+await render('flower-2', 'like.png', '#c56f60', 72, { fill: 'none' })
+await render('flower-2', 'like-active.png', '#e76d82', 72, { fill: '#f8a0ad' })
+await render('flower-2', 'flower-gift.png', '#c56f60', 72, { fill: 'none' })
+await render('flower-2', 'flower-gift-active.png', '#e76d82', 72, { fill: '#f8a0ad' })
 
-console.log(`Generated ${Object.keys(tabIcons).length * 2 + Object.keys(actionIcons).length + Object.keys(buttonIcons).length + Object.keys(solidWhiteIcons).length + 2} Lucide PNG icons.`)
+console.log(`Generated ${Object.keys(tabIcons).length * 2 + Object.keys(actionIcons).length + Object.keys(buttonIcons).length + Object.keys(solidWhiteIcons).length + 4} Lucide PNG icons.`)

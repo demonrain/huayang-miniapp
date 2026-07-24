@@ -492,6 +492,7 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(like.response.status, 200)
     assert.equal(like.body.liked, true)
     assert.equal(like.body.likerCredits, 1)
+    assert.ok(like.body.flowerCount >= 1)
     const likeDup = await api(`/api/gallery/${created.body.job.id}/like`, {
       method: 'POST',
       token: otherUser.body.token

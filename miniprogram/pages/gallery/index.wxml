@@ -11,7 +11,7 @@
   </view>
 
   <view wx:if="{{galleryRewards}}" class="gallery-tip">
-    点赞可获得 {{galleryRewards.likeLikerCredits || 0}} 积分 · 作者获得 {{galleryRewards.likeAuthorCredits || 0}} 积分
+    送花可获得 {{galleryRewards.likeLikerCredits || 0}} 积分 · 作者获得 {{galleryRewards.likeAuthorCredits || 0}} 积分
   </view>
 
   <view wx:if="{{!isLoggedIn && !loading}}" class="empty empty-work">
@@ -20,7 +20,7 @@
       <text>花</text>
     </view>
     <view class="empty-title">登录后逛花海</view>
-    <view class="empty-sub">看看大家公开的作品，点个赞支持一下</view>
+    <view class="empty-sub">看看大家公开的作品，送朵花支持一下</view>
     <button class="primary-button" bindtap="doLogin">微信登录</button>
   </view>
 
@@ -66,8 +66,8 @@
                 data-id="{{item.id}}"
                 catchtap="onLike"
               >
-                <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"></image>
-                <text class="gallery-like__count">{{item.likeCount || 0}}</text>
+                <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/flower-gift-active.png' : '/assets/icons/flower-gift.png'}}" mode="aspectFit"></image>
+                <text class="gallery-like__count">{{item.flowerCount || item.likeCount || 0}}</text>
               </view>
             </view>
           </view>
@@ -102,8 +102,8 @@
                 data-id="{{item.id}}"
                 catchtap="onLike"
               >
-                <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"></image>
-                <text class="gallery-like__count">{{item.likeCount || 0}}</text>
+                <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/flower-gift-active.png' : '/assets/icons/flower-gift.png'}}" mode="aspectFit"></image>
+                <text class="gallery-like__count">{{item.flowerCount || item.likeCount || 0}}</text>
               </view>
             </view>
           </view>

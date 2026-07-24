@@ -44,12 +44,22 @@ function detectImage(buffer) {
   return null
 }
 
+function countUserFlowersReceived(state, userId) {
+  const likes = Array.isArray(state.jobLikes) ? state.jobLikes : []
+  if (!likes.length) return 0
+  const ownedJobIds = new Set(
+    (state.jobs || []).filter(job => job.userId === userId).map(job => job.id)
+  )
+  return likes.filter(like => ownedJobIds.has(like.jobId)).length
+}
+
 function publicUser(user, state) {
   const avatar = user.avatarAssetId ? state.assets.find(item => item.id === user.avatarAssetId) : null
   return {
     id: user.id,
     maskedId: user.id.slice(0, 4).toUpperCase(),
     nickname: user.nickname || '微信用户',
+    bio: String(user.bio || '').trim(),
     // Prefer uploaded asset; fall back to WeChat CDN / external avatar URL
     avatarUrl: avatar ? assetUrl(avatar) : (user.avatarUrl || ''),
     profileComplete: Boolean(
@@ -58,6 +68,7 @@ function publicUser(user, state) {
       (user.avatarAssetId || user.avatarUrl)
     ),
     credits: user.credits,
+    flowersReceived: countUserFlowersReceived(state, user.id),
     isNew: Boolean(user.isNew),
     enabled: user.enabled !== false,
     createdAt: user.createdAt
@@ -379,8 +390,8 @@ const transactionLabels = {
   invite_first_job: '邀请新用户完成首作',
   cdk_redeem: 'CDK 兑换积分',
   gallery_publish: '分享到花海',
-  gallery_like_give: '点赞花海作品',
-  gallery_like_receive: '作品被点赞'
+  gallery_like_give: '送花给花海作品',
+  gallery_like_receive: '作品收到花'
 }
 
 const feedbackTypeLabels = {
@@ -2165,6 +2176,11 @@ export async function createApplication() {
             if (!nickname || nickname.length > 20) throw new HttpError(400, 'INVALID_NICKNAME', '昵称需为 1–20 个字符')
             target.nickname = nickname
           }
+          if (typeof body.bio === 'string') {
+            const bio = body.bio.trim()
+            if (bio.length > 80) throw new HttpError(400, 'INVALID_BIO', '个人简介最多 80 个字符')
+            target.bio = bio
+          }
           if (typeof body.avatarAssetId === 'string' && body.avatarAssetId) {
             const avatar = draft.assets.find(item => item.id === body.avatarAssetId && item.userId === user.id)
             if (!avatar) throw new HttpError(400, 'INVALID_AVATAR', '头像图片不存在')
@@ -2192,10 +2208,17 @@ export async function createApplication() {
 
       if (request.method === 'GET' && pathname === '/api/profile') {
         const state = store.read()
+        const me = state.users.find(item => item.id === user.id)
         const succeeded = state.jobs.filter(item => item.userId === user.id && item.status === 'succeeded')
+        const flowersReceived = countUserFlowersReceived(state, user.id)
         json(response, 200, {
-          user: publicUser(state.users.find(item => item.id === user.id), state),
-          stats: { completedJobs: succeeded.length, generatedImages: succeeded.reduce((sum, item) => sum + item.results.length, 0) }
+          user: publicUser(me, state),
+          stats: {
+            completedJobs: succeeded.length,
+            generatedImages: succeeded.reduce((sum, item) => sum + (item.results || []).length, 0),
+            flowersReceived,
+            sharedJobs: succeeded.filter(item => item.publicShareEnabled).length
+          }
         })
         return
       }
@@ -2424,6 +2447,7 @@ export async function createApplication() {
             authorNickname: owner?.nickname || '花漾用户',
             authorId: job.userId,
             likeCount: jobLikes.length,
+            flowerCount: jobLikes.length,
             likedByMe: viewerId ? jobLikes.some(like => like.userId === viewerId) : false
           }
         })
@@ -2454,29 +2478,32 @@ export async function createApplication() {
             throw new HttpError(404, 'JOB_NOT_FOUND', '作品未公开或不存在')
           }
           if (job.userId === user.id) {
-            throw new HttpError(409, 'LIKE_SELF', '不能给自己的作品点赞')
+            throw new HttpError(409, 'LIKE_SELF', '不能给自己的作品送花')
           }
           if (draft.jobLikes.some(item => item.jobId === jobId && item.userId === user.id)) {
-            throw new HttpError(409, 'ALREADY_LIKED', '你已经点过赞了')
+            throw new HttpError(409, 'ALREADY_LIKED', '你已经送过花了')
           }
           const rewards = publicShareRewardSettings(draft.settings)
           const likerCredits = Number(rewards.galleryLikeLikerCredits || 0)
           const authorCredits = Number(rewards.galleryLikeAuthorCredits || 0)
+          // Persist sender (userId) for future「谁送的花」展示；现阶段仅计数
           draft.jobLikes.push({
             id: randomUUID(),
             jobId,
             userId: user.id,
+            fromUserId: user.id,
             createdAt: now()
           })
           if (likerCredits > 0) {
-            creditUser(draft, user.id, likerCredits, 'gallery_like_give', '点赞花海作品', jobId)
+            creditUser(draft, user.id, likerCredits, 'gallery_like_give', '送花给花海作品', jobId)
           }
           if (authorCredits > 0) {
-            creditUser(draft, job.userId, authorCredits, 'gallery_like_receive', '作品被点赞', jobId)
+            creditUser(draft, job.userId, authorCredits, 'gallery_like_receive', '作品收到花', jobId)
           }
           const likeCount = draft.jobLikes.filter(item => item.jobId === jobId).length
           return {
             likeCount,
+            flowerCount: likeCount,
             likerCredits,
             authorCredits,
             user: draft.users.find(item => item.id === user.id)
@@ -2487,12 +2514,13 @@ export async function createApplication() {
           ok: true,
           liked: true,
           likeCount: outcome.likeCount,
+          flowerCount: outcome.flowerCount,
           likerCredits: outcome.likerCredits,
           authorCredits: outcome.authorCredits,
           user: publicUser(outcome.user, state),
           message: outcome.likerCredits > 0
-            ? `点赞成功，积分 +${outcome.likerCredits}`
-            : '点赞成功'
+            ? `送花成功，积分 +${outcome.likerCredits}`
+            : '送花成功'
         })
         return
       }
