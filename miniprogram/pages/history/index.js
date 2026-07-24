@@ -88,8 +88,10 @@ Page({
     const jobs = (Array.isArray(result.jobs) ? result.jobs : []).map(job => ({
       ...job,
       relativeTime: relativeTime(job.createdAt),
-      // Prefer full cover for widthFix natural aspect ratio in waterfall
-      coverUrl: job.coverFullUrl || job.coverUrl || (job.results && job.results[0] && (job.results[0].url || job.results[0].thumbUrl)) || ''
+      // List uses thumb only — avoid loading full-size results
+      coverUrl: job.coverUrl
+        || (job.results && job.results[0] && (job.results[0].thumbUrl || job.results[0].url))
+        || ''
     }))
     const hasMore = typeof result.hasMore === 'boolean'
       ? result.hasMore
