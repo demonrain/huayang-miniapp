@@ -58,7 +58,7 @@
         <view class="section-title__sub">{{job.results.length}} 张已完成 · {{demo ? '效果图为风格封面演示' : '点击查看大图'}}</view>
       </view>
       <view wx:if="{{!demo && !showcase && isOwner && job.status === 'succeeded'}}" class="owner-flower-chip">
-        <image class="owner-flower-chip__icon" src="/assets/icons/flower-gift-active.png" mode="aspectFit"></image>
+        <image class="owner-flower-chip__icon" src="/assets/icons/gallery-active.png" mode="aspectFit"></image>
         <text>收到 {{likeCount || job.flowerCount || job.likeCount || 0}} 朵花</text>
         <text wx:if="{{publicShareEnabled}}" class="owner-flower-chip__hint">已分享到花海</text>
       </view>
@@ -233,7 +233,7 @@
     <view wx:elif="{{showcase && !demo && job.status === 'succeeded'}}" class="showcase-dock">
       <button class="showcase-dock__create" bindtap="createAgain">用同款风格创作</button>
       <view wx:if="{{isOwner}}" class="showcase-dock__stats" aria-label="收到的花">
-        <image class="showcase-dock__icon" src="/assets/icons/flower-gift-active.png" mode="aspectFit"></image>
+        <image class="showcase-dock__icon" src="/assets/icons/gallery-active.png" mode="aspectFit"></image>
         <view class="showcase-dock__stats-text">
           <text class="showcase-dock__count">{{likeCount}}</text>
           <text class="showcase-dock__label">朵花</text>
@@ -244,7 +244,7 @@
         class="showcase-dock__like {{likedByMe ? 'is-liked' : ''}} {{liking ? 'is-loading' : ''}}"
         bindtap="onShowcaseLike"
       >
-        <image class="showcase-dock__icon" src="{{likedByMe ? '/assets/icons/flower-gift-active.png' : '/assets/icons/flower-gift.png'}}" mode="aspectFit"></image>
+        <image class="showcase-dock__icon" src="{{likedByMe ? '/assets/icons/gallery-active.png' : '/assets/icons/gallery.png'}}" mode="aspectFit"></image>
         <view class="showcase-dock__stats-text">
           <text class="showcase-dock__count">{{likeCount}}</text>
           <text class="showcase-dock__label">{{likedByMe ? '已送花' : '送花'}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? ' +' : ''}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? galleryLikeLikerCredits : ''}}</text>

@@ -65,8 +65,8 @@
             <text class="work-card__name">{{item.templateName}}</text>
             <view class="work-card__sub-row">
               <text class="work-card__sub">{{item.relativeTime}} · {{item.assetIds.length || 0}} 张</text>
-              <view wx:if="{{item.status === 'succeeded'}}" class="work-card__flowers">
-                <image class="work-card__flower-icon" src="/assets/icons/flower-gift-active.png" mode="aspectFit"></image>
+              <view wx:if="{{item.status === 'succeeded' && item.publicShareEnabled}}" class="work-card__flowers">
+                <image class="work-card__flower-icon" src="/assets/icons/gallery-active.png" mode="aspectFit"></image>
                 <text>{{item.flowerCount || item.likeCount || 0}}</text>
               </view>
             </view>
@@ -104,8 +104,8 @@
             <text class="work-card__name">{{item.templateName}}</text>
             <view class="work-card__sub-row">
               <text class="work-card__sub">{{item.relativeTime}} · {{item.assetIds.length || 0}} 张</text>
-              <view wx:if="{{item.status === 'succeeded'}}" class="work-card__flowers">
-                <image class="work-card__flower-icon" src="/assets/icons/flower-gift-active.png" mode="aspectFit"></image>
+              <view wx:if="{{item.status === 'succeeded' && item.publicShareEnabled}}" class="work-card__flowers">
+                <image class="work-card__flower-icon" src="/assets/icons/gallery-active.png" mode="aspectFit"></image>
                 <text>{{item.flowerCount || item.likeCount || 0}}</text>
               </view>
             </view>

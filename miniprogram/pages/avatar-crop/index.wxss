@@ -15,7 +15,8 @@
 
 .crop-stage {
   position: relative;
-  flex: 1;
+  /* Fixed height from inline style — avoid flex stretch so mask/frame stay centered */
+  flex: none;
   width: 100%;
   overflow: hidden;
   background: #0f0d0e;

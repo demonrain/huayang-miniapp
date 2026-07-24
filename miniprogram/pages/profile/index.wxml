@@ -74,7 +74,7 @@
       </view>
       <view class="stats-cell stats-cell--flower">
         <view class="stats-flower">
-          <image class="stats-flower__icon" src="/assets/icons/flower-gift-active.png" mode="aspectFit"></image>
+          <image class="stats-flower__icon" src="/assets/icons/gallery-active.png" mode="aspectFit"></image>
           <text class="stats-value">{{stats.flowersReceived || user.flowersReceived || 0}}</text>
         </view>
         <text class="stats-label">收到的花</text>

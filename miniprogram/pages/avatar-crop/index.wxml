@@ -28,9 +28,9 @@
       </movable-view>
     </movable-area>
 
-    <!-- Dark mask with cutout -->
+    <!-- Dark mask with cutout: frame centered in stage (maskTop / maskSide) -->
     <view class="crop-mask" catchtouchmove="noop">
-      <view class="crop-mask__shade crop-mask__top" style="height: {{maskSide}}px"></view>
+      <view class="crop-mask__shade crop-mask__top" style="height: {{maskTop}}px"></view>
       <view class="crop-mask__mid" style="height: {{cropPx}}px">
         <view class="crop-mask__shade crop-mask__side" style="width: {{maskSide}}px"></view>
         <view class="crop-frame {{shape === 'circle' ? 'is-circle' : ''}}" style="width: {{cropPx}}px; height: {{cropPx}}px;"></view>

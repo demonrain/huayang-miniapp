@@ -15,6 +15,7 @@ Page({
     areaPx: 360,
     cropPx: 280,
     maskSide: 40,
+    maskTop: 40,
     viewW: 280,
     viewH: 280,
     x: 0,
@@ -32,10 +33,14 @@ Page({
     const sys = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
     const winW = sys.windowWidth || 375
     const winH = sys.windowHeight || 667
+    // Fixed stage height so mask / movable-area share the same geometry
     const stagePx = Math.max(280, Math.floor(winH - (metrics.navBarHeight || 64) - 200))
     const cropPx = Math.floor(Math.min(winW * 0.78, stagePx * 0.72))
+    // Square movable area matches stage width when possible, always centered in stage
     const areaPx = Math.floor(Math.min(winW, stagePx))
+    // Crop frame is centered both horizontally and vertically in the stage
     const maskSide = Math.max(0, Math.floor((winW - cropPx) / 2))
+    const maskTop = Math.max(0, Math.floor((stagePx - cropPx) / 2))
 
     this._x = 0
     this._y = 0
@@ -47,7 +52,8 @@ Page({
       stagePx,
       cropPx,
       areaPx,
-      maskSide
+      maskSide,
+      maskTop
     })
 
     if (!url) {
@@ -100,23 +106,30 @@ Page({
         viewW = cropPx
         viewH = Math.ceil(cropPx / ratio)
       }
-      // Center image in movable-area
-      const x = (areaPx - viewW) / 2
-      const y = (areaPx - viewH) / 2
+      // Center image so it fills the crop frame (same as work preview centering)
+      const x = Math.round((areaPx - viewW) / 2)
+      const y = Math.round((areaPx - viewH) / 2)
       this._x = x
       this._y = y
       this._scale = 1
+      // Set size first, then re-apply x/y after movable-view mounts (WeChat often ignores first x/y)
       this.setData({
         filePath,
         imgW: info.width,
         imgH: info.height,
         viewW,
         viewH,
-        x,
-        y,
+        x: 0,
+        y: 0,
         scale: 1,
         scaleMin: 1,
         ready: true
+      }, () => {
+        wx.nextTick(() => {
+          this._x = x
+          this._y = y
+          this.setData({ x, y })
+        })
       })
       hideLoadingQuiet()
     } catch (error) {
