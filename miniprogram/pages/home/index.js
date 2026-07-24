@@ -52,7 +52,9 @@ Page({
     announcements: [],
     latestAnnouncement: null,
     announcement: null,
-    showAnnouncement: false
+    showAnnouncement: false,
+    announcementInterval: 4500,
+    announcementCircular: true
   },
 
   onLoad() {
@@ -131,6 +133,11 @@ Page({
       const bannerCircular = multiBanner && carousel.circular !== false
       this.stopLoadingTips()
       const announcements = Array.isArray(announcementResult.announcements) ? announcementResult.announcements : []
+      const annCarousel = announcementResult.carousel
+        || config.announcementCarousel
+        || {}
+      const announcementInterval = Math.min(30000, Math.max(1500, Number(annCarousel.intervalMs) || 4500))
+      const announcementCircular = annCarousel.circular !== false
       const showOnboarding = !app.isLoggedIn() && !wx.getStorageSync('huayang_onboarding_done')
       const templates = firstPage.list
       // Normalize admin-configured text colors for WXML style binding.
@@ -171,7 +178,9 @@ Page({
         loading: false,
         showOnboarding,
         announcements,
-        latestAnnouncement: announcements[0] || null
+        latestAnnouncement: announcements[0] || null,
+        announcementInterval,
+        announcementCircular
       })
       if (!showOnboarding) this.maybeShowAnnouncement()
     } catch (error) {
@@ -350,7 +359,13 @@ Page({
       if (!list.length) {
         const result = await api.get('/api/announcements')
         list = Array.isArray(result.announcements) ? result.announcements : []
-        this.setData({ announcements: list, latestAnnouncement: list[0] || null })
+        const carousel = result.carousel || {}
+        this.setData({
+          announcements: list,
+          latestAnnouncement: list[0] || null,
+          announcementInterval: Math.min(30000, Math.max(1500, Number(carousel.intervalMs) || 4500)),
+          announcementCircular: carousel.circular !== false
+        })
       }
       if (!list.length) return
       let dismissed = []
@@ -360,7 +375,13 @@ Page({
         dismissed = []
       }
       if (!Array.isArray(dismissed)) dismissed = []
-      const next = list.find(item => item && item.id && dismissed.indexOf(item.id) === -1)
+      // Only popup-mode announcements auto-open; silent ones stay in the bar below banner
+      const next = list.find(item => (
+        item
+        && item.id
+        && item.displayMode !== 'silent'
+        && dismissed.indexOf(item.id) === -1
+      ))
       if (!next) return
       this.setData({
         announcement: next,
@@ -373,6 +394,14 @@ Page({
 
   openLatestAnnouncement() {
     const announcement = this.data.latestAnnouncement
+    if (!announcement) return
+    this.setData({ announcement, showAnnouncement: true })
+  },
+
+  openAnnouncementById(event) {
+    const id = event.currentTarget.dataset.id
+    const list = this.data.announcements || []
+    const announcement = list.find(item => item && item.id === id) || this.data.latestAnnouncement
     if (!announcement) return
     this.setData({ announcement, showAnnouncement: true })
   },

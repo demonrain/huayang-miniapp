@@ -53,6 +53,17 @@
   line-height: 1.5;
 }
 
+.announcement-swiper {
+  height: 100rpx;
+  margin-top: 20rpx;
+}
+
+.announcement-swiper .announcement-entry {
+  margin-top: 0;
+  height: 100%;
+  box-sizing: border-box;
+}
+
 .announcement-entry {
   min-height: 84rpx;
   margin-top: 20rpx;

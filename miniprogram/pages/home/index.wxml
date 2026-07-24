@@ -45,14 +45,27 @@
     </view>
   </view>
 
-  <view wx:if="{{latestAnnouncement}}" class="announcement-entry" bindtap="openLatestAnnouncement" hover-class="announcement-entry--hover">
-    <view class="announcement-entry__badge">公告</view>
-    <view class="announcement-entry__copy">
-      <view class="announcement-entry__title">{{latestAnnouncement.title}}</view>
-      <view class="announcement-entry__content">{{latestAnnouncement.content}}</view>
-    </view>
-    <view class="announcement-entry__arrow">›</view>
-  </view>
+  <swiper
+    wx:if="{{announcements.length}}"
+    class="announcement-swiper"
+    vertical
+    autoplay="{{announcements.length > 1}}"
+    circular="{{announcementCircular && announcements.length > 1}}"
+    interval="{{announcementInterval}}"
+    duration="400"
+    indicator-dots="{{false}}"
+  >
+    <swiper-item wx:for="{{announcements}}" wx:key="id">
+      <view class="announcement-entry" data-id="{{item.id}}" bindtap="openAnnouncementById" hover-class="announcement-entry--hover">
+        <view class="announcement-entry__badge">{{item.displayMode === 'popup' ? '公告' : '通知'}}</view>
+        <view class="announcement-entry__copy">
+          <view class="announcement-entry__title">{{item.title}}</view>
+          <view class="announcement-entry__content">{{item.content}}</view>
+        </view>
+        <view class="announcement-entry__arrow">›</view>
+      </view>
+    </swiper-item>
+  </swiper>
 
   <view class="section-title">
     <view>

@@ -35,7 +35,9 @@ const state = {
   feedbacks: [],
   replyingFeedbackId: '',
   editingCdkId: '',
-  cdkListCache: []
+  cdkListCache: [],
+  editingAnnouncementId: '',
+  announcementListCache: []
 }
 
 const elements = {
@@ -136,6 +138,10 @@ const elements = {
   cdkEditCodeLabel: document.querySelector('#cdkEditCodeLabel'),
   cdkEditHint: document.querySelector('#cdkEditHint'),
   announcementForm: document.querySelector('#announcementForm'),
+  announcementFormTitle: document.querySelector('#announcementFormTitle'),
+  announcementFormSubmit: document.querySelector('#announcementFormSubmit'),
+  announcementFormReset: document.querySelector('#announcementFormReset'),
+  announcementCarouselForm: document.querySelector('#announcementCarouselForm'),
   announcementRows: document.querySelector('#announcementRows'),
   subscribeBroadcastForm: document.querySelector('#subscribeBroadcastForm'),
   subscribeStatsHint: document.querySelector('#subscribeStatsHint'),
@@ -1239,22 +1245,65 @@ async function loadMessagesPage() {
   await Promise.all([loadAnnouncements(), loadSubscribeStats()])
 }
 
+function fillAnnouncementCarouselForm(carousel = {}) {
+  if (!elements.announcementCarouselForm) return
+  const form = elements.announcementCarouselForm.elements
+  if (form.announcementSwitchIntervalMs) {
+    form.announcementSwitchIntervalMs.value = Number(carousel.intervalMs) || 4500
+  }
+  if (form.announcementCircular) {
+    form.announcementCircular.checked = carousel.circular !== false
+  }
+}
+
+function resetAnnouncementForm() {
+  state.editingAnnouncementId = ''
+  if (elements.announcementForm) elements.announcementForm.reset()
+  if (elements.announcementForm?.elements?.enabled) {
+    elements.announcementForm.elements.enabled.checked = true
+  }
+  if (elements.announcementForm?.elements?.displayMode) {
+    elements.announcementForm.elements.displayMode.value = 'popup'
+  }
+  if (elements.announcementFormTitle) elements.announcementFormTitle.textContent = '发布新公告'
+  if (elements.announcementFormSubmit) elements.announcementFormSubmit.textContent = '发布公告'
+  if (elements.announcementFormReset) elements.announcementFormReset.hidden = true
+}
+
+function openAnnouncementEdit(item) {
+  if (!item || !elements.announcementForm) return
+  state.editingAnnouncementId = item.id
+  const form = elements.announcementForm.elements
+  form.title.value = item.title || ''
+  form.content.value = item.content || ''
+  if (form.displayMode) form.displayMode.value = item.displayMode === 'silent' ? 'silent' : 'popup'
+  form.enabled.checked = item.enabled !== false
+  if (elements.announcementFormTitle) elements.announcementFormTitle.textContent = '编辑公告'
+  if (elements.announcementFormSubmit) elements.announcementFormSubmit.textContent = '保存修改'
+  if (elements.announcementFormReset) elements.announcementFormReset.hidden = false
+  elements.announcementForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
 async function loadAnnouncements() {
   if (!elements.announcementRows) return
-  elements.announcementRows.innerHTML = emptyRow(5, '加载中...')
+  elements.announcementRows.innerHTML = emptyRow(6, '加载中...')
   const result = await api('/api/admin/announcements')
+  fillAnnouncementCarouselForm(result.carousel || {})
+  state.announcementListCache = result.announcements || []
   elements.announcementRows.innerHTML = (result.announcements || []).map(item => `
     <tr>
       <td class="col-time">${escapeHtml(item.createdTime)}</td>
       <td class="col-title"><strong>${escapeHtml(item.title)}</strong></td>
       <td class="col-content"><div class="messages-announce-content" title="${escapeHtml(item.content)}">${escapeHtml(item.content)}</div></td>
+      <td class="col-status"><span class="status-pill${item.displayMode === 'silent' ? '' : ' is-active'}">${escapeHtml(item.displayModeLabel || (item.displayMode === 'silent' ? '静默' : '弹窗'))}</span></td>
       <td class="col-status"><span class="status-pill${item.enabled ? ' is-active' : ''}">${item.enabled ? '启用' : '停用'}</span></td>
       <td class="col-actions row-actions">
+        <button class="row-button" data-announcement-action="edit" data-id="${escapeHtml(item.id)}" type="button">编辑</button>
         <button class="row-button" data-announcement-action="toggle" data-id="${escapeHtml(item.id)}" data-enabled="${item.enabled ? '1' : '0'}" type="button">${item.enabled ? '停用' : '启用'}</button>
         <button class="row-button" data-announcement-action="delete" data-id="${escapeHtml(item.id)}" type="button">删除</button>
       </td>
     </tr>
-  `).join('') || emptyRow(5, '暂无站内公告')
+  `).join('') || emptyRow(6, '暂无站内公告')
 }
 
 async function loadSubscribeStats() {
@@ -2224,21 +2273,49 @@ elements.cdkEditForm?.addEventListener('submit', async event => {
   } catch (error) { showToast(error.message, true) }
 })
 
+elements.announcementCarouselForm?.addEventListener('submit', async event => {
+  event.preventDefault()
+  const values = new FormData(elements.announcementCarouselForm)
+  try {
+    await api('/api/admin/settings', {
+      method: 'PATCH',
+      json: {
+        announcementSwitchIntervalMs: Number(values.get('announcementSwitchIntervalMs')),
+        announcementCircular: Boolean(elements.announcementCarouselForm.elements.announcementCircular?.checked)
+      }
+    })
+    showToast('公告滚动设置已保存')
+  } catch (error) { showToast(error.message, true) }
+})
+
+elements.announcementFormReset?.addEventListener('click', () => {
+  resetAnnouncementForm()
+})
+
 elements.announcementForm?.addEventListener('submit', async event => {
   event.preventDefault()
   const values = new FormData(elements.announcementForm)
+  const payload = {
+    title: String(values.get('title') || ''),
+    content: String(values.get('content') || ''),
+    displayMode: String(values.get('displayMode') || 'popup'),
+    enabled: Boolean(elements.announcementForm.elements.enabled?.checked)
+  }
   try {
-    await api('/api/admin/announcements', {
-      method: 'POST',
-      json: {
-        title: String(values.get('title') || ''),
-        content: String(values.get('content') || ''),
-        enabled: Boolean(elements.announcementForm.elements.enabled?.checked)
-      }
-    })
-    elements.announcementForm.reset()
-    if (elements.announcementForm.elements.enabled) elements.announcementForm.elements.enabled.checked = true
-    showToast('公告已发布')
+    if (state.editingAnnouncementId) {
+      await api(`/api/admin/announcements/${encodeURIComponent(state.editingAnnouncementId)}`, {
+        method: 'PATCH',
+        json: payload
+      })
+      showToast('公告已更新')
+    } else {
+      await api('/api/admin/announcements', {
+        method: 'POST',
+        json: payload
+      })
+      showToast('公告已发布')
+    }
+    resetAnnouncementForm()
     await loadAnnouncements()
   } catch (error) { showToast(error.message, true) }
 })
@@ -2247,6 +2324,15 @@ elements.announcementRows?.addEventListener('click', async event => {
   const button = event.target.closest('[data-announcement-action]')
   if (!button) return
   const id = button.dataset.id
+  if (button.dataset.announcementAction === 'edit') {
+    const item = (state.announcementListCache || []).find(entry => entry.id === id)
+    if (!item) {
+      showToast('请刷新列表后重试', true)
+      return
+    }
+    openAnnouncementEdit(item)
+    return
+  }
   if (button.dataset.announcementAction === 'toggle') {
     try {
       await api(`/api/admin/announcements/${encodeURIComponent(id)}`, {
@@ -2261,6 +2347,7 @@ elements.announcementRows?.addEventListener('click', async event => {
     if (!window.confirm('确认删除该公告？')) return
     try {
       await api(`/api/admin/announcements/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      if (state.editingAnnouncementId === id) resetAnnouncementForm()
       showToast('公告已删除')
       await loadAnnouncements()
     } catch (error) { showToast(error.message, true) }

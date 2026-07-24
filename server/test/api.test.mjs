@@ -394,12 +394,32 @@ test('complete login, generation, idempotency and recharge flow', async () => {
 
     const ann = await api('/api/admin/announcements', {
       method: 'POST', token: adminToken,
-      json: { title: '测试公告', content: '欢迎使用花漾相绘', enabled: true }
+      json: { title: '测试公告', content: '欢迎使用花漾相绘', enabled: true, displayMode: 'popup' }
     })
     assert.equal(ann.response.status, 201)
+    assert.equal(ann.body.announcement.displayMode, 'popup')
+    const annSilent = await api('/api/admin/announcements', {
+      method: 'POST', token: adminToken,
+      json: { title: '静默通知', content: '仅显示在公告栏', enabled: true, displayMode: 'silent' }
+    })
+    assert.equal(annSilent.response.status, 201)
+    const annPatched = await api(`/api/admin/announcements/${annSilent.body.announcement.id}`, {
+      method: 'PATCH', token: adminToken,
+      json: { title: '静默通知已改', displayMode: 'silent' }
+    })
+    assert.equal(annPatched.response.status, 200)
+    assert.equal(annPatched.body.announcement.title, '静默通知已改')
     const publicAnn = await api('/api/announcements')
     assert.equal(publicAnn.response.status, 200)
     assert.ok(publicAnn.body.announcements.some(item => item.title === '测试公告'))
+    assert.ok(publicAnn.body.announcements.some(item => item.displayMode === 'silent'))
+    assert.ok(publicAnn.body.carousel && publicAnn.body.carousel.intervalMs >= 1500)
+    await api('/api/admin/settings', {
+      method: 'PATCH', token: adminToken,
+      json: { announcementSwitchIntervalMs: 3200, announcementCircular: true }
+    })
+    const publicAnn2 = await api('/api/announcements')
+    assert.equal(publicAnn2.body.carousel.intervalMs, 3200)
 
     const cdkList = await api('/api/admin/cdks?status=unused', { token: adminToken })
     assert.equal(cdkList.response.status, 200)

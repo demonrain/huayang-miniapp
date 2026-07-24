@@ -73,6 +73,8 @@ export function seedConfig(draft) {
       bannerSwitchMode: 'auto',
       bannerSwitchIntervalMs: 4500,
       bannerCircular: true,
+      announcementSwitchIntervalMs: 4500,
+      announcementCircular: true,
       ...DEFAULT_SHARE_REWARD_SETTINGS
     }
     changed = true
@@ -84,6 +86,8 @@ export function seedConfig(draft) {
       bannerSwitchMode: 'auto',
       bannerSwitchIntervalMs: 4500,
       bannerCircular: true,
+      announcementSwitchIntervalMs: 4500,
+      announcementCircular: true,
       ...DEFAULT_SHARE_REWARD_SETTINGS
     }
     for (const [key, value] of Object.entries(defaults)) {

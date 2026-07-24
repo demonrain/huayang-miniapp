@@ -69,9 +69,9 @@ test('guest tour enters the real template flow in demo mode', async () => {
   assert.equal(navigation[0], '/pages/template/index?id=popular-template&demo=1&tour=1')
 })
 
-test('active announcements remain available for automatic display', async () => {
+test('active popup announcements remain available for automatic display', async () => {
   const { definition } = await loadHomePage()
-  const item = { id: 'announcement-1', title: '测试公告', content: '公告内容' }
+  const item = { id: 'announcement-1', title: '测试公告', content: '公告内容', displayMode: 'popup' }
   const page = pageInstance(definition, {
     announcements: [item],
     latestAnnouncement: item,
@@ -83,4 +83,19 @@ test('active announcements remain available for automatic display', async () => 
 
   assert.equal(page.data.showAnnouncement, true)
   assert.deepEqual(page.data.announcement, item)
+})
+
+test('silent announcements do not auto popup', async () => {
+  const { definition } = await loadHomePage()
+  const item = { id: 'announcement-2', title: '静默公告', content: '仅条幅', displayMode: 'silent' }
+  const page = pageInstance(definition, {
+    announcements: [item],
+    latestAnnouncement: item,
+    showOnboarding: false,
+    showAnnouncement: false
+  })
+
+  await page.maybeShowAnnouncement()
+
+  assert.equal(page.data.showAnnouncement, false)
 })

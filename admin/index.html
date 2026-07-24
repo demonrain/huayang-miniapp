@@ -495,7 +495,7 @@
         <div class="toolbar messages-toolbar">
           <div>
             <h3>消息推送</h3>
-            <p>站内公告在用户打开小程序时弹出；微信订阅消息只能推送给曾授权过的用户。</p>
+            <p>站内公告支持静默条 / 弹窗两种发布方式；微信订阅消息只能推送给曾授权过的用户。</p>
           </div>
         </div>
 
@@ -505,13 +505,29 @@
             <div class="panel-heading panel-heading--pad">
               <div>
                 <h3>站内公告</h3>
-                <p>用户打开首页时展示；用户可点「不再提示」屏蔽单条公告</p>
+                <p>静默公告只显示在首页 Banner 下方滚动条；弹窗公告会在打开小程序时弹出。用户可点「不再提示」屏蔽单条弹窗公告。</p>
               </div>
             </div>
 
+            <form id="announcementCarouselForm" class="messages-form" style="margin-bottom:12px">
+              <div class="messages-block">
+                <div class="messages-block__title">公告栏滚动设置</div>
+                <div class="form-grid form-grid--dense">
+                  <label>切换间隔（毫秒）
+                    <input name="announcementSwitchIntervalMs" type="number" min="1500" max="30000" step="100" value="4500" required>
+                  </label>
+                  <label class="toggle-field"><input name="announcementCircular" type="checkbox" checked><span>循环滚动</span></label>
+                </div>
+                <p class="field-hint">多条启用公告时，小程序 Banner 下方公告栏会上下滚动切换。</p>
+                <div class="form-actions form-actions--inline">
+                  <button class="button button--primary" type="submit">保存滚动设置</button>
+                </div>
+              </div>
+            </form>
+
             <form id="announcementForm" class="messages-form">
               <div class="messages-block">
-                <div class="messages-block__title">发布新公告</div>
+                <div class="messages-block__title" id="announcementFormTitle">发布新公告</div>
                 <div class="form-grid form-grid--dense messages-announce-grid">
                   <label class="field-wide">标题
                     <input name="title" maxlength="40" required placeholder="例如：春季活动上新">
@@ -519,13 +535,20 @@
                   <label class="field-wide">内容
                     <textarea name="content" maxlength="500" rows="3" required placeholder="公告正文，支持多行说明"></textarea>
                   </label>
+                  <label>发布方式
+                    <select name="displayMode">
+                      <option value="popup" selected>弹窗（打开小程序时弹出）</option>
+                      <option value="silent">静默（仅 Banner 下方公告栏）</option>
+                    </select>
+                  </label>
                   <label class="toggle-field field-wide">
                     <input name="enabled" type="checkbox" checked>
                     <span>启用后立即对用户可见</span>
                   </label>
                 </div>
                 <div class="form-actions form-actions--inline">
-                  <button class="button button--primary" type="submit">发布公告</button>
+                  <button class="button button--quiet" type="button" id="announcementFormReset" hidden>取消编辑</button>
+                  <button class="button button--primary" type="submit" id="announcementFormSubmit">发布公告</button>
                 </div>
               </div>
             </form>
@@ -533,7 +556,7 @@
             <div class="messages-list-head">
               <div>
                 <strong>已发布列表</strong>
-                <span>按时间倒序</span>
+                <span>按时间倒序 · 可编辑</span>
               </div>
             </div>
             <div class="table-wrap table-wrap--flush">
@@ -543,6 +566,7 @@
                     <th class="col-time">时间</th>
                     <th class="col-title">标题</th>
                     <th class="col-content">内容</th>
+                    <th class="col-status">方式</th>
                     <th class="col-status">状态</th>
                     <th class="col-actions">操作</th>
                   </tr>

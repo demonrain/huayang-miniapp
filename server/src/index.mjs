@@ -94,6 +94,32 @@ function publicBannerSettings(settings = {}) {
   }
 }
 
+function publicAnnouncementCarouselSettings(settings = {}) {
+  const intervalMs = Math.min(30000, Math.max(1500, Number(settings.announcementSwitchIntervalMs) || 4500))
+  return {
+    intervalMs,
+    circular: settings.announcementCircular !== false
+  }
+}
+
+function normalizeAnnouncementDisplayMode(raw) {
+  const mode = String(raw || '').trim().toLowerCase()
+  if (mode === 'silent' || mode === 'popup') return mode
+  return 'popup'
+}
+
+function publicAnnouncement(item) {
+  return {
+    id: item.id,
+    title: item.title,
+    content: item.content,
+    displayMode: normalizeAnnouncementDisplayMode(item.displayMode),
+    enabled: item.enabled !== false,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt || item.createdAt
+  }
+}
+
 function slugifyTemplateId(name) {
   const base = String(name || '')
     .trim()
@@ -852,6 +878,7 @@ export async function createApplication() {
           subscribeTemplateId: config.wechat.subscribeTemplateId || '',
           templateCategories: listTemplateCategories(state).map(item => ({ id: item.id, name: item.name })),
           bannerCarousel: publicBannerSettings(state.settings),
+          announcementCarousel: publicAnnouncementCarouselSettings(state.settings),
           shareRewards: publicShareRewardSettings(state.settings)
         })
         return
@@ -1077,6 +1104,15 @@ export async function createApplication() {
               draft.settings.bannerSwitchIntervalMs = boundedInteger(body.bannerSwitchIntervalMs, 'Banner 切换间隔', 1500, 30000)
             }
             if ('bannerCircular' in body) draft.settings.bannerCircular = Boolean(body.bannerCircular)
+            if ('announcementSwitchIntervalMs' in body) {
+              draft.settings.announcementSwitchIntervalMs = boundedInteger(
+                body.announcementSwitchIntervalMs,
+                '公告滚动间隔',
+                1500,
+                30000
+              )
+            }
+            if ('announcementCircular' in body) draft.settings.announcementCircular = Boolean(body.announcementCircular)
             if ('shareRewardEnabled' in body) draft.settings.shareRewardEnabled = Boolean(body.shareRewardEnabled)
             if ('shareFriendCredits' in body) draft.settings.shareFriendCredits = boundedInteger(body.shareFriendCredits, '分享好友积分', 0, 100000)
             if ('shareTimelineCredits' in body) draft.settings.shareTimelineCredits = boundedInteger(body.shareTimelineCredits, '分享朋友圈积分', 0, 100000)
@@ -1991,15 +2027,15 @@ export async function createApplication() {
             .slice()
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
             .map(item => ({
-              id: item.id,
-              title: item.title,
-              content: item.content,
-              enabled: item.enabled !== false,
-              createdAt: item.createdAt,
+              ...publicAnnouncement(item),
+              displayModeLabel: normalizeAnnouncementDisplayMode(item.displayMode) === 'silent' ? '静默' : '弹窗',
               createdTime: displayTime(item.createdAt),
-              updatedAt: item.updatedAt || item.createdAt
+              updatedTime: displayTime(item.updatedAt || item.createdAt)
             }))
-          json(response, 200, { announcements: list })
+          json(response, 200, {
+            announcements: list,
+            carousel: publicAnnouncementCarouselSettings(state.settings)
+          })
           return
         }
 
@@ -2007,6 +2043,7 @@ export async function createApplication() {
           const body = await readJson(request)
           const title = cleanText(body.title, '公告标题', 40, true)
           const content = cleanText(body.content, '公告内容', 500, true)
+          const displayMode = normalizeAnnouncementDisplayMode(body.displayMode)
           const id = randomUUID()
           await store.transaction(draft => {
             if (!Array.isArray(draft.announcements)) draft.announcements = []
@@ -2014,6 +2051,7 @@ export async function createApplication() {
               id,
               title,
               content,
+              displayMode,
               enabled: body.enabled !== false,
               createdAt: now(),
               updatedAt: now()
@@ -2022,11 +2060,7 @@ export async function createApplication() {
           const item = store.read(state => (state.announcements || []).find(entry => entry.id === id))
           json(response, 201, {
             announcement: {
-              id: item.id,
-              title: item.title,
-              content: item.content,
-              enabled: item.enabled !== false,
-              createdAt: item.createdAt,
+              ...publicAnnouncement(item),
               createdTime: displayTime(item.createdAt)
             }
           })
@@ -2043,17 +2077,14 @@ export async function createApplication() {
             if (!item) throw new HttpError(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在')
             if ('title' in body) item.title = cleanText(body.title, '公告标题', 40, true)
             if ('content' in body) item.content = cleanText(body.content, '公告内容', 500, true)
+            if ('displayMode' in body) item.displayMode = normalizeAnnouncementDisplayMode(body.displayMode)
             if ('enabled' in body) item.enabled = Boolean(body.enabled)
             item.updatedAt = now()
           })
           const item = store.read(state => (state.announcements || []).find(entry => entry.id === id))
           json(response, 200, {
             announcement: {
-              id: item.id,
-              title: item.title,
-              content: item.content,
-              enabled: item.enabled !== false,
-              createdAt: item.createdAt,
+              ...publicAnnouncement(item),
               createdTime: displayTime(item.createdAt)
             }
           })
@@ -2150,13 +2181,11 @@ export async function createApplication() {
         const announcements = (Array.isArray(state.announcements) ? state.announcements : [])
           .filter(item => item.enabled !== false)
           .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-          .map(item => ({
-            id: item.id,
-            title: item.title,
-            content: item.content,
-            createdAt: item.createdAt
-          }))
-        json(response, 200, { announcements })
+          .map(item => publicAnnouncement(item))
+        json(response, 200, {
+          announcements,
+          carousel: publicAnnouncementCarouselSettings(state.settings)
+        })
         return
       }
 
