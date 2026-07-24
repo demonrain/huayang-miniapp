@@ -15,28 +15,23 @@
 
 .crop-stage {
   position: relative;
-  /* Fixed height from inline style — avoid flex stretch so mask/frame stay centered */
   flex: none;
-  width: 100%;
   overflow: hidden;
   background: #0f0d0e;
+  touch-action: none;
 }
 
-.crop-area {
+.crop-image-wrap {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  overflow: hidden;
   z-index: 1;
-}
-
-.crop-view {
-  z-index: 1;
+  transform-origin: center center;
+  will-change: transform;
 }
 
 .crop-image {
   display: block;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 

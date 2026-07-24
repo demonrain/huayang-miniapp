@@ -1,35 +1,32 @@
 <view class="page crop-page" style="padding-top: {{navSpacer}}rpx">
   <custom-nav show-back title="制作头像"></custom-nav>
 
-  <view class="crop-tip">双指缩放 · 单指拖动，调整到裁切框内</view>
+  <view class="crop-tip">双指缩放 · 单指拖动 · 裁切框始终在图片内</view>
 
-  <view class="crop-stage" style="height: {{stagePx}}px">
-    <movable-area
-      class="crop-area"
-      style="width: {{areaPx}}px; height: {{areaPx}}px;"
-      scale-area
+  <view
+    class="crop-stage"
+    style="width: {{stageW}}px; height: {{stageH}}px;"
+    catchtouchstart="onTouchStart"
+    catchtouchmove="onTouchMove"
+    catchtouchend="onTouchEnd"
+    catchtouchcancel="onTouchEnd"
+  >
+    <!-- Image layer: base size covers crop; CSS scale-from-center + translate -->
+    <view
+      wx:if="{{ready}}"
+      class="crop-image-wrap"
+      style="width: {{viewW}}px; height: {{viewH}}px; left: {{baseLeft}}px; top: {{baseTop}}px; transform: translate3d({{tx}}px, {{ty}}px, 0) scale({{scale}});"
     >
-      <movable-view
-        class="crop-view"
-        direction="all"
-        scale
-        scale-min="{{scaleMin}}"
-        scale-max="4"
-        scale-value="{{scale}}"
-        x="{{x}}"
-        y="{{y}}"
-        inertia
-        out-of-bounds="{{false}}"
+      <image
+        class="crop-image"
+        src="{{filePath}}"
+        mode="scaleToFill"
         style="width: {{viewW}}px; height: {{viewH}}px;"
-        bindchange="onMove"
-        bindscale="onScale"
-      >
-        <image class="crop-image" src="{{filePath}}" mode="aspectFill" style="width: {{viewW}}px; height: {{viewH}}px;"></image>
-      </movable-view>
-    </movable-area>
+      ></image>
+    </view>
 
-    <!-- Dark mask with cutout: frame centered in stage (maskTop / maskSide) -->
-    <view class="crop-mask" catchtouchmove="noop">
+    <!-- Dark mask with centered crop cutout (pointer-events none so touches hit stage) -->
+    <view class="crop-mask">
       <view class="crop-mask__shade crop-mask__top" style="height: {{maskTop}}px"></view>
       <view class="crop-mask__mid" style="height: {{cropPx}}px">
         <view class="crop-mask__shade crop-mask__side" style="width: {{maskSide}}px"></view>

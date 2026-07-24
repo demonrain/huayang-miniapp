@@ -1,8 +1,20 @@
 const { getNavMetrics } = require('../../utils/nav')
 const { ensureAlbumPermission, saveImageToAlbum, hideLoadingQuiet } = require('../../utils/album')
+const {
+  baseOrigin,
+  clampTranslate,
+  cropSourceRect,
+  coverViewSize
+} = require('../../utils/avatar-crop-math')
 
 const EXPORT_SIZE = 600
+const SCALE_MAX = 4
 
+/**
+ * Avatar crop page.
+ * Fixed centered crop frame; image pans/pinches underneath with hard bounds so
+ * the frame always stays inside the image. Export uses the same geometry.
+ */
 Page({
   data: {
     navSpacer: 176,
@@ -11,15 +23,17 @@ Page({
     shape: 'square',
     ready: false,
     saving: false,
-    stagePx: 400,
-    areaPx: 360,
+    stageW: 375,
+    stageH: 400,
     cropPx: 280,
     maskSide: 40,
     maskTop: 40,
     viewW: 280,
     viewH: 280,
-    x: 0,
-    y: 0,
+    baseLeft: 0,
+    baseTop: 0,
+    tx: 0,
+    ty: 0,
     scale: 1,
     scaleMin: 1,
     exportSize: EXPORT_SIZE,
@@ -33,25 +47,23 @@ Page({
     const sys = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
     const winW = sys.windowWidth || 375
     const winH = sys.windowHeight || 667
-    // Fixed stage height so mask / movable-area share the same geometry
-    const stagePx = Math.max(280, Math.floor(winH - (metrics.navBarHeight || 64) - 200))
-    const cropPx = Math.floor(Math.min(winW * 0.78, stagePx * 0.72))
-    // Square movable area matches stage width when possible, always centered in stage
-    const areaPx = Math.floor(Math.min(winW, stagePx))
-    // Crop frame is centered both horizontally and vertically in the stage
-    const maskSide = Math.max(0, Math.floor((winW - cropPx) / 2))
-    const maskTop = Math.max(0, Math.floor((stagePx - cropPx) / 2))
+    const stageW = Math.floor(winW)
+    const stageH = Math.max(280, Math.floor(winH - (metrics.navBarHeight || 64) - 200))
+    const cropPx = Math.floor(Math.min(stageW, stageH) * 0.78)
+    const maskSide = Math.max(0, Math.floor((stageW - cropPx) / 2))
+    const maskTop = Math.max(0, Math.floor((stageH - cropPx) / 2))
 
-    this._x = 0
-    this._y = 0
+    this._tx = 0
+    this._ty = 0
     this._scale = 1
+    this._touch = null
 
     this.setData({
       ...metrics,
       url,
-      stagePx,
+      stageW,
+      stageH,
       cropPx,
-      areaPx,
       maskSide,
       maskTop
     })
@@ -74,19 +86,21 @@ Page({
     this.setData({ shape })
   },
 
-  onMove(event) {
-    const { x, y, source } = event.detail || {}
-    if (source === 'touch' || source === 'friction' || source === 'out-of-bounds') {
-      this._x = x
-      this._y = y
-    }
-  },
-
-  onScale(event) {
-    const { x, y, scale } = event.detail || {}
-    if (scale != null) this._scale = scale
-    if (x != null) this._x = x
-    if (y != null) this._y = y
+  applyTransform(tx, ty, scale) {
+    const {
+      stageW, stageH, viewW, viewH, cropPx, scaleMin
+    } = this.data
+    const s = Math.min(SCALE_MAX, Math.max(scaleMin || 1, scale))
+    const clamped = clampTranslate(stageW, stageH, viewW, viewH, cropPx, tx, ty, s)
+    this._tx = clamped.tx
+    this._ty = clamped.ty
+    this._scale = s
+    this.setData({
+      tx: clamped.tx,
+      ty: clamped.ty,
+      scale: s
+    })
+    return clamped
   },
 
   async prepareImage(url) {
@@ -94,43 +108,35 @@ Page({
       wx.showLoading({ title: '加载图片', mask: true })
       const filePath = await this.download(url)
       const info = await this.getImageInfo(filePath)
-      const { cropPx, areaPx } = this.data
-      // Base view size so image covers crop frame at scale=1
-      const ratio = info.width / info.height
-      let viewW
-      let viewH
-      if (ratio >= 1) {
-        viewH = cropPx
-        viewW = Math.ceil(cropPx * ratio)
-      } else {
-        viewW = cropPx
-        viewH = Math.ceil(cropPx / ratio)
-      }
-      // Center image so it fills the crop frame (same as work preview centering)
-      const x = Math.round((areaPx - viewW) / 2)
-      const y = Math.round((areaPx - viewH) / 2)
-      this._x = x
-      this._y = y
+      const { cropPx, stageW, stageH } = this.data
+      const imgW = info.width
+      const imgH = info.height
+      if (!imgW || !imgH) throw new Error('无法读取图片尺寸')
+
+      // Cover crop frame at scale=1, aspect preserved — portrait/landscape both fill the frame
+      const { viewW, viewH } = coverViewSize(imgW, imgH, cropPx)
+      const base = baseOrigin(stageW, stageH, viewW, viewH)
+      const centered = clampTranslate(stageW, stageH, viewW, viewH, cropPx, 0, 0, 1)
+
+      this._tx = centered.tx
+      this._ty = centered.ty
       this._scale = 1
-      // Set size first, then re-apply x/y after movable-view mounts (WeChat often ignores first x/y)
+
       this.setData({
         filePath,
-        imgW: info.width,
-        imgH: info.height,
-        viewW,
-        viewH,
-        x: 0,
-        y: 0,
+        imgW,
+        imgH,
+        viewW: Math.round(viewW * 1000) / 1000,
+        viewH: Math.round(viewH * 1000) / 1000,
+        baseLeft: base.left,
+        baseTop: base.top,
+        tx: centered.tx,
+        ty: centered.ty,
         scale: 1,
         scaleMin: 1,
         ready: true
-      }, () => {
-        wx.nextTick(() => {
-          this._x = x
-          this._y = y
-          this.setData({ x, y })
-        })
       })
+
       hideLoadingQuiet()
     } catch (error) {
       hideLoadingQuiet()
@@ -141,6 +147,81 @@ Page({
         success: () => this.goBack()
       })
     }
+  },
+
+  onTouchStart(event) {
+    if (!this.data.ready || this.data.saving) return
+    const touches = event.touches || []
+    if (touches.length === 1) {
+      this._touch = {
+        mode: 'pan',
+        x0: touches[0].clientX,
+        y0: touches[0].clientY,
+        tx0: this._tx,
+        ty0: this._ty,
+        scale0: this._scale
+      }
+    } else if (touches.length >= 2) {
+      const d = this.touchDistance(touches[0], touches[1])
+      this._touch = {
+        mode: 'pinch',
+        dist0: d || 1,
+        tx0: this._tx,
+        ty0: this._ty,
+        scale0: this._scale
+      }
+    }
+  },
+
+  onTouchMove(event) {
+    if (!this._touch || !this.data.ready) return
+    const touches = event.touches || []
+    if (this._touch.mode === 'pan' && touches.length === 1) {
+      const dx = touches[0].clientX - this._touch.x0
+      const dy = touches[0].clientY - this._touch.y0
+      this.applyTransform(this._touch.tx0 + dx, this._touch.ty0 + dy, this._touch.scale0)
+    } else if (touches.length >= 2) {
+      if (this._touch.mode !== 'pinch') {
+        const d = this.touchDistance(touches[0], touches[1])
+        this._touch = {
+          mode: 'pinch',
+          dist0: d || 1,
+          tx0: this._tx,
+          ty0: this._ty,
+          scale0: this._scale
+        }
+      }
+      const dist = this.touchDistance(touches[0], touches[1]) || this._touch.dist0
+      const nextScale = this._touch.scale0 * (dist / (this._touch.dist0 || 1))
+      // Pinch: keep focal roughly stable by keeping current center translate origin
+      this.applyTransform(this._tx, this._ty, nextScale)
+    }
+  },
+
+  onTouchEnd(event) {
+    const touches = (event.touches || []).length
+    if (touches === 0) {
+      this._touch = null
+      this.applyTransform(this._tx, this._ty, this._scale)
+      return
+    }
+    if (touches === 1) {
+      const t = event.touches[0]
+      this._touch = {
+        mode: 'pan',
+        x0: t.clientX,
+        y0: t.clientY,
+        tx0: this._tx,
+        ty0: this._ty,
+        scale0: this._scale
+      }
+    }
+  },
+
+  touchDistance(a, b) {
+    const dx = a.clientX - b.clientX
+    const dy = a.clientY - b.clientY
+    return Math.sqrt(dx * dx + dy * dy)
   },
 
   download(url) {
@@ -176,6 +257,7 @@ Page({
     try {
       await ensureAlbumPermission()
       wx.showLoading({ title: '导出中', mask: true })
+      this.applyTransform(this._tx, this._ty, this._scale)
       const out = await this.exportCrop()
       await saveImageToAlbum(out)
       hideLoadingQuiet()
@@ -193,46 +275,16 @@ Page({
     }
   },
 
-  /**
-   * Map movable-view transform to source crop rect, then draw square/circle PNG.
-   */
   exportCrop() {
     const {
-      filePath, imgW, imgH, viewW, viewH, areaPx, cropPx, shape
+      filePath, imgW, imgH, viewW, viewH, cropPx, stageW, stageH, shape
     } = this.data
     const scale = this._scale || 1
-    const x = this._x != null ? this._x : this.data.x
-    const y = this._y != null ? this._y : this.data.y
-
-    // Frame center in area coordinates
-    const frameLeft = (areaPx - cropPx) / 2
-    const frameTop = (areaPx - cropPx) / 2
-
-    // Image drawn size after scale
-    const drawW = viewW * scale
-    const drawH = viewH * scale
-
-    // Top-left of scaled image in area coords (movable-view x/y is unscaled top-left before scale from center...)
-    // WeChat movable-view: scale is from center of the view. Approximate using:
-    // scaled top-left = x - (drawW - viewW)/2, y - (drawH - viewH)/2
-    const imgLeft = x - (drawW - viewW) / 2
-    const imgTop = y - (drawH - viewH) / 2
-
-    // Crop frame relative to image
-    const relX = frameLeft - imgLeft
-    const relY = frameTop - imgTop
-
-    // Map to natural image pixels (aspectFill base mapping: view covers image proportionally)
-    const scaleToNatural = imgW / viewW
-    let sx = (relX / scale) * scaleToNatural
-    let sy = (relY / scale) * scaleToNatural
-    let sSide = (cropPx / scale) * scaleToNatural
-
-    // Clamp
-    sSide = Math.max(1, Math.min(sSide, Math.min(imgW, imgH)))
-    sx = Math.max(0, Math.min(sx, imgW - sSide))
-    sy = Math.max(0, Math.min(sy, imgH - sSide))
-
+    const tx = this._tx != null ? this._tx : this.data.tx
+    const ty = this._ty != null ? this._ty : this.data.ty
+    const { sx, sy, sSide } = cropSourceRect(
+      stageW, stageH, viewW, viewH, cropPx, imgW, imgH, tx, ty, scale
+    )
     return this.drawExport(filePath, sx, sy, sSide, shape)
   },
 
