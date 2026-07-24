@@ -101,6 +101,15 @@ const elements = {
   bannerDialog: document.querySelector('#bannerDialog'),
   bannerDialogTitle: document.querySelector('#bannerDialogTitle'),
   bannerForm: document.querySelector('#bannerForm'),
+  bannerJumpType: document.querySelector('#bannerJumpType'),
+  bannerJumpTemplateField: document.querySelector('#bannerJumpTemplateField'),
+  bannerJumpTemplateId: document.querySelector('#bannerJumpTemplateId'),
+  bannerJumpJobField: document.querySelector('#bannerJumpJobField'),
+  bannerJumpJobId: document.querySelector('#bannerJumpJobId'),
+  bannerJumpCustomField: document.querySelector('#bannerJumpCustomField'),
+  bannerJumpCustomPath: document.querySelector('#bannerJumpCustomPath'),
+  bannerJumpPreview: document.querySelector('#bannerJumpPreview'),
+  bannerTargetPath: document.querySelector('#bannerTargetPath'),
   categoryDialog: document.querySelector('#categoryDialog'),
   categoryDialogTitle: document.querySelector('#categoryDialogTitle'),
   categoryForm: document.querySelector('#categoryForm'),
@@ -122,7 +131,6 @@ const elements = {
   cdkEditForm: document.querySelector('#cdkEditForm'),
   cdkEditCodeLabel: document.querySelector('#cdkEditCodeLabel'),
   cdkEditHint: document.querySelector('#cdkEditHint'),
-  bannerFillJobPath: document.querySelector('#bannerFillJobPath'),
   announcementForm: document.querySelector('#announcementForm'),
   announcementRows: document.querySelector('#announcementRows'),
   subscribeBroadcastForm: document.querySelector('#subscribeBroadcastForm'),
@@ -502,14 +510,16 @@ function renderTemplates() {
 
 function renderBanners() {
   fillBannerCarouselForm()
-  elements.bannerRows.innerHTML = state.data.banners.map(banner => `
+  elements.bannerRows.innerHTML = state.data.banners.map(banner => {
+    const jump = describeBannerJump(banner.targetPath)
+    return `
     <tr>
       <td><div class="template-cell">
         <div class="banner-thumb" style="background:${escapeHtml(banner.palette)}">${banner.imageUrl ? `<img src="${escapeHtml(banner.imageUrl)}" alt="">` : '<span>Banner</span>'}</div>
         <div><strong>${escapeHtml(banner.badge || '首页推荐')}</strong><span>${shortId(banner.id, 12)}</span></div>
       </div></td>
       <td><strong>${escapeHtml(banner.title)}</strong><span class="cell-subtitle">${escapeHtml(banner.subtitle || '-')}</span></td>
-      <td><span class="path-cell" title="${escapeHtml(banner.targetPath)}">${escapeHtml(banner.targetPath || '无跳转')}</span></td>
+      <td><strong>${escapeHtml(jump.label)}</strong><span class="path-cell cell-subtitle" title="${escapeHtml(banner.targetPath || '')}">${escapeHtml(banner.targetPath || '—')}</span></td>
       <td>${Number(banner.sortOrder)}</td>
       <td><span class="status-pill${banner.enabled ? ' is-active' : ''}">${banner.enabled ? '已启用' : '已停用'}</span></td>
       <td><div class="row-actions">
@@ -517,8 +527,8 @@ function renderBanners() {
         <button class="row-button" data-banner-action="image" data-id="${escapeHtml(banner.id)}">上传图片</button>
         <button class="row-button" data-banner-action="toggle" data-id="${escapeHtml(banner.id)}">${banner.enabled ? '停用' : '启用'}</button>
       </div></td>
-    </tr>
-  `).join('') || emptyRow(6, '暂无 Banner')
+    </tr>`
+  }).join('') || emptyRow(6, '暂无 Banner')
 }
 
 function renderCategories() {
@@ -989,8 +999,152 @@ function openCdkEditDialog(item) {
   elements.cdkEditDialog.showModal()
 }
 
+const BANNER_JUMP_FIXED = {
+  none: { path: '', label: '无跳转' },
+  home: { path: '/pages/home/index', label: '首页（创作）' },
+  history: { path: '/pages/history/index', label: '作品列表' },
+  profile: { path: '/pages/profile/index', label: '我的' },
+  wallet: { path: '/pages/wallet/index', label: '钱包 / 充值' },
+  redeem: { path: '/pages/redeem/index', label: '积分兑换' },
+  guide: { path: '/pages/guide/index', label: '新手指引' },
+  feedback: { path: '/pages/feedback/index', label: '建议反馈' }
+}
+
 function jobBannerPath(jobId) {
-  return `/pages/job/index?id=${encodeURIComponent(jobId)}&showcase=1`
+  const id = String(jobId || '').trim()
+  if (!id) return ''
+  return `/pages/job/index?id=${encodeURIComponent(id)}&showcase=1`
+}
+
+function templateBannerPath(templateId) {
+  const id = String(templateId || '').trim()
+  if (!id) return ''
+  return `/pages/template/index?id=${encodeURIComponent(id)}`
+}
+
+function normalizePathForParse(raw) {
+  let path = String(raw || '').trim()
+  if (!path) return ''
+  if (!path.startsWith('/')) path = `/${path}`
+  return path
+}
+
+function parseQueryParam(path, key) {
+  const qIndex = String(path || '').indexOf('?')
+  if (qIndex < 0) return ''
+  const params = new URLSearchParams(path.slice(qIndex + 1))
+  return params.get(key) || ''
+}
+
+function parseBannerJump(path) {
+  const full = normalizePathForParse(path)
+  if (!full) return { type: 'none', templateId: '', jobId: '', customPath: '' }
+  const pathOnly = full.split('?')[0]
+  for (const [type, meta] of Object.entries(BANNER_JUMP_FIXED)) {
+    if (type === 'none') continue
+    if (pathOnly === meta.path) return { type, templateId: '', jobId: '', customPath: '' }
+  }
+  if (pathOnly === '/pages/template/index') {
+    return {
+      type: 'template',
+      templateId: parseQueryParam(full, 'id'),
+      jobId: '',
+      customPath: ''
+    }
+  }
+  if (pathOnly === '/pages/job/index') {
+    return {
+      type: 'job',
+      templateId: '',
+      jobId: parseQueryParam(full, 'id'),
+      customPath: ''
+    }
+  }
+  return { type: 'custom', templateId: '', jobId: '', customPath: full }
+}
+
+function describeBannerJump(path) {
+  const parsed = parseBannerJump(path)
+  if (parsed.type === 'none') return { type: 'none', label: '无跳转' }
+  if (parsed.type === 'template') {
+    const tpl = (state.templates || []).find(item => item.id === parsed.templateId)
+      || (state.data?.templates || []).find?.(item => item.id === parsed.templateId)
+    const name = tpl?.name || parsed.templateId || '未选模板'
+    return { type: 'template', label: `模板：${name}` }
+  }
+  if (parsed.type === 'job') {
+    return { type: 'job', label: parsed.jobId ? `作品展示 · ${shortId(parsed.jobId, 10)}` : '作品展示' }
+  }
+  if (parsed.type === 'custom') return { type: 'custom', label: '自定义路径' }
+  return { type: parsed.type, label: BANNER_JUMP_FIXED[parsed.type]?.label || parsed.type }
+}
+
+function buildBannerTargetPathFromForm() {
+  const form = elements.bannerForm?.elements
+  if (!form) return ''
+  const type = String(form.jumpType?.value || 'none')
+  if (type === 'none') return ''
+  if (BANNER_JUMP_FIXED[type]) return BANNER_JUMP_FIXED[type].path
+  if (type === 'template') return templateBannerPath(form.jumpTemplateId?.value)
+  if (type === 'job') return jobBannerPath(form.jumpJobId?.value)
+  if (type === 'custom') {
+    let p = String(form.jumpCustomPath?.value || '').trim()
+    if (p && !p.startsWith('/')) p = `/${p}`
+    return p
+  }
+  return ''
+}
+
+function updateBannerJumpUI() {
+  if (!elements.bannerForm) return
+  const form = elements.bannerForm.elements
+  const type = String(form.jumpType?.value || 'none')
+  if (elements.bannerJumpTemplateField) elements.bannerJumpTemplateField.hidden = type !== 'template'
+  if (elements.bannerJumpJobField) elements.bannerJumpJobField.hidden = type !== 'job'
+  if (elements.bannerJumpCustomField) elements.bannerJumpCustomField.hidden = type !== 'custom'
+  const path = buildBannerTargetPathFromForm()
+  if (form.targetPath) form.targetPath.value = path
+  if (elements.bannerJumpPreview) {
+    const desc = describeBannerJump(path)
+    elements.bannerJumpPreview.textContent = path
+      ? `当前跳转：${desc.label} → ${path}`
+      : '当前跳转：无（点击 Banner 无反应）'
+  }
+}
+
+async function fillBannerTemplateOptions(selectedId = '') {
+  const select = elements.bannerJumpTemplateId
+  if (!select) return
+  let list = Array.isArray(state.templates) ? state.templates.slice() : []
+  if (!list.length) {
+    try {
+      const result = await api('/api/admin/templates?page=1&pageSize=100&status=all')
+      list = result.templates || []
+      if (list.length) state.templates = list
+    } catch (error) {
+      /* keep empty */
+    }
+  }
+  const enabled = list.filter(item => item.enabled !== false)
+  const pool = enabled.length ? enabled : list
+  select.innerHTML = '<option value="">请选择模板</option>' + pool.map(item =>
+    `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}（${escapeHtml(item.id)}）</option>`
+  ).join('')
+  if (selectedId) {
+    if (![...select.options].some(opt => opt.value === selectedId)) {
+      select.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(selectedId)}">${escapeHtml(selectedId)}</option>`)
+    }
+    select.value = selectedId
+  }
+}
+
+function applyBannerJumpToForm(path) {
+  const parsed = parseBannerJump(path)
+  const form = elements.bannerForm.elements
+  if (form.jumpType) form.jumpType.value = parsed.type
+  if (form.jumpJobId) form.jumpJobId.value = parsed.jobId || ''
+  if (form.jumpCustomPath) form.jumpCustomPath.value = parsed.customPath || ''
+  return parsed
 }
 
 function openBannerFromJob(job) {
@@ -998,17 +1152,19 @@ function openBannerFromJob(job) {
     showToast('仅已完成的作品可设为 Banner', true)
     return
   }
-  openBannerDialog(null)
-  const form = elements.bannerForm.elements
-  form.title.value = `${job.templateName || '精选作品'}`
-  form.subtitle.value = '点击查看作品效果'
-  form.badge.value = form.badge.value || '作品'
-  form.palette.value = form.palette.value || job.templatePalette || '#e9f7f2'
-  form.targetPath.value = jobBannerPath(job.id)
-  if (form.jobIdHelper) form.jobIdHelper.value = job.id
-  form.sortOrder.value = ((state.data?.banners?.length || 0) + 1) * 10
-  form.enabled.checked = true
-  showToast('已填入作品跳转路径，保存后记得上传 Banner 图')
+  openBannerDialog(null).then(() => {
+    const form = elements.bannerForm.elements
+    form.title.value = `${job.templateName || '精选作品'}`
+    form.subtitle.value = '点击查看作品效果'
+    form.badge.value = form.badge.value || '作品'
+    form.palette.value = form.palette.value || job.templatePalette || '#e9f7f2'
+    if (form.jumpType) form.jumpType.value = 'job'
+    if (form.jumpJobId) form.jumpJobId.value = job.id
+    form.sortOrder.value = ((state.data?.banners?.length || 0) + 1) * 10
+    form.enabled.checked = true
+    updateBannerJumpUI()
+    showToast('已设为「指定作品展示」，保存后记得上传 Banner 图')
+  })
 }
 
 async function loadMessagesPage() {
@@ -1152,32 +1308,48 @@ function bannerById(id) {
   return state.data.banners.find(item => item.id === id)
 }
 
-function openBannerDialog(banner = null) {
+async function openBannerDialog(banner = null) {
   state.editingBannerId = banner?.id || ''
   elements.bannerDialogTitle.textContent = banner ? '编辑 Banner' : '新增 Banner'
   elements.bannerForm.reset()
   const form = elements.bannerForm.elements
   if (banner) {
-    for (const key of ['title', 'subtitle', 'badge', 'palette', 'targetPath', 'sortOrder']) form[key].value = banner[key] ?? ''
+    for (const key of ['title', 'subtitle', 'badge', 'palette', 'sortOrder']) form[key].value = banner[key] ?? ''
     form.enabled.checked = banner.enabled
-    const match = String(banner.targetPath || '').match(/[?&]id=([^&]+)/)
-    if (form.jobIdHelper && match && String(banner.targetPath).includes('/pages/job/')) {
-      form.jobIdHelper.value = decodeURIComponent(match[1])
-    }
+    const parsed = applyBannerJumpToForm(banner.targetPath)
+    await fillBannerTemplateOptions(parsed.templateId)
   } else {
     form.enabled.checked = true
     form.sortOrder.value = ((state.data?.banners?.length || 0) + 1) * 10
     form.palette.value = 'linear-gradient(135deg, #dff3ec, #fff0f3)'
+    if (form.jumpType) form.jumpType.value = 'none'
+    await fillBannerTemplateOptions('')
   }
+  updateBannerJumpUI()
   elements.bannerDialog.showModal()
 }
 
 function bannerPayload(form) {
+  updateBannerJumpUI()
   const values = new FormData(form)
+  const type = String(values.get('jumpType') || 'none')
+  let targetPath = buildBannerTargetPathFromForm()
+  if (type === 'template' && !String(values.get('jumpTemplateId') || '').trim()) {
+    throw new Error('请选择要跳转的模板')
+  }
+  if (type === 'job' && !String(values.get('jumpJobId') || '').trim()) {
+    throw new Error('请填写作品任务 ID')
+  }
+  if (type === 'custom' && !targetPath) {
+    throw new Error('请填写自定义跳转路径')
+  }
   return {
-    title: String(values.get('title') || ''), subtitle: String(values.get('subtitle') || ''),
-    badge: String(values.get('badge') || ''), palette: String(values.get('palette') || ''),
-    targetPath: String(values.get('targetPath') || ''), sortOrder: Number(values.get('sortOrder')),
+    title: String(values.get('title') || ''),
+    subtitle: String(values.get('subtitle') || ''),
+    badge: String(values.get('badge') || ''),
+    palette: String(values.get('palette') || ''),
+    targetPath,
+    sortOrder: Number(values.get('sortOrder')),
     enabled: form.elements.enabled.checked
   }
 }
@@ -1460,8 +1632,8 @@ elements.bannerRows.addEventListener('click', async event => {
 
 elements.bannerForm.addEventListener('submit', async event => {
   event.preventDefault()
-  const payload = bannerPayload(elements.bannerForm)
   try {
+    const payload = bannerPayload(elements.bannerForm)
     if (state.editingBannerId) await api(`/api/admin/banners/${encodeURIComponent(state.editingBannerId)}`, { method: 'PATCH', json: payload })
     else await api('/api/admin/banners', { method: 'POST', json: payload })
     elements.bannerDialog.close()
@@ -1469,6 +1641,17 @@ elements.bannerForm.addEventListener('submit', async event => {
     showToast('Banner 已保存')
   } catch (error) { showToast(error.message, true) }
 })
+
+function wireBannerJumpFields() {
+  const form = elements.bannerForm
+  if (!form) return
+  const refresh = () => updateBannerJumpUI()
+  elements.bannerJumpType?.addEventListener('change', refresh)
+  elements.bannerJumpTemplateId?.addEventListener('change', refresh)
+  elements.bannerJumpJobId?.addEventListener('input', refresh)
+  elements.bannerJumpCustomPath?.addEventListener('input', refresh)
+}
+wireBannerJumpFields()
 
 elements.bannerImageInput.addEventListener('change', async () => {
   const file = elements.bannerImageInput.files[0]
@@ -1786,17 +1969,6 @@ elements.cdkEditForm?.addEventListener('submit', async event => {
     showToast('兑换码已更新')
     await loadCdks()
   } catch (error) { showToast(error.message, true) }
-})
-
-elements.bannerFillJobPath?.addEventListener('click', () => {
-  const form = elements.bannerForm.elements
-  const jobId = String(form.jobIdHelper?.value || '').trim()
-  if (!jobId) {
-    showToast('请先粘贴作品任务 ID', true)
-    return
-  }
-  form.targetPath.value = jobBannerPath(jobId)
-  showToast('已填入作品展示路径')
 })
 
 elements.announcementForm?.addEventListener('submit', async event => {

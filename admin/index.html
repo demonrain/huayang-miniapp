@@ -310,7 +310,7 @@
           </div>
           <div class="form-actions"><button class="button button--primary" type="submit">保存轮播规则</button></div>
         </form>
-        <div class="table-wrap"><table><thead><tr><th>Banner</th><th>文案</th><th>跳转路径</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="bannerRows"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Banner</th><th>文案</th><th>跳转</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody id="bannerRows"></tbody></table></div>
       </section>
 
       <section id="templatesView" class="view-panel" hidden>
@@ -607,22 +607,52 @@
 
   <dialog id="bannerDialog" class="dialog dialog--small">
     <form id="bannerForm" method="dialog">
-      <div class="dialog-heading"><div><h3 id="bannerDialogTitle">新增 Banner</h3><p>跳转须为小程序内路径（以 / 开头）。可从「作品任务」对已完成作品点「设为 Banner」自动填入。</p></div><button class="icon-button" type="button" data-close="bannerDialog" aria-label="关闭">×</button></div>
+      <div class="dialog-heading">
+        <div>
+          <h3 id="bannerDialogTitle">新增 Banner</h3>
+          <p>选择跳转类型后，系统会自动生成小程序路径；一般无需手写路径。</p>
+        </div>
+        <button class="icon-button" type="button" data-close="bannerDialog" aria-label="关闭">×</button>
+      </div>
       <div class="form-grid form-grid--dialog">
         <label>标题<input name="title" maxlength="40" required></label>
         <label>角标<input name="badge" maxlength="12"></label>
         <label class="field-wide">副标题<input name="subtitle" maxlength="80"></label>
         <label class="field-wide">背景配色<input name="palette" maxlength="240" required></label>
-        <label class="field-wide">点击跳转路径
-          <input name="targetPath" maxlength="200" placeholder="例如 /pages/template/index?id=film-diary 或作品展示路径">
+
+        <label class="field-wide">点击跳转类型
+          <select name="jumpType" id="bannerJumpType">
+            <option value="none">无跳转</option>
+            <option value="home">首页（创作 Tab）</option>
+            <option value="history">作品列表</option>
+            <option value="profile">我的</option>
+            <option value="wallet">钱包 / 充值</option>
+            <option value="redeem">积分兑换</option>
+            <option value="guide">新手指引</option>
+            <option value="feedback">建议反馈</option>
+            <option value="template">指定模板详情</option>
+            <option value="job">指定作品展示</option>
+            <option value="custom">自定义路径（高级）</option>
+          </select>
         </label>
-        <label class="field-wide">快捷：填入作品展示页
-          <span class="inline-fields">
-            <input name="jobIdHelper" maxlength="80" placeholder="粘贴作品任务 ID（已完成）">
-            <button class="button button--quiet" type="button" id="bannerFillJobPath">填入路径</button>
-          </span>
+
+        <label class="field-wide" id="bannerJumpTemplateField" hidden>选择模板
+          <select name="jumpTemplateId" id="bannerJumpTemplateId">
+            <option value="">请选择模板</option>
+          </select>
         </label>
-        <p class="field-hint">示例：模板 <code>/pages/template/index?id=xxx</code> · 作品展示 <code>/pages/job/index?id=xxx&amp;showcase=1</code> · Tab 页 <code>/pages/home/index</code></p>
+
+        <label class="field-wide" id="bannerJumpJobField" hidden>作品任务 ID
+          <input name="jumpJobId" id="bannerJumpJobId" maxlength="80" placeholder="粘贴已完成作品的任务 ID">
+        </label>
+
+        <label class="field-wide" id="bannerJumpCustomField" hidden>自定义路径
+          <input name="jumpCustomPath" id="bannerJumpCustomPath" maxlength="200" placeholder="/pages/xxx/index 或带参数">
+        </label>
+
+        <p class="field-hint" id="bannerJumpPreview">当前跳转：无</p>
+        <input type="hidden" name="targetPath" id="bannerTargetPath" value="">
+
         <label>排序值<input name="sortOrder" type="number" min="0" max="100000" required></label>
         <label class="toggle-field"><input name="enabled" type="checkbox" checked><span>启用 Banner</span></label>
       </div>
