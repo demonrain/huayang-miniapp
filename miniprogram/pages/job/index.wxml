@@ -111,7 +111,7 @@
       </view>
 
       <!-- Make avatar from result -->
-      <view wx:if="{{!demo && job.status === 'succeeded' && job.results.length}}" class="avatar-panel">
+      <view wx:if="{{!demo && !showcase && job.status === 'succeeded' && job.results.length}}" class="avatar-panel">
         <view class="avatar-panel__title">一键制作头像</view>
         <view class="avatar-panel__desc">将作品居中裁成正方形，可选圆形，保存到相册做头像</view>
         <view class="avatar-shape-row">

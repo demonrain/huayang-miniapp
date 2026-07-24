@@ -17,7 +17,7 @@
   <view wx:if="{{!isLoggedIn && !loading}}" class="empty empty-work">
     <view class="empty-mark">
       <view class="empty-flower-dot"></view>
-      <text>廊</text>
+      <text>花</text>
     </view>
     <view class="empty-title">登录后逛花海</view>
     <view class="empty-sub">看看大家公开的作品，点个赞支持一下</view>
@@ -42,8 +42,10 @@
           wx:for="{{leftItems}}"
           wx:key="id"
           class="gallery-card"
+          data-id="{{item.id}}"
+          bindtap="openJob"
         >
-          <view class="gallery-card__media" style="background: {{item.templatePalette || '#ebe6e8'}}" data-id="{{item.id}}" bindtap="openJob">
+          <view class="gallery-card__media" style="background: {{item.templatePalette || '#ebe6e8'}}">
             <image
               wx:if="{{item.coverUrl}}"
               class="gallery-card__cover"
@@ -67,7 +69,6 @@
                 <text class="gallery-like__icon">{{item.likedByMe ? '♥' : '♡'}}</text>
                 <text class="gallery-like__count">{{item.likeCount || 0}}</text>
               </view>
-              <text class="gallery-card__open" data-id="{{item.id}}" catchtap="openJob">查看</text>
             </view>
           </view>
         </view>
@@ -77,8 +78,10 @@
           wx:for="{{rightItems}}"
           wx:key="id"
           class="gallery-card"
+          data-id="{{item.id}}"
+          bindtap="openJob"
         >
-          <view class="gallery-card__media" style="background: {{item.templatePalette || '#ebe6e8'}}" data-id="{{item.id}}" bindtap="openJob">
+          <view class="gallery-card__media" style="background: {{item.templatePalette || '#ebe6e8'}}">
             <image
               wx:if="{{item.coverUrl}}"
               class="gallery-card__cover"
@@ -102,7 +105,6 @@
                 <text class="gallery-like__icon">{{item.likedByMe ? '♥' : '♡'}}</text>
                 <text class="gallery-like__count">{{item.likeCount || 0}}</text>
               </view>
-              <text class="gallery-card__open" data-id="{{item.id}}" catchtap="openJob">查看</text>
             </view>
           </view>
         </view>
