@@ -32,11 +32,19 @@
   background: linear-gradient(90deg, rgba(42, 47, 45, .62), rgba(42, 47, 45, .08));
 }
 
-.banner-copy { width: 72%; max-width: 520rpx; }
-.banner-copy--image { color: #fff; }
-.banner-copy--image .welcome-kicker,
-.banner-copy--image .welcome-title,
-.banner-copy--image .banner-subtitle { color: #fff; }
+.banner-copy {
+  position: relative;
+  z-index: 2;
+  width: 72%;
+  max-width: 520rpx;
+}
+
+/* Image banners: white text only when that field has no admin-configured color */
+.banner-copy--image .welcome-kicker:not(.is-color-override),
+.banner-copy--image .welcome-title:not(.is-color-override),
+.banner-copy--image .banner-subtitle:not(.is-color-override) {
+  color: #fff;
+}
 
 .banner-subtitle {
   margin-top: 16rpx;

@@ -133,20 +133,21 @@ Page({
       const announcements = Array.isArray(announcementResult.announcements) ? announcementResult.announcements : []
       const showOnboarding = !app.isLoggedIn() && !wx.getStorageSync('huayang_onboarding_done')
       const templates = firstPage.list
+      // Normalize admin-configured text colors for WXML style binding.
+      // Use explicit color + !important so page defaults / image white CSS cannot override.
       const bannersWithStyle = (banners || []).map(item => {
         const titleColor = String(item.titleColor || '').trim()
         const subtitleColor = String(item.subtitleColor || '').trim()
         const badgeColor = String(item.badgeColor || '').trim()
-        const hasCustomTextColor = Boolean(titleColor || subtitleColor || badgeColor)
-        // Image + no custom colors → CSS class white text
-        // Image + partial custom → unset fields still white
-        const imageWhite = item.imageUrl ? 'color:#ffffff;' : ''
+        const colorStyle = (hex) => (hex ? `color: ${hex} !important;` : '')
         return {
           ...item,
-          hasCustomTextColor,
-          titleStyle: titleColor ? `color:${titleColor};` : (hasCustomTextColor ? imageWhite : ''),
-          subtitleStyle: subtitleColor ? `color:${subtitleColor};` : (hasCustomTextColor ? imageWhite : ''),
-          badgeStyle: badgeColor ? `color:${badgeColor};` : (hasCustomTextColor ? imageWhite : '')
+          titleColor,
+          subtitleColor,
+          badgeColor,
+          titleStyle: colorStyle(titleColor),
+          subtitleStyle: colorStyle(subtitleColor),
+          badgeStyle: colorStyle(badgeColor)
         }
       })
       this.setData({
