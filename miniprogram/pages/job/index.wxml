@@ -69,10 +69,10 @@
         </view>
       </view>
 
-      <view wx:if="{{!showcase && job.originals.length}}" class="original-section">
+      <view wx:if="{{job.originals.length}}" class="original-section">
         <view class="section-title original-section__title">
           <view class="section-title__main">原图对照</view>
-          <view class="section-title__sub">点击查看原图大图</view>
+          <view class="section-title__sub">{{showcase ? '作者已授权展示原图' : '点击查看原图大图'}}</view>
         </view>
         <scroll-view class="original-scroll" scroll-x enhanced show-scrollbar="false">
           <view class="original-row">
@@ -88,6 +88,22 @@
             </view>
           </view>
         </scroll-view>
+      </view>
+
+      <!-- Owner: publish so Banner / other users can open this job -->
+      <view wx:if="{{!demo && !showcase && isOwner && job.status === 'succeeded'}}" class="public-share-panel">
+        <view class="public-share-panel__title">公开共享</view>
+        <view class="public-share-panel__desc">开启后，其他用户可通过 Banner 或链接查看此作品；关闭后仅自己可见。</view>
+        <label class="public-share-row">
+          <text>公开此作品</text>
+          <switch checked="{{publicShareEnabled}}" color="#E76D82" bindchange="onPublicShareToggle" />
+        </label>
+        <label class="public-share-row {{publicShareEnabled ? '' : 'is-disabled'}}">
+          <text>同时显示原图</text>
+          <switch checked="{{publicShareShowOriginals}}" disabled="{{!publicShareEnabled}}" color="#E76D82" bindchange="onPublicShareOriginalsToggle" />
+        </label>
+        <view class="public-share-panel__note">{{publicShareEnabled ? (publicShareShowOriginals ? '访客可看生成图与原图' : '访客仅可看生成效果，不看原图') : '当前未公开，他人无法打开此任务'}}</view>
+        <button class="ghost-button public-share-save" loading="{{publicShareSaving}}" disabled="{{publicShareSaving}}" bindtap="savePublicShare">保存共享设置</button>
       </view>
 
       <view class="job-row-actions {{!demo && !showcase && job.results.length > 1 ? '' : 'job-row-actions--single'}}">

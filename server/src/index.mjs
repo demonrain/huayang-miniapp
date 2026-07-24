@@ -21,6 +21,7 @@ import {
   publicJob,
   publicPackages,
   publicShare,
+  publicSharedJob,
   publicShareRewardSettings,
   publicTemplate,
   publicTemplates,
@@ -809,7 +810,7 @@ export async function createApplication() {
         return
       }
 
-      // Public showcase for Banner → job deep links (succeeded jobs only; no originals)
+      // Public view for Banner / deep links — only jobs the owner has published
       const showcaseJobMatch = pathname.match(/^\/api\/showcase\/jobs\/([^/]+)$/)
       if (request.method === 'GET' && showcaseJobMatch) {
         const state = store.read()
@@ -817,16 +818,10 @@ export async function createApplication() {
         if (!job || job.status !== 'succeeded') {
           throw new HttpError(404, 'JOB_NOT_FOUND', '展示作品不存在或尚未完成')
         }
-        const pub = publicJob(job, state)
-        json(response, 200, {
-          job: {
-            ...pub,
-            // Privacy: hide user originals in public showcase
-            originals: [],
-            assetIds: [],
-            showcase: true
-          }
-        })
+        if (!job.publicShareEnabled) {
+          throw new HttpError(403, 'JOB_NOT_PUBLIC', '作者尚未公开此作品，无法查看')
+        }
+        json(response, 200, { job: publicSharedJob(job, state) })
         return
       }
 
@@ -1264,6 +1259,39 @@ export async function createApplication() {
             page: page.page,
             pageSize: page.pageSize,
             pages: page.pages
+          })
+          return
+        }
+
+        // Admin can publish a job for Banner showcase (without needing owner action)
+        const adminJobPublicShareMatch = pathname.match(/^\/api\/admin\/jobs\/([^/]+)\/public-share$/)
+        if (request.method === 'POST' && adminJobPublicShareMatch) {
+          const jobId = adminJobPublicShareMatch[1]
+          const body = await readJson(request)
+          const enabled = body.enabled !== false && body.enabled !== 'false' && body.enabled !== 0
+          const showOriginals = Boolean(body.showOriginals)
+          const updated = await store.transaction(draft => {
+            const job = draft.jobs.find(item => item.id === jobId)
+            if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+            if (job.status !== 'succeeded') {
+              throw new HttpError(409, 'JOB_NOT_READY', '仅已完成的作品可以公开共享')
+            }
+            job.publicShareEnabled = enabled
+            if (enabled) {
+              job.publicShareShowOriginals = showOriginals
+              job.publicShareAt = now()
+            } else {
+              job.publicShareShowOriginals = false
+              job.publicShareAt = ''
+            }
+            job.updatedAt = now()
+            return job
+          })
+          const state = store.read()
+          json(response, 200, {
+            ok: true,
+            job: publicJob(updated, state),
+            message: enabled ? '作品已公开，可供 Banner 跳转' : '已取消公开'
           })
           return
         }
@@ -2088,6 +2116,41 @@ export async function createApplication() {
         const job = state.jobs.find(item => item.id === jobMatch[1] && item.userId === user.id)
         if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
         json(response, 200, { job: publicJob(job, state) })
+        return
+      }
+
+      // Owner publishes job so others can open via Banner / showcase link
+      const jobPublicShareMatch = pathname.match(/^\/api\/jobs\/([^/]+)\/public-share$/)
+      if (request.method === 'POST' && jobPublicShareMatch) {
+        const jobId = jobPublicShareMatch[1]
+        const body = await readJson(request)
+        const enabled = body.enabled !== false && body.enabled !== 'false' && body.enabled !== 0
+        const showOriginals = Boolean(body.showOriginals)
+        const updated = await store.transaction(draft => {
+          const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
+          if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+          if (job.status !== 'succeeded') {
+            throw new HttpError(409, 'JOB_NOT_READY', '仅已完成的作品可以公开共享')
+          }
+          job.publicShareEnabled = enabled
+          if (enabled) {
+            job.publicShareShowOriginals = showOriginals
+            job.publicShareAt = now()
+          } else {
+            job.publicShareShowOriginals = false
+            job.publicShareAt = ''
+          }
+          job.updatedAt = now()
+          return job
+        })
+        const state = store.read()
+        json(response, 200, {
+          ok: true,
+          job: publicJob(updated, state),
+          message: enabled
+            ? (showOriginals ? '已公开共享（含原图）' : '已公开共享（不显示原图）')
+            : '已取消公开共享'
+        })
         return
       }
 

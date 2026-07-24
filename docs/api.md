@@ -15,7 +15,8 @@
 | `POST` | `/api/jobs` | 创建生成任务 |
 | `GET` | `/api/jobs` | 当前用户任务列表（可选 `page`/`pageSize`；不传则全量） |
 | `GET` | `/api/jobs/:id` | 任务状态与结果 |
-| `GET` | `/api/showcase/jobs/:id` | 公开作品展示（仅 `succeeded`，不含原图；供 Banner 跳转） |
+| `GET` | `/api/showcase/jobs/:id` | 公开作品展示（需作者开启公开共享；原图取决于作者设置） |
+| `POST` | `/api/jobs/:id/public-share` | 作者公开/取消公开作品（`enabled`、`showOriginals`） |
 | `DELETE` | `/api/jobs/:id` | 删除失败任务记录（仅 `failed`） |
 | `GET/POST` | `/api/admin/categories` | 模板分类列表 / 新建 |
 | `PATCH/DELETE` | `/api/admin/categories/:id` | 更新 / 删除模板分类 |
@@ -50,6 +51,7 @@
 | `POST` | `/api/admin/users/:id/credits` | 调整用户积分并写入流水 |
 | `GET` | `/api/admin/transactions` | 查询充值、消费及其他积分流水（`page`/`pageSize`） |
 | `GET` | `/api/admin/jobs` | 查询作品任务、状态和生成时间（`page`/`pageSize`） |
+| `POST` | `/api/admin/jobs/:id/public-share` | 管理员公开/取消公开作品（供 Banner 跳转） |
 | `POST` | `/api/admin/jobs/:id/samples` | 将任务某张结果加入模板「更多效果参考」 |
 | `DELETE` | `/api/admin/jobs/:id/samples` | 从模板「更多效果参考」中移除该结果（body: `resultId`） |
 | `GET` | `/api/admin/feedbacks` | 用户建议反馈列表（`type`/`status`/`page`/`pageSize`） |

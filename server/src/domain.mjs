@@ -334,7 +334,26 @@ export function publicJob(job, state) {
     originals,
     // List / grid uses thumb; keep full for preview / share
     coverUrl: coverThumb,
-    coverFullUrl: coverFull
+    coverFullUrl: coverFull,
+    // Owner can publish for Banner / deep-link viewing by others
+    publicShareEnabled: Boolean(job.publicShareEnabled),
+    publicShareShowOriginals: Boolean(job.publicShareShowOriginals),
+    publicShareAt: job.publicShareAt || ''
+  }
+}
+
+/** Public view of a shared job (hides originals unless owner allowed). */
+export function publicSharedJob(job, state) {
+  const pub = publicJob(job, state)
+  const showOriginals = Boolean(job.publicShareEnabled && job.publicShareShowOriginals)
+  return {
+    ...pub,
+    originals: showOriginals ? pub.originals : [],
+    assetIds: showOriginals ? pub.assetIds : [],
+    showcase: true,
+    isPublicView: true,
+    publicShareEnabled: true,
+    publicShareShowOriginals: showOriginals
   }
 }
 

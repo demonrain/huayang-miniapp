@@ -55,7 +55,11 @@ Page({
     shareRewardEnabled: false,
     navSpacer: 176,
     demo: false,
-    showcase: false
+    showcase: false,
+    isOwner: false,
+    publicShareEnabled: false,
+    publicShareShowOriginals: false,
+    publicShareSaving: false
   },
 
   onLoad(query) {
@@ -69,7 +73,7 @@ Page({
       return
     }
     if (showcase) {
-      // Banner / public deep-link: show succeeded job without ownership
+      // Banner / public deep-link: published jobs only
       this.loadShowcaseJob()
       return
     }
@@ -196,7 +200,7 @@ Page({
   async loadShowcaseJob() {
     try {
       const app = getApp()
-      // Soft session for credit pill; not required for showcase content
+      // Soft session for credit pill; not required for public content
       try { await app.ensureSession() } catch (e) {}
       const { job } = await api.get(`/api/showcase/jobs/${this.data.id}`)
       this.setData({
@@ -205,12 +209,15 @@ Page({
         isWaiting: false,
         credits: getApp().globalData.user?.credits ?? null,
         showcase: true,
-        shareRewardEnabled: false
+        isOwner: false,
+        shareRewardEnabled: false,
+        publicShareEnabled: true,
+        publicShareShowOriginals: Boolean(job.publicShareShowOriginals)
       })
     } catch (error) {
       wx.showModal({
         title: '作品暂不可展示',
-        content: error.message || '该作品不存在或尚未完成',
+        content: error.message || '作者未公开此作品，或作品不存在',
         showCancel: false,
         success: () => wx.switchTab({ url: '/pages/home/index' })
       })
@@ -222,14 +229,22 @@ Page({
       const app = getApp()
       let user = await app.ensureSession()
       if (!app.isLoggedIn()) {
-        try {
-          user = await app.requireLogin('登录后可查看生成进度与作品')
-        } catch (error) {
-          wx.switchTab({ url: '/pages/home/index' })
+        // Not logged in: try public view of published job
+        await this.loadShowcaseJob()
+        return
+      }
+      let job
+      try {
+        const result = await api.get(`/api/jobs/${this.data.id}`)
+        job = result.job
+      } catch (error) {
+        // Other users / not owner → public showcase if author published
+        if (error.statusCode === 404 || error.code === 'JOB_NOT_FOUND') {
+          await this.loadShowcaseJob()
           return
         }
+        throw error
       }
-      const { job } = await api.get(`/api/jobs/${this.data.id}`)
       const isWaiting = job.status === 'queued' || job.status === 'processing'
       const count = (job.assetIds && job.assetIds.length) || 1
       this.applyEta(count)
@@ -238,7 +253,11 @@ Page({
         job,
         statusText: STATUS_TEXT[job.status] || '处理中',
         isWaiting,
-        credits: user?.credits ?? getApp().globalData.user?.credits ?? null
+        credits: user?.credits ?? getApp().globalData.user?.credits ?? null,
+        showcase: false,
+        isOwner: true,
+        publicShareEnabled: Boolean(job.publicShareEnabled),
+        publicShareShowOriginals: Boolean(job.publicShareShowOriginals)
       }
 
       if (job.status === 'failed') {
@@ -272,6 +291,41 @@ Page({
       wx.showToast({ title: error.message, icon: 'none' })
       if (this.pollTimer) clearTimeout(this.pollTimer)
       this.pollTimer = setTimeout(() => this.loadJob(), 4000)
+    }
+  },
+
+  onPublicShareToggle(event) {
+    this.setData({ publicShareEnabled: Boolean(event.detail.value) })
+  },
+
+  onPublicShareOriginalsToggle(event) {
+    this.setData({ publicShareShowOriginals: Boolean(event.detail.value) })
+  },
+
+  async savePublicShare() {
+    if (this.data.publicShareSaving || this.data.demo || this.data.showcase) return
+    const enabled = Boolean(this.data.publicShareEnabled)
+    const showOriginals = Boolean(this.data.publicShareShowOriginals)
+    this.setData({ publicShareSaving: true })
+    try {
+      const result = await api.post(`/api/jobs/${this.data.id}/public-share`, {
+        enabled,
+        showOriginals: enabled ? showOriginals : false
+      })
+      const job = result.job || this.data.job
+      this.setData({
+        job: { ...this.data.job, ...job },
+        publicShareEnabled: Boolean(job.publicShareEnabled),
+        publicShareShowOriginals: Boolean(job.publicShareShowOriginals),
+        publicShareSaving: false
+      })
+      wx.showToast({
+        title: result.message || (enabled ? '已公开共享' : '已取消公开'),
+        icon: 'none'
+      })
+    } catch (error) {
+      this.setData({ publicShareSaving: false })
+      wx.showToast({ title: error.message || '保存失败', icon: 'none' })
     }
   },
 

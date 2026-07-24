@@ -519,6 +519,48 @@
   line-height: 1.5;
 }
 
+.public-share-panel {
+  margin-top: 24rpx;
+  padding: 28rpx 24rpx;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 16rpx;
+  box-shadow: 0 10rpx 26rpx rgba(108, 82, 92, 0.05);
+}
+.public-share-panel__title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #2a2f2d;
+}
+.public-share-panel__desc {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.public-share-row {
+  margin-top: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  font-size: 28rpx;
+  color: #2a2f2d;
+}
+.public-share-row.is-disabled {
+  opacity: 0.45;
+}
+.public-share-panel__note {
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: #8a6b19;
+  line-height: 1.45;
+}
+.public-share-save {
+  margin-top: 20rpx;
+  width: 100%;
+}
+
 .share-actions {
   margin-top: 16rpx;
   display: flex;

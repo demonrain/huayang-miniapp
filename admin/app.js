@@ -746,7 +746,12 @@ async function loadJobs({ resetPage = false } = {}) {
       <td>${job.durationSeconds === null ? '-' : `${Number(job.durationSeconds)} 秒`}</td>
       <td class="error-cell" title="${escapeHtml(job.error)}">
         ${job.status === 'succeeded'
-          ? `<div class="row-actions"><button class="row-button" data-job-action="banner" data-id="${escapeHtml(job.id)}" type="button">设为 Banner</button></div>${job.error ? `<span class="cell-subtitle">${escapeHtml(job.error)}</span>` : ''}`
+          ? `<div class="row-actions">
+              <button class="row-button" data-job-action="banner" data-id="${escapeHtml(job.id)}" type="button">设为 Banner</button>
+              ${job.publicShareEnabled
+                ? `<span class="status-pill is-active" title="${job.publicShareShowOriginals ? '公开且显示原图' : '公开不显示原图'}">已公开${job.publicShareShowOriginals ? '·含原图' : ''}</span>`
+                : '<span class="status-pill">未公开</span>'}
+            </div>${job.error ? `<span class="cell-subtitle">${escapeHtml(job.error)}</span>` : ''}`
           : escapeHtml(job.error || '-')}
       </td>
     </tr>
@@ -1155,7 +1160,7 @@ function openBannerFromJob(job) {
     showToast('仅已完成的作品可设为 Banner', true)
     return
   }
-  openBannerDialog(null).then(() => {
+  openBannerDialog(null).then(async () => {
     const form = elements.bannerForm.elements
     form.title.value = `${job.templateName || '精选作品'}`
     form.subtitle.value = '点击查看作品效果'
@@ -1166,7 +1171,16 @@ function openBannerFromJob(job) {
     form.sortOrder.value = ((state.data?.banners?.length || 0) + 1) * 10
     form.enabled.checked = true
     updateBannerJumpUI()
-    showToast('已设为「指定作品展示」，保存后记得上传 Banner 图')
+    // Banner deep-link requires job publicShareEnabled — enable without originals
+    try {
+      await api(`/api/admin/jobs/${encodeURIComponent(job.id)}/public-share`, {
+        method: 'POST',
+        json: { enabled: true, showOriginals: false }
+      })
+      showToast('已设为作品展示，并已公开该任务（不含原图）')
+    } catch (error) {
+      showToast(`路径已填入，但公开失败：${error.message}`, true)
+    }
   })
 }
 
@@ -1741,11 +1755,20 @@ elements.bannerForm.addEventListener('submit', async event => {
   event.preventDefault()
   try {
     const payload = bannerPayload(elements.bannerForm)
+    // If linking to a job showcase, ensure the job is publicly viewable
+    const jumpType = String(elements.bannerForm.elements.jumpType?.value || '')
+    const jobId = String(elements.bannerForm.elements.jumpJobId?.value || '').trim()
+    if (jumpType === 'job' && jobId) {
+      await api(`/api/admin/jobs/${encodeURIComponent(jobId)}/public-share`, {
+        method: 'POST',
+        json: { enabled: true, showOriginals: false }
+      })
+    }
     if (state.editingBannerId) await api(`/api/admin/banners/${encodeURIComponent(state.editingBannerId)}`, { method: 'PATCH', json: payload })
     else await api('/api/admin/banners', { method: 'POST', json: payload })
     elements.bannerDialog.close()
     await loadOverview()
-    showToast('Banner 已保存')
+    showToast(jumpType === 'job' ? 'Banner 已保存（作品已公开，不含原图）' : 'Banner 已保存')
   } catch (error) { showToast(error.message, true) }
 })
 

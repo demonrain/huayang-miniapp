@@ -445,12 +445,39 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     assert.equal(redeemRevoked.response.status, 409)
     assert.equal(redeemRevoked.body.code, 'CDK_REVOKED')
 
-    // Showcase public job
+    // Showcase requires author to publish first
+    const showcaseBlocked = await api(`/api/showcase/jobs/${created.body.job.id}`)
+    assert.equal(showcaseBlocked.response.status, 403)
+    assert.equal(showcaseBlocked.body.code, 'JOB_NOT_PUBLIC')
+
+    const publishJob = await api(`/api/jobs/${created.body.job.id}/public-share`, {
+      method: 'POST',
+      token,
+      json: { enabled: true, showOriginals: false }
+    })
+    assert.equal(publishJob.response.status, 200)
+    assert.equal(publishJob.body.job.publicShareEnabled, true)
+    assert.equal(publishJob.body.job.publicShareShowOriginals, false)
+
     const showcaseOk = await api(`/api/showcase/jobs/${created.body.job.id}`)
     assert.equal(showcaseOk.response.status, 200)
     assert.equal(showcaseOk.body.job.status, 'succeeded')
     assert.equal(showcaseOk.body.job.originals.length, 0)
     assert.equal(showcaseOk.body.job.showcase, true)
+
+    const publishWithOrig = await api(`/api/jobs/${created.body.job.id}/public-share`, {
+      method: 'POST',
+      token,
+      json: { enabled: true, showOriginals: true }
+    })
+    assert.equal(publishWithOrig.body.job.publicShareShowOriginals, true)
+    const showcaseOrig = await api(`/api/showcase/jobs/${created.body.job.id}`)
+    assert.ok(showcaseOrig.body.job.originals.length >= 1)
+
+    // Other user can open via private GET? no — but showcase works
+    const otherUser = await api('/api/auth/wechat', { method: 'POST', json: { code: 'public-view-user' } })
+    const otherPrivate = await api(`/api/jobs/${created.body.job.id}`, { token: otherUser.body.token })
+    assert.equal(otherPrivate.response.status, 404)
 
     // Admin users expose full openid
     const usersAdmin = await api('/api/admin/users?page=1&pageSize=10', { token: adminToken })
