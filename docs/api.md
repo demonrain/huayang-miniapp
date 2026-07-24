@@ -17,8 +17,8 @@
 | `GET` | `/api/jobs/:id` | 任务状态与结果 |
 | `GET` | `/api/showcase/jobs/:id` | 公开作品展示（需作者开启公开共享；原图取决于作者设置） |
 | `POST` | `/api/jobs/:id/public-share` | 作者公开/取消公开作品（`enabled`、`showOriginals`；首次公开可获积分） |
-| `GET` | `/api/gallery` | 画廊列表（公开作品，`page`/`pageSize`） |
-| `POST` | `/api/gallery/:jobId/like` | 点赞画廊作品（点赞者/作者分别加分，每人每作品一次） |
+| `GET` | `/api/gallery` | 花海列表（公开作品，`page`/`pageSize`） |
+| `POST` | `/api/gallery/:jobId/like` | 点赞花海作品（点赞者/作者分别加分，每人每作品一次） |
 | `DELETE` | `/api/jobs/:id` | 删除失败任务记录（仅 `failed`） |
 | `GET/POST` | `/api/admin/categories` | 模板分类列表 / 新建 |
 | `PATCH/DELETE` | `/api/admin/categories/:id` | 更新 / 删除模板分类 |

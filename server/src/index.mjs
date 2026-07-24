@@ -379,7 +379,7 @@ const transactionLabels = {
   invite_first_job: '邀请新用户完成首作',
   cdk_redeem: 'CDK 兑换积分',
   gallery_publish: '公开共享作品',
-  gallery_like_give: '点赞画廊作品',
+  gallery_like_give: '点赞花海作品',
   gallery_like_receive: '作品被点赞'
 }
 
@@ -2440,7 +2440,7 @@ export async function createApplication() {
             createdAt: now()
           })
           if (likerCredits > 0) {
-            creditUser(draft, user.id, likerCredits, 'gallery_like_give', '点赞画廊作品', jobId)
+            creditUser(draft, user.id, likerCredits, 'gallery_like_give', '点赞花海作品', jobId)
           }
           if (authorCredits > 0) {
             creditUser(draft, job.userId, authorCredits, 'gallery_like_receive', '作品被点赞', jobId)

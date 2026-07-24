@@ -92,8 +92,8 @@
 
       <!-- Owner: publish so Banner / gallery / other users can open this job -->
       <view wx:if="{{!demo && !showcase && isOwner && job.status === 'succeeded'}}" class="public-share-panel">
-        <view class="public-share-panel__title">公开共享到画廊</view>
-        <view class="public-share-panel__desc">开启后作品会出现在「画廊」，其他用户可浏览；同一作品公开奖励仅能获得一次。</view>
+        <view class="public-share-panel__title">公开共享到花海</view>
+        <view class="public-share-panel__desc">开启后作品会出现在「花海」，其他用户可浏览；同一作品公开奖励仅能获得一次。</view>
         <view wx:if="{{galleryPublishCredits > 0 || galleryLikeAuthorCredits > 0}}" class="public-share-reward-tip">
           公开可获 {{galleryPublishCredits}} 积分（每作品一次）
           <text wx:if="{{galleryLikeAuthorCredits > 0}}">；被点赞你得 {{galleryLikeAuthorCredits}} 积分，点赞者得 {{galleryLikeLikerCredits}} 积分</text>
@@ -106,7 +106,7 @@
           <text>同时显示原图</text>
           <switch checked="{{publicShareShowOriginals}}" disabled="{{!publicShareEnabled}}" color="#E76D82" bindchange="onPublicShareOriginalsToggle" />
         </label>
-        <view class="public-share-panel__note">{{publicShareEnabled ? (publicShareShowOriginals ? '访客可看生成图与原图' : '访客仅可看生成效果，不看原图') : '当前未公开，他人无法在画廊中看到'}}</view>
+        <view class="public-share-panel__note">{{publicShareEnabled ? (publicShareShowOriginals ? '访客可看生成图与原图' : '访客仅可看生成效果，不看原图') : '当前未公开，他人无法在花海中看到'}}</view>
         <button class="ghost-button public-share-save" loading="{{publicShareSaving}}" disabled="{{publicShareSaving}}" bindtap="savePublicShare">保存共享设置</button>
       </view>
 

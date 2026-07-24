@@ -3,8 +3,8 @@
 
   <view class="gallery-heading">
     <view>
-      <view class="gallery-kicker">GALLERY</view>
-      <view class="section-title__main">花漾画廊</view>
+      <view class="gallery-kicker">FLOWER SEA</view>
+      <view class="section-title__main">花海</view>
       <view class="section-title__sub">发现大家公开分享的作品</view>
     </view>
     <view class="album-count">{{total || items.length}} 件</view>
@@ -19,7 +19,7 @@
       <view class="empty-flower-dot"></view>
       <text>廊</text>
     </view>
-    <view class="empty-title">登录后逛画廊</view>
+    <view class="empty-title">登录后逛花海</view>
     <view class="empty-sub">看看大家公开的作品，点个赞支持一下</view>
     <button class="primary-button" bindtap="doLogin">微信登录</button>
   </view>
@@ -116,7 +116,7 @@
       <view class="empty-flower-dot"></view>
       <text>花</text>
     </view>
-    <view class="empty-title">画廊还空着</view>
+    <view class="empty-title">花海还空着</view>
     <view class="empty-sub">在「作品」里开启公开共享，你的作品就会出现在这里</view>
     <button class="primary-button" bindtap="goPublish">去我的作品</button>
   </view>

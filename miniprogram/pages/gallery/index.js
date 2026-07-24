@@ -161,7 +161,7 @@ Page({
 
   async doLogin() {
     try {
-      await getApp().requireLogin('登录后逛逛大家的花漾画廊')
+      await getApp().requireLogin('登录后逛逛大家的花海')
       this.loadList({ reset: true })
     } catch (error) {}
   },

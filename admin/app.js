@@ -1045,7 +1045,7 @@ const BANNER_JUMP_FIXED = {
   none: { path: '', label: '无跳转' },
   home: { path: '/pages/home/index', label: '首页（创作）' },
   history: { path: '/pages/history/index', label: '作品列表' },
-  gallery: { path: '/pages/gallery/index', label: '画廊' },
+  gallery: { path: '/pages/gallery/index', label: '花海' },
   profile: { path: '/pages/profile/index', label: '我的' },
   wallet: { path: '/pages/wallet/index', label: '钱包 / 充值' },
   redeem: { path: '/pages/redeem/index', label: '积分兑换' },
