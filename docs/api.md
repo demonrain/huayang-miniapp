@@ -13,7 +13,7 @@
 | `GET` | `/api/banners` | 已启用的首页 Banner 列表 |
 | `POST` | `/api/assets` | multipart 上传图片，字段名 `image` |
 | `POST` | `/api/jobs` | 创建生成任务 |
-| `GET` | `/api/jobs` | 当前用户任务列表 |
+| `GET` | `/api/jobs` | 当前用户任务列表（可选 `page`/`pageSize`；不传则全量） |
 | `GET` | `/api/jobs/:id` | 任务状态与结果 |
 | `DELETE` | `/api/jobs/:id` | 删除失败任务记录（仅 `failed`） |
 | `GET/POST` | `/api/admin/categories` | 模板分类列表 / 新建 |

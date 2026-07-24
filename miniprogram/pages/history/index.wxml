@@ -7,7 +7,7 @@
       <view class="section-title__main">我的作品花园</view>
       <view class="section-title__sub">每一次心动，都好好收藏</view>
     </view>
-    <view class="album-count">{{jobs.length}} 组</view>
+    <view class="album-count">{{total || jobs.length}} 组</view>
   </view>
 
   <view wx:if="{{!isLoggedIn && !loading}}" class="empty empty-work">
@@ -24,37 +24,40 @@
     <view wx:for="{{[1,2,3,4]}}" wx:key="*this" class="work-item skeleton"></view>
   </view>
 
-  <view wx:elif="{{jobs.length}}" class="works-grid">
-    <view
-      wx:for="{{jobs}}"
-      wx:key="id"
-      class="work-item {{item.status === 'failed' ? 'work-item--failed' : ''}}"
-      data-id="{{item.id}}"
-      bindtap="openJob"
-    >
-      <image
-        wx:if="{{item.coverUrl}}"
-        class="work-item__cover"
-        src="{{item.coverUrl}}"
-        mode="widthFix"
-        lazy-load
-      ></image>
-      <view wx:else class="work-item__placeholder" style="background: {{item.templatePalette}}">
-        <text>{{item.templateShortName}}</text>
-      </view>
-      <view class="work-item__badge status status--{{item.status}}">{{item.statusLabel}}</view>
+  <block wx:elif="{{jobs.length}}">
+    <view class="works-grid">
       <view
-        wx:if="{{item.status === 'failed'}}"
-        class="work-item__delete"
+        wx:for="{{jobs}}"
+        wx:key="id"
+        class="work-item {{item.status === 'failed' ? 'work-item--failed' : ''}}"
         data-id="{{item.id}}"
-        catchtap="deleteFailedJob"
-      >删除</view>
-      <view class="work-item__meta">
-        <text class="work-item__name">{{item.templateName}}</text>
-        <text class="work-item__sub">{{item.relativeTime}} · {{item.assetIds.length}} 张</text>
+        bindtap="openJob"
+      >
+        <image
+          wx:if="{{item.coverUrl}}"
+          class="work-item__cover"
+          src="{{item.coverUrl}}"
+          mode="widthFix"
+          lazy-load
+        ></image>
+        <view wx:else class="work-item__placeholder" style="background: {{item.templatePalette}}">
+          <text>{{item.templateShortName}}</text>
+        </view>
+        <view class="work-item__badge status status--{{item.status}}">{{item.statusLabel}}</view>
+        <view
+          wx:if="{{item.status === 'failed'}}"
+          class="work-item__delete"
+          data-id="{{item.id}}"
+          catchtap="deleteFailedJob"
+        >删除</view>
+        <view class="work-item__meta">
+          <text class="work-item__name">{{item.templateName}}</text>
+          <text class="work-item__sub">{{item.relativeTime}} · {{item.assetIds.length}} 张</text>
+        </view>
       </view>
     </view>
-  </view>
+    <view wx:if="{{listFooter}}" class="list-footer">{{listFooter}}</view>
+  </block>
 
   <view wx:else class="empty empty-work">
     <view class="empty-mark">

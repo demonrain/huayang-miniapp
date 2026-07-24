@@ -2,10 +2,17 @@ const api = require('../../utils/api')
 const { relativeTime } = require('../../utils/format')
 const { getNavMetrics } = require('../../utils/nav')
 
+const PAGE_SIZE = 12
+
 Page({
   data: {
     jobs: [],
     loading: true,
+    loadingMore: false,
+    hasMore: false,
+    page: 1,
+    total: 0,
+    listFooter: '',
     user: null,
     isLoggedIn: false,
     navSpacer: 176
@@ -16,15 +23,47 @@ Page({
   },
 
   onShow() {
-    this.loadJobs()
+    this.loadJobs({ reset: true })
   },
 
   async onPullDownRefresh() {
-    await this.loadJobs()
+    await this.loadJobs({ reset: true })
     wx.stopPullDownRefresh()
   },
 
-  async loadJobs() {
+  onReachBottom() {
+    this.loadMoreJobs()
+  },
+
+  footerText(count, hasMore) {
+    if (!count) return ''
+    if (hasMore) return '上拉加载更多'
+    return '已经到底啦'
+  },
+
+  async fetchJobsPage(page) {
+    const query = [
+      `page=${encodeURIComponent(String(page || 1))}`,
+      `pageSize=${encodeURIComponent(String(PAGE_SIZE))}`
+    ].join('&')
+    const result = await api.get(`/api/jobs?${query}`)
+    const jobs = (Array.isArray(result.jobs) ? result.jobs : []).map(job => ({
+      ...job,
+      relativeTime: relativeTime(job.createdAt)
+    }))
+    const hasMore = typeof result.hasMore === 'boolean'
+      ? result.hasMore
+      : Number(result.page || page) < Number(result.pages || 1)
+    return {
+      jobs,
+      page: Number(result.page) || page || 1,
+      pages: Number(result.pages) || 1,
+      total: Number(result.total) || jobs.length,
+      hasMore
+    }
+  },
+
+  async loadJobs({ reset = false } = {}) {
     try {
       const app = getApp()
       const user = await app.ensureSession()
@@ -34,29 +73,76 @@ Page({
           user: null,
           isLoggedIn: false,
           jobs: [],
-          loading: false
+          loading: false,
+          loadingMore: false,
+          hasMore: false,
+          page: 1,
+          total: 0,
+          listFooter: ''
         })
         return
       }
-      const { jobs } = await api.get('/api/jobs')
+
+      if (reset) {
+        this.setData({ loading: true, hasMore: false, listFooter: '' })
+      }
+
+      const result = await this.fetchJobsPage(1)
       this.setData({
         user,
         isLoggedIn: true,
-        jobs: jobs.map(job => ({ ...job, relativeTime: relativeTime(job.createdAt) })),
-        loading: false
+        jobs: result.jobs,
+        page: result.page,
+        total: result.total,
+        hasMore: result.hasMore,
+        loading: false,
+        loadingMore: false,
+        listFooter: this.footerText(result.jobs.length, result.hasMore)
       })
     } catch (error) {
-      this.setData({ loading: false, jobs: [] })
+      this.setData({
+        loading: false,
+        loadingMore: false,
+        jobs: reset ? [] : this.data.jobs
+      })
       if (error.statusCode !== 401) {
         wx.showToast({ title: error.message, icon: 'none' })
       }
     }
   },
 
+  async loadMoreJobs() {
+    if (!this.data.isLoggedIn || this.data.loading || this.data.loadingMore || !this.data.hasMore) {
+      return
+    }
+    this.setData({ loadingMore: true, listFooter: '加载中…' })
+    try {
+      const nextPage = (this.data.page || 1) + 1
+      const result = await this.fetchJobsPage(nextPage)
+      const seen = new Set(this.data.jobs.map(item => item.id))
+      const appended = result.jobs.filter(item => item && item.id && !seen.has(item.id))
+      const jobs = this.data.jobs.concat(appended)
+      this.setData({
+        jobs,
+        page: result.page,
+        total: result.total,
+        hasMore: result.hasMore,
+        loadingMore: false,
+        listFooter: this.footerText(jobs.length, result.hasMore)
+      })
+    } catch (error) {
+      this.setData({
+        loadingMore: false,
+        listFooter: this.data.hasMore ? '加载失败，上拉重试' : this.footerText(this.data.jobs.length, false)
+      })
+      wx.showToast({ title: error.message || '加载失败', icon: 'none' })
+    }
+  },
+
   async doLogin() {
     try {
       await getApp().requireLogin('登录后可查看你的作品花园')
-      this.loadJobs()
+      this.loadJobs({ reset: true })
     } catch (error) {}
   },
 
@@ -82,7 +168,13 @@ Page({
       wx.showLoading({ title: '删除中', mask: true })
       await api.del(`/api/jobs/${id}`)
       wx.hideLoading()
-      this.setData({ jobs: this.data.jobs.filter(item => item.id !== id) })
+      const jobs = this.data.jobs.filter(item => item.id !== id)
+      const total = Math.max(0, (this.data.total || jobs.length) - 1)
+      this.setData({
+        jobs,
+        total,
+        listFooter: this.footerText(jobs.length, this.data.hasMore)
+      })
       wx.showToast({ title: '已删除', icon: 'success' })
     } catch (error) {
       wx.hideLoading()

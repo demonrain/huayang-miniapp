@@ -1920,11 +1920,32 @@ export async function createApplication() {
       }
 
       if (request.method === 'GET' && pathname === '/api/jobs') {
-        const jobs = store.read(state => state.jobs
+        const state = store.read()
+        const filtered = state.jobs
           .filter(item => item.userId === user.id)
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-          .map(item => publicJob(item, state)))
-        json(response, 200, { jobs })
+        // Backward compatible: no page/pageSize → full list
+        const hasPaging = url.searchParams.has('page') || url.searchParams.has('pageSize')
+        if (!hasPaging) {
+          json(response, 200, {
+            jobs: filtered.map(item => publicJob(item, state)),
+            total: filtered.length,
+            page: 1,
+            pageSize: filtered.length || 12,
+            pages: 1,
+            hasMore: false
+          })
+          return
+        }
+        const page = paginateArray(filtered, url, { defaultPageSize: 12 })
+        json(response, 200, {
+          jobs: page.items.map(item => publicJob(item, state)),
+          total: page.total,
+          page: page.page,
+          pageSize: page.pageSize,
+          pages: page.pages,
+          hasMore: page.page < page.pages
+        })
         return
       }
 

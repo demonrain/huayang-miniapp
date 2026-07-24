@@ -1,9 +1,20 @@
+.history-page {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 48rpx);
+}
+
 .history-heading {
   min-height: 130rpx;
   margin: 6rpx 0 28rpx;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+}
+
+.list-footer {
+  padding: 28rpx 16rpx 12rpx;
+  text-align: center;
+  color: var(--muted);
+  font-size: 22rpx;
 }
 
 .history-kicker {
