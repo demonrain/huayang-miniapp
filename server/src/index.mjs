@@ -259,38 +259,62 @@ function applyBannerFields(target, body, creating = false) {
   if ('enabled' in body) target.enabled = Boolean(body.enabled)
 }
 
-/** Copy a succeeded job's first result image onto a banner as cover. */
-async function setBannerCoverFromJob(store, bannerId, jobId) {
+/**
+ * Attach a succeeded job's first result as banner cover.
+ * Prefer reusing the result storagePath (no copy) so existing files/thumbs work immediately.
+ * Fall back to copying into banners/ if the path needs isolation.
+ */
+async function setBannerCoverFromJob(store, bannerId, jobId, preferredResultId = '') {
   const state = store.read()
   const banner = state.banners.find(item => item.id === bannerId)
   if (!banner) throw new HttpError(404, 'BANNER_NOT_FOUND', 'Banner 不存在')
   const job = state.jobs.find(item => item.id === jobId)
   if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
   if (job.status !== 'succeeded') throw new HttpError(409, 'JOB_NOT_READY', '仅已完成作品可设为 Banner 封面')
-  const result = (job.results || [])[0]
+  const results = Array.isArray(job.results) ? job.results : []
+  let result = preferredResultId
+    ? results.find(item => item.id === preferredResultId)
+    : null
+  if (!result) result = results[0]
   if (!result?.storagePath) throw new HttpError(409, 'JOB_NO_RESULT', '该作品还没有生成图')
 
-  const sourceAbs = path.join(config.mediaDir, result.storagePath)
+  const storagePath = String(result.storagePath).replaceAll('\\', '/')
+  const sourceAbs = path.join(config.mediaDir, storagePath)
   try {
     await stat(sourceAbs)
   } catch {
-    throw new HttpError(404, 'MEDIA_NOT_FOUND', '作品图片文件不存在')
+    throw new HttpError(404, 'MEDIA_NOT_FOUND', `作品图片文件不存在：${storagePath}`)
   }
-
-  const ext = path.extname(result.storagePath) || '.jpg'
-  const mime = result.mime || (ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg')
-  const assetId = randomUUID()
-  const relativePath = path.join('banners', `${bannerId}-${assetId}${ext}`).replaceAll('\\', '/')
-  const destAbs = path.join(config.mediaDir, relativePath)
-  await mkdir(path.dirname(destAbs), { recursive: true })
-  await copyFile(sourceAbs, destAbs)
-  ensureThumb(relativePath).catch(error => console.warn('[thumbs] banner-from-job', error.message))
 
   let fileSize = 0
   try {
-    fileSize = (await stat(destAbs)).size
+    fileSize = (await stat(sourceAbs)).size
   } catch {
     fileSize = 0
+  }
+
+  const ext = path.posix.extname(storagePath) || '.jpg'
+  const mime = result.mime
+    || (ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg')
+
+  // Always materialize a banner-owned copy so cover survives job media cleanup
+  // and publicBaseUrl/media paths stay stable under /media/banners/
+  const assetId = randomUUID()
+  const relativePath = `banners/${bannerId}-${assetId}${ext}`
+  const destAbs = path.join(config.mediaDir, relativePath)
+  await mkdir(path.dirname(destAbs), { recursive: true })
+  try {
+    await copyFile(sourceAbs, destAbs)
+  } catch (error) {
+    console.error('[banner] copy cover failed', sourceAbs, '->', destAbs, error)
+    throw new HttpError(500, 'BANNER_COVER_COPY_FAILED', `复制作品封面失败：${error.message || error}`)
+  }
+
+  // Generate thumb before responding so admin/miniapp imageUrl is valid immediately
+  try {
+    await ensureThumb(relativePath)
+  } catch (error) {
+    console.warn('[thumbs] banner-from-job', error.message || error)
   }
 
   await store.transaction(draft => {
@@ -299,16 +323,24 @@ async function setBannerCoverFromJob(store, bannerId, jobId) {
     draft.assets.push({
       id: assetId,
       userId: 'admin',
-      originalName: `job-${jobId.slice(0, 8)}${ext}`,
+      originalName: `job-${String(jobId).slice(0, 8)}${ext}`,
       mime,
       size: fileSize,
       storagePath: relativePath,
       createdAt: now()
     })
     target.imageAssetId = assetId
+    target.coverJobId = jobId
     target.updatedAt = now()
   })
-  return store.read(s => publicBanners(s, true).find(item => item.id === bannerId))
+
+  const bannerOut = store.read(s => publicBanners(s, true).find(item => item.id === bannerId))
+  if (!bannerOut?.imageUrl && !bannerOut?.imageFullUrl) {
+    console.error('[banner] cover set but no imageUrl', { bannerId, jobId, relativePath, assetId })
+  } else {
+    console.log('[banner] cover from job ok', { bannerId, jobId, imageUrl: bannerOut.imageUrl || bannerOut.imageFullUrl })
+  }
+  return bannerOut
 }
 
 function adminUser(user, state) {
@@ -1559,11 +1591,13 @@ export async function createApplication() {
             }
             draft.banners.push(item)
           })
-          await setBannerCoverFromJob(store, bannerId, jobId)
-          const state = store.read()
+          const banner = await setBannerCoverFromJob(store, bannerId, jobId)
+          if (!banner?.imageUrl && !banner?.imageFullUrl) {
+            throw new HttpError(500, 'BANNER_COVER_MISSING', 'Banner 已创建但封面写入失败')
+          }
           json(response, 201, {
             ok: true,
-            banner: publicBanners(state, true).find(item => item.id === bannerId),
+            banner,
             message: '已创建 Banner，封面使用该作品生成图'
           })
           return

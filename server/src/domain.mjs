@@ -233,7 +233,10 @@ export function publicTemplate(template, state, admin = false) {
 export function publicBanner(item, state, admin = false) {
   const image = item.imageAssetId ? state.assets.find(asset => asset.id === item.imageAssetId) : null
   const fullImage = assetUrl(image)
-  const imageUrl = assetThumbUrl(image) || fullImage
+  const thumbImage = assetThumbUrl(image)
+  // Prefer full image for Banner display: thumb may not exist yet right after create,
+  // and missing thumbs previously caused "no cover" even when imageAssetId was set.
+  const imageUrl = fullImage || thumbImage
   // Empty color → client uses CSS defaults (image banners default to white in miniapp)
   const value = {
     id: item.id,
@@ -247,10 +250,14 @@ export function publicBanner(item, state, admin = false) {
     targetPath: item.targetPath || '',
     imageUrl,
     imageFullUrl: fullImage,
+    imageThumbUrl: thumbImage || fullImage,
     enabled: item.enabled !== false,
     sortOrder: Number(item.sortOrder || 0)
   }
-  if (admin) value.imageAssetId = item.imageAssetId || ''
+  if (admin) {
+    value.imageAssetId = item.imageAssetId || ''
+    value.coverJobId = item.coverJobId || ''
+  }
   return value
 }
 

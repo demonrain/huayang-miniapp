@@ -140,8 +140,12 @@ Page({
         const subtitleColor = String(item.subtitleColor || '').trim()
         const badgeColor = String(item.badgeColor || '').trim()
         const colorStyle = (hex) => (hex ? `color: ${hex} !important;` : '')
+        const imageFullUrl = item.imageFullUrl || item.imageUrl || ''
+        const imageUrl = imageFullUrl || item.imageUrl || ''
         return {
           ...item,
+          imageUrl,
+          imageFullUrl,
           titleColor,
           subtitleColor,
           badgeColor,

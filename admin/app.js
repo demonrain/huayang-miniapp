@@ -519,7 +519,7 @@ function renderBanners() {
     return `
     <tr>
       <td><div class="template-cell">
-        <div class="banner-thumb" style="background:${escapeHtml(banner.palette)}">${banner.imageUrl ? `<img src="${escapeHtml(banner.imageUrl)}" alt="">` : '<span>Banner</span>'}</div>
+        <div class="banner-thumb" style="background:${escapeHtml(banner.palette)}">${(banner.imageFullUrl || banner.imageUrl) ? `<img src="${escapeHtml(banner.imageFullUrl || banner.imageUrl)}" alt="">` : '<span>无封面</span>'}</div>
         <div><strong>${escapeHtml(banner.badge || '首页推荐')}</strong><span>${shortId(banner.id, 12)}</span></div>
       </div></td>
       <td><strong>${escapeHtml(banner.title)}</strong><span class="cell-subtitle">${escapeHtml(banner.subtitle || '-')}</span></td>
@@ -1190,12 +1190,18 @@ async function openBannerFromJob(job) {
     showToast('仅已完成的作品可设为 Banner', true)
     return
   }
-  if (!(job.results || []).length && !job.coverUrl && !job.coverFullUrl) {
+  const hasVisual = Boolean(
+    (job.results && job.results.length)
+    || job.coverUrl
+    || job.coverFullUrl
+    || (job.results && job.results[0] && (job.results[0].url || job.results[0].thumbUrl))
+  )
+  if (!hasVisual) {
     showToast('该作品没有可用的生成图', true)
     return
   }
   try {
-    showToast('正在创建 Banner…')
+    showToast('正在创建 Banner 并设置封面…')
     const result = await api(`/api/admin/jobs/${encodeURIComponent(job.id)}/banner`, {
       method: 'POST',
       json: {
@@ -1210,9 +1216,13 @@ async function openBannerFromJob(job) {
         enabled: true
       }
     })
+    const banner = result.banner
+    if (!banner?.imageUrl && !banner?.imageFullUrl) {
+      throw new Error('Banner 已创建但封面未写入，请重试或手动上传图片')
+    }
     await loadOverview()
     showToast(result.message || '已创建 Banner，封面已使用作品图')
-    // Switch to banners view so admin can see the new entry
+    // Switch to banners view so admin can see the new entry with cover
     const bannersNav = document.querySelector('[data-view="banners"]')
     if (bannersNav) bannersNav.click()
   } catch (error) {

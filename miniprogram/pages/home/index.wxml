@@ -13,9 +13,9 @@
   >
     <swiper-item wx:for="{{banners}}" wx:key="id">
       <view class="welcome-card banner-card" style="background: {{item.palette}}" data-path="{{item.targetPath}}" bindtap="openBanner">
-        <image wx:if="{{item.imageUrl}}" class="banner-image" src="{{item.imageUrl}}" mode="aspectFill"></image>
-        <view wx:if="{{item.imageUrl}}" class="banner-shade"></view>
-        <view class="welcome-copy banner-copy {{item.imageUrl ? 'banner-copy--image' : ''}}">
+        <image wx:if="{{item.imageFullUrl || item.imageUrl}}" class="banner-image" src="{{item.imageFullUrl || item.imageUrl}}" mode="aspectFill"></image>
+        <view wx:if="{{item.imageFullUrl || item.imageUrl}}" class="banner-shade"></view>
+        <view class="welcome-copy banner-copy {{item.imageFullUrl || item.imageUrl ? 'banner-copy--image' : ''}}">
           <view class="welcome-kicker {{item.badgeColor ? 'is-color-override' : ''}}" style="{{item.badgeStyle}}">{{item.badge || '今日灵感'}}</view>
           <view class="welcome-title {{item.titleColor ? 'is-color-override' : ''}}" style="{{item.titleStyle}}">{{item.title}}</view>
           <view class="banner-subtitle {{item.subtitleColor ? 'is-color-override' : ''}}" style="{{item.subtitleStyle}}">{{item.subtitle}}</view>
