@@ -9,7 +9,7 @@
 | `POST` | `/api/auth/wechat` | 使用微信登录 code 换取令牌 |
 | `GET/PATCH` | `/api/me` | 获取或修改昵称头像 |
 | `GET` | `/api/profile` | 用户和作品统计 |
-| `GET` | `/api/templates` | 模板列表 |
+| `GET` | `/api/templates` | 模板列表（可选 `page`/`pageSize`/`category`/`id`；不传 page 时返回全量） |
 | `GET` | `/api/banners` | 已启用的首页 Banner 列表 |
 | `POST` | `/api/assets` | multipart 上传图片，字段名 `image` |
 | `POST` | `/api/jobs` | 创建生成任务 |
@@ -29,7 +29,7 @@
 | `POST` | `/api/cdks/redeem` | 使用 CDK 兑换积分（需登录） |
 | `GET` | `/api/feedbacks` | 当前用户反馈历史（含官方回复） |
 | `POST` | `/api/feedbacks` | 提交建议反馈（需登录；`type`: problem/feature/template_request） |
-| `GET/POST` | `/api/admin/cdks` | CDK 列表 / 批量生成 |
+| `GET/POST` | `/api/admin/cdks` | CDK 列表（`page`/`pageSize`）/ 批量生成 |
 | `DELETE` | `/api/admin/cdks/:id` | 删除未使用的 CDK |
 | `POST` | `/api/share-rewards` | 上报分享并发放分享积分（需登录） |
 | `GET` | `/api/share-rewards/me` | 当前用户分享/邀请统计 |
@@ -43,13 +43,13 @@
 | `POST` | `/api/admin/login` | 管理员密码登录 |
 | `GET` | `/api/admin/overview` | 统计、设置、Banner、套餐与模板数量（不含全量模板） |
 | `PATCH` | `/api/admin/settings` | 修改签到、新用户积分和分享标题 |
-| `GET/PATCH` | `/api/admin/users[/:id]` | 查询用户或修改启用状态 |
+| `GET/PATCH` | `/api/admin/users[/:id]` | 查询用户或修改启用状态（列表支持 `page`/`pageSize`） |
 | `POST` | `/api/admin/users/:id/credits` | 调整用户积分并写入流水 |
-| `GET` | `/api/admin/transactions` | 查询充值、消费及其他积分流水 |
-| `GET` | `/api/admin/jobs` | 查询作品任务、状态和生成时间 |
+| `GET` | `/api/admin/transactions` | 查询充值、消费及其他积分流水（`page`/`pageSize`） |
+| `GET` | `/api/admin/jobs` | 查询作品任务、状态和生成时间（`page`/`pageSize`） |
 | `POST` | `/api/admin/jobs/:id/samples` | 将任务某张结果加入模板「更多效果参考」 |
 | `DELETE` | `/api/admin/jobs/:id/samples` | 从模板「更多效果参考」中移除该结果（body: `resultId`） |
-| `GET` | `/api/admin/feedbacks` | 用户建议反馈列表（`type`/`status` 筛选） |
+| `GET` | `/api/admin/feedbacks` | 用户建议反馈列表（`type`/`status`/`page`/`pageSize`） |
 | `POST` | `/api/admin/feedbacks/:id/reply` | 回复用户反馈（body: `reply`） |
 | `POST/PATCH` | `/api/admin/banners[/:id]` | 新增或修改首页 Banner |
 | `POST` | `/api/admin/banners/:id/image` | 上传 Banner 图片 |

@@ -1,3 +1,14 @@
+function createPageQuery(extra = {}) {
+  return {
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    pages: 1,
+    loading: false,
+    ...extra
+  }
+}
+
 const state = {
   token: sessionStorage.getItem('huayang_admin_token') || '',
   data: null,
@@ -5,16 +16,16 @@ const state = {
   transactions: [],
   jobs: [],
   templates: [],
-  templateQuery: {
-    page: 1,
-    pageSize: 20,
-    total: 0,
-    pages: 1,
+  userQuery: createPageQuery({ query: '', status: 'all' }),
+  transactionQuery: createPageQuery({ query: '', type: 'all' }),
+  jobQuery: createPageQuery({ query: '', status: 'all' }),
+  feedbackQuery: createPageQuery({ type: 'all', status: 'all' }),
+  cdkQuery: createPageQuery({ query: '', status: 'all' }),
+  templateQuery: createPageQuery({
     query: '',
     status: 'all',
     category: 'all'
-  },
-  templatesLoading: false,
+  }),
   editingTemplateId: '',
   coverTemplateId: '',
   editingBannerId: '',
@@ -37,12 +48,32 @@ const elements = {
   shareRewardForm: document.querySelector('#shareRewardForm'),
   userRows: document.querySelector('#userRows'),
   userFilterForm: document.querySelector('#userFilterForm'),
+  userPagerInfo: document.querySelector('#userPagerInfo'),
+  userPrevPage: document.querySelector('#userPrevPage'),
+  userNextPage: document.querySelector('#userNextPage'),
+  userPageSize: document.querySelector('#userPageSize'),
   transactionRows: document.querySelector('#transactionRows'),
   transactionFilterForm: document.querySelector('#transactionFilterForm'),
+  transactionPagerInfo: document.querySelector('#transactionPagerInfo'),
+  transactionPrevPage: document.querySelector('#transactionPrevPage'),
+  transactionNextPage: document.querySelector('#transactionNextPage'),
+  transactionPageSize: document.querySelector('#transactionPageSize'),
   jobRows: document.querySelector('#jobRows'),
   jobFilterForm: document.querySelector('#jobFilterForm'),
+  jobPagerInfo: document.querySelector('#jobPagerInfo'),
+  jobPrevPage: document.querySelector('#jobPrevPage'),
+  jobNextPage: document.querySelector('#jobNextPage'),
+  jobPageSize: document.querySelector('#jobPageSize'),
   feedbackRows: document.querySelector('#feedbackRows'),
   feedbackFilterForm: document.querySelector('#feedbackFilterForm'),
+  feedbackPagerInfo: document.querySelector('#feedbackPagerInfo'),
+  feedbackPrevPage: document.querySelector('#feedbackPrevPage'),
+  feedbackNextPage: document.querySelector('#feedbackNextPage'),
+  feedbackPageSize: document.querySelector('#feedbackPageSize'),
+  cdkPagerInfo: document.querySelector('#cdkPagerInfo'),
+  cdkPrevPage: document.querySelector('#cdkPrevPage'),
+  cdkNextPage: document.querySelector('#cdkNextPage'),
+  cdkPageSize: document.querySelector('#cdkPageSize'),
   feedbackReplyDialog: document.querySelector('#feedbackReplyDialog'),
   feedbackReplyForm: document.querySelector('#feedbackReplyForm'),
   feedbackReplyTitle: document.querySelector('#feedbackReplyTitle'),
@@ -179,24 +210,80 @@ function fillTemplateFilterCategories() {
   }
 }
 
+function syncPageSizeFromSelect(selectEl, query) {
+  if (!selectEl) return
+  const size = Number(selectEl.value) || 20
+  query.pageSize = [20, 50, 100].includes(size) ? size : 20
+}
+
+function applyPageResult(query, result) {
+  query.total = Number(result.total) || 0
+  query.page = Number(result.page) || query.page
+  query.pageSize = Number(result.pageSize) || query.pageSize
+  query.pages = Number(result.pages) || Math.max(1, Math.ceil(query.total / query.pageSize) || 1)
+  if (query.page > query.pages) query.page = query.pages
+  if (query.page < 1) query.page = 1
+}
+
+function renderListPager({ infoEl, prevEl, nextEl, sizeEl, query }) {
+  if (infoEl) {
+    if (!query.total) {
+      infoEl.textContent = query.loading ? '加载中…' : '共 0 条'
+    } else {
+      const from = (query.page - 1) * query.pageSize + 1
+      const to = Math.min(query.page * query.pageSize, query.total)
+      infoEl.textContent = `第 ${query.page}/${query.pages} 页 · 显示 ${from}-${to} · 共 ${query.total} 条`
+    }
+  }
+  if (prevEl) prevEl.disabled = query.loading || query.page <= 1
+  if (nextEl) nextEl.disabled = query.loading || query.page >= query.pages || query.total === 0
+  if (sizeEl && String(sizeEl.value) !== String(query.pageSize)) {
+    sizeEl.value = String(query.pageSize)
+  }
+}
+
+function wireListPager({ prevEl, nextEl, sizeEl, getQuery, loadFn }) {
+  prevEl?.addEventListener('click', async () => {
+    const q = getQuery()
+    if (q.page <= 1 || q.loading) return
+    q.page -= 1
+    await loadFn()
+  })
+  nextEl?.addEventListener('click', async () => {
+    const q = getQuery()
+    if (q.page >= q.pages || q.loading) return
+    q.page += 1
+    await loadFn()
+  })
+  sizeEl?.addEventListener('change', async () => {
+    const q = getQuery()
+    syncPageSizeFromSelect(sizeEl, q)
+    q.page = 1
+    await loadFn()
+  })
+}
+
 async function loadTemplates({ resetPage = false } = {}) {
   if (!elements.templateRows) return
-  if (resetPage) state.templateQuery.page = 1
   const q = state.templateQuery
+  if (resetPage) q.page = 1
   if (elements.templateFilterForm) {
     const values = new FormData(elements.templateFilterForm)
     q.query = String(values.get('query') || '').trim()
     q.status = String(values.get('status') || 'all')
     q.category = String(values.get('category') || 'all')
   }
-  if (elements.templatePageSize) {
-    const size = Number(elements.templatePageSize.value) || 20
-    q.pageSize = [20, 50, 100].includes(size) ? size : 20
-  }
+  syncPageSizeFromSelect(elements.templatePageSize, q)
 
-  state.templatesLoading = true
+  q.loading = true
   elements.templateRows.innerHTML = emptyRow(8, '加载中...')
-  renderTemplatePager()
+  renderListPager({
+    infoEl: elements.templatePagerInfo,
+    prevEl: elements.templatePrevPage,
+    nextEl: elements.templateNextPage,
+    sizeEl: elements.templatePageSize,
+    query: q
+  })
   try {
     const params = new URLSearchParams({
       page: String(q.page),
@@ -207,41 +294,21 @@ async function loadTemplates({ resetPage = false } = {}) {
     })
     const result = await api(`/api/admin/templates?${params}`)
     state.templates = Array.isArray(result.templates) ? result.templates : []
-    q.total = Number(result.total) || 0
-    q.page = Number(result.page) || q.page
-    q.pageSize = Number(result.pageSize) || q.pageSize
-    q.pages = Number(result.pages) || Math.max(1, Math.ceil(q.total / q.pageSize) || 1)
+    applyPageResult(q, result)
     if (state.data) state.data.templateCount = q.total
     renderTemplates()
-    renderTemplatePager()
   } catch (error) {
     elements.templateRows.innerHTML = emptyRow(8, error.message || '加载失败')
     showToast(error.message, true)
   } finally {
-    state.templatesLoading = false
-    renderTemplatePager()
-  }
-}
-
-function renderTemplatePager() {
-  const q = state.templateQuery
-  if (elements.templatePagerInfo) {
-    if (!q.total) {
-      elements.templatePagerInfo.textContent = state.templatesLoading ? '加载中…' : '共 0 条'
-    } else {
-      const from = (q.page - 1) * q.pageSize + 1
-      const to = Math.min(q.page * q.pageSize, q.total)
-      elements.templatePagerInfo.textContent = `第 ${q.page}/${q.pages} 页 · 显示 ${from}-${to} · 共 ${q.total} 条`
-    }
-  }
-  if (elements.templatePrevPage) {
-    elements.templatePrevPage.disabled = state.templatesLoading || q.page <= 1
-  }
-  if (elements.templateNextPage) {
-    elements.templateNextPage.disabled = state.templatesLoading || q.page >= q.pages || q.total === 0
-  }
-  if (elements.templatePageSize && String(elements.templatePageSize.value) !== String(q.pageSize)) {
-    elements.templatePageSize.value = String(q.pageSize)
+    q.loading = false
+    renderListPager({
+      infoEl: elements.templatePagerInfo,
+      prevEl: elements.templatePrevPage,
+      nextEl: elements.templateNextPage,
+      sizeEl: elements.templatePageSize,
+      query: q
+    })
   }
 }
 
@@ -477,13 +544,35 @@ function renderPackages() {
   `).join('')
 }
 
-async function loadUsers() {
+async function loadUsers({ resetPage = false } = {}) {
+  const q = state.userQuery
+  if (resetPage) q.page = 1
+  if (elements.userFilterForm) {
+    const values = new FormData(elements.userFilterForm)
+    q.query = String(values.get('query') || '').trim()
+    q.status = String(values.get('status') || 'all')
+  }
+  syncPageSizeFromSelect(elements.userPageSize, q)
+  q.loading = true
   elements.userRows.innerHTML = emptyRow(8, '加载中...')
-  const values = new FormData(elements.userFilterForm)
-  const params = new URLSearchParams({ query: String(values.get('query') || ''), status: String(values.get('status') || 'all') })
-  const result = await api(`/api/admin/users?${params}`)
-  state.users = result.users
-  elements.userRows.innerHTML = state.users.map(user => `
+  renderListPager({
+    infoEl: elements.userPagerInfo,
+    prevEl: elements.userPrevPage,
+    nextEl: elements.userNextPage,
+    sizeEl: elements.userPageSize,
+    query: q
+  })
+  try {
+    const params = new URLSearchParams({
+      page: String(q.page),
+      pageSize: String(q.pageSize),
+      query: q.query,
+      status: q.status
+    })
+    const result = await api(`/api/admin/users?${params}`)
+    state.users = result.users || []
+    applyPageResult(q, result)
+    elements.userRows.innerHTML = state.users.map(user => `
     <tr>
       <td><strong>${escapeHtml(user.nickname)}</strong><span class="cell-subtitle">${escapeHtml(shortId(user.id))} · ${escapeHtml(user.maskedOpenid)}</span></td>
       <td><strong>${Number(user.credits).toLocaleString('zh-CN')}</strong></td>
@@ -498,15 +587,50 @@ async function loadUsers() {
       </div></td>
     </tr>
   `).join('') || emptyRow(8, '没有符合条件的用户')
+  } catch (error) {
+    elements.userRows.innerHTML = emptyRow(8, error.message || '加载失败')
+    throw error
+  } finally {
+    q.loading = false
+    renderListPager({
+      infoEl: elements.userPagerInfo,
+      prevEl: elements.userPrevPage,
+      nextEl: elements.userNextPage,
+      sizeEl: elements.userPageSize,
+      query: q
+    })
+  }
 }
 
-async function loadTransactions() {
+async function loadTransactions({ resetPage = false } = {}) {
+  const q = state.transactionQuery
+  if (resetPage) q.page = 1
+  if (elements.transactionFilterForm) {
+    const values = new FormData(elements.transactionFilterForm)
+    q.query = String(values.get('query') || '').trim()
+    q.type = String(values.get('type') || 'all')
+  }
+  syncPageSizeFromSelect(elements.transactionPageSize, q)
+  q.loading = true
   elements.transactionRows.innerHTML = emptyRow(8, '加载中...')
-  const values = new FormData(elements.transactionFilterForm)
-  const params = new URLSearchParams({ query: String(values.get('query') || ''), type: String(values.get('type') || 'all') })
-  const result = await api(`/api/admin/transactions?${params}`)
-  state.transactions = result.transactions
-  elements.transactionRows.innerHTML = state.transactions.map(item => `
+  renderListPager({
+    infoEl: elements.transactionPagerInfo,
+    prevEl: elements.transactionPrevPage,
+    nextEl: elements.transactionNextPage,
+    sizeEl: elements.transactionPageSize,
+    query: q
+  })
+  try {
+    const params = new URLSearchParams({
+      page: String(q.page),
+      pageSize: String(q.pageSize),
+      query: q.query,
+      type: q.type
+    })
+    const result = await api(`/api/admin/transactions?${params}`)
+    state.transactions = result.transactions || []
+    applyPageResult(q, result)
+    elements.transactionRows.innerHTML = state.transactions.map(item => `
     <tr>
       <td>${escapeHtml(item.displayTime)}</td>
       <td><strong>${escapeHtml(item.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.userMaskedId)}</span></td>
@@ -518,15 +642,50 @@ async function loadTransactions() {
       <td title="${escapeHtml(item.externalRef)}">${escapeHtml(shortId(item.externalRef, 12) || '-')}</td>
     </tr>
   `).join('') || emptyRow(8, '没有符合条件的流水')
+  } catch (error) {
+    elements.transactionRows.innerHTML = emptyRow(8, error.message || '加载失败')
+    throw error
+  } finally {
+    q.loading = false
+    renderListPager({
+      infoEl: elements.transactionPagerInfo,
+      prevEl: elements.transactionPrevPage,
+      nextEl: elements.transactionNextPage,
+      sizeEl: elements.transactionPageSize,
+      query: q
+    })
+  }
 }
 
-async function loadJobs() {
+async function loadJobs({ resetPage = false } = {}) {
+  const q = state.jobQuery
+  if (resetPage) q.page = 1
+  if (elements.jobFilterForm) {
+    const values = new FormData(elements.jobFilterForm)
+    q.query = String(values.get('query') || '').trim()
+    q.status = String(values.get('status') || 'all')
+  }
+  syncPageSizeFromSelect(elements.jobPageSize, q)
+  q.loading = true
   elements.jobRows.innerHTML = emptyRow(9, '加载中...')
-  const values = new FormData(elements.jobFilterForm)
-  const params = new URLSearchParams({ query: String(values.get('query') || ''), status: String(values.get('status') || 'all') })
-  const result = await api(`/api/admin/jobs?${params}`)
-  state.jobs = result.jobs
-  elements.jobRows.innerHTML = state.jobs.map(job => `
+  renderListPager({
+    infoEl: elements.jobPagerInfo,
+    prevEl: elements.jobPrevPage,
+    nextEl: elements.jobNextPage,
+    sizeEl: elements.jobPageSize,
+    query: q
+  })
+  try {
+    const params = new URLSearchParams({
+      page: String(q.page),
+      pageSize: String(q.pageSize),
+      query: q.query,
+      status: q.status
+    })
+    const result = await api(`/api/admin/jobs?${params}`)
+    state.jobs = result.jobs || []
+    applyPageResult(q, result)
+    elements.jobRows.innerHTML = state.jobs.map(job => `
     <tr>
       <td>
         <div class="job-media">
@@ -554,22 +713,54 @@ async function loadJobs() {
       <td class="error-cell" title="${escapeHtml(job.error)}">${escapeHtml(job.error || '-')}</td>
     </tr>
   `).join('') || emptyRow(9, '没有符合条件的作品任务')
+  } catch (error) {
+    elements.jobRows.innerHTML = emptyRow(9, error.message || '加载失败')
+    throw error
+  } finally {
+    q.loading = false
+    renderListPager({
+      infoEl: elements.jobPagerInfo,
+      prevEl: elements.jobPrevPage,
+      nextEl: elements.jobNextPage,
+      sizeEl: elements.jobPageSize,
+      query: q
+    })
+  }
 }
 
-async function loadFeedbacks() {
+async function loadFeedbacks({ resetPage = false } = {}) {
   if (!elements.feedbackRows) return
+  const q = state.feedbackQuery
+  if (resetPage) q.page = 1
+  if (elements.feedbackFilterForm) {
+    const values = new FormData(elements.feedbackFilterForm)
+    q.type = String(values.get('type') || 'all')
+    q.status = String(values.get('status') || 'all')
+  }
+  syncPageSizeFromSelect(elements.feedbackPageSize, q)
+  q.loading = true
   elements.feedbackRows.innerHTML = emptyRow(8, '加载中...')
-  const values = elements.feedbackFilterForm ? new FormData(elements.feedbackFilterForm) : new FormData()
-  const params = new URLSearchParams({
-    type: String(values.get('type') || 'all'),
-    status: String(values.get('status') || 'all')
+  renderListPager({
+    infoEl: elements.feedbackPagerInfo,
+    prevEl: elements.feedbackPrevPage,
+    nextEl: elements.feedbackNextPage,
+    sizeEl: elements.feedbackPageSize,
+    query: q
   })
-  const result = await api(`/api/admin/feedbacks?${params}`)
-  const list = result.feedbacks || []
-  state.feedbacks = list
-  elements.feedbackRows.innerHTML = list.map(item => {
-    const replied = item.status === 'replied' || Boolean(item.reply)
-    return `
+  try {
+    const params = new URLSearchParams({
+      page: String(q.page),
+      pageSize: String(q.pageSize),
+      type: q.type,
+      status: q.status
+    })
+    const result = await api(`/api/admin/feedbacks?${params}`)
+    const list = result.feedbacks || []
+    state.feedbacks = list
+    applyPageResult(q, result)
+    elements.feedbackRows.innerHTML = list.map(item => {
+      const replied = item.status === 'replied' || Boolean(item.reply)
+      return `
     <tr>
       <td>${escapeHtml(item.createdTime || formatDate(item.createdAt))}</td>
       <td><strong>${escapeHtml(item.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.userMaskedId)}</span></td>
@@ -582,7 +773,20 @@ async function loadFeedbacks() {
         <button class="row-button" type="button" data-feedback-action="reply" data-id="${escapeHtml(item.id)}">${replied ? '修改回复' : '回复'}</button>
       </td>
     </tr>`
-  }).join('') || emptyRow(8, '暂无用户反馈')
+    }).join('') || emptyRow(8, '暂无用户反馈')
+  } catch (error) {
+    elements.feedbackRows.innerHTML = emptyRow(8, error.message || '加载失败')
+    throw error
+  } finally {
+    q.loading = false
+    renderListPager({
+      infoEl: elements.feedbackPagerInfo,
+      prevEl: elements.feedbackPrevPage,
+      nextEl: elements.feedbackNextPage,
+      sizeEl: elements.feedbackPageSize,
+      query: q
+    })
+  }
 }
 
 function openFeedbackReplyDialog(feedback) {
@@ -644,25 +848,44 @@ function syncCdkExpireFields() {
   if (input) input.required = custom
 }
 
-async function loadCdks() {
+async function loadCdks({ resetPage = false } = {}) {
   if (!elements.cdkRows) return
-  elements.cdkRows.innerHTML = emptyRow(8, '加载中...')
-  const values = elements.cdkFilterForm ? new FormData(elements.cdkFilterForm) : new FormData()
-  const params = new URLSearchParams({
-    query: String(values.get('query') || ''),
-    status: String(values.get('status') || 'all')
-  })
-  const result = await api(`/api/admin/cdks?${params}`)
-  const summary = result.summary || {}
-  if (elements.cdkSummaryHint) {
-    elements.cdkSummaryHint.textContent =
-      `共 ${Number(summary.total || 0)} 个 · 未使用 ${Number(summary.unused || 0)} · 使用中 ${Number(summary.active || 0)} · 已兑完 ${Number(summary.exhausted || 0)} · 已过期 ${Number(summary.expired || 0)}`
+  const q = state.cdkQuery
+  if (resetPage) q.page = 1
+  if (elements.cdkFilterForm) {
+    const values = new FormData(elements.cdkFilterForm)
+    q.query = String(values.get('query') || '').trim()
+    q.status = String(values.get('status') || 'all')
   }
-  elements.cdkRows.innerHTML = (result.cdks || []).map(item => {
-    const usesText = item.maxUses === 0
-      ? `已兑 ${Number(item.redeemCount || 0)} / 不限`
-      : `已兑 ${Number(item.redeemCount || 0)} / ${Number(item.maxUses)}`
-    return `
+  syncPageSizeFromSelect(elements.cdkPageSize, q)
+  q.loading = true
+  elements.cdkRows.innerHTML = emptyRow(8, '加载中...')
+  renderListPager({
+    infoEl: elements.cdkPagerInfo,
+    prevEl: elements.cdkPrevPage,
+    nextEl: elements.cdkNextPage,
+    sizeEl: elements.cdkPageSize,
+    query: q
+  })
+  try {
+    const params = new URLSearchParams({
+      page: String(q.page),
+      pageSize: String(q.pageSize),
+      query: q.query,
+      status: q.status
+    })
+    const result = await api(`/api/admin/cdks?${params}`)
+    const summary = result.summary || {}
+    if (elements.cdkSummaryHint) {
+      elements.cdkSummaryHint.textContent =
+        `共 ${Number(summary.total || 0)} 个 · 未使用 ${Number(summary.unused || 0)} · 使用中 ${Number(summary.active || 0)} · 已兑完 ${Number(summary.exhausted || 0)} · 已过期 ${Number(summary.expired || 0)}`
+    }
+    applyPageResult(q, result)
+    elements.cdkRows.innerHTML = (result.cdks || []).map(item => {
+      const usesText = item.maxUses === 0
+        ? `已兑 ${Number(item.redeemCount || 0)} / 不限`
+        : `已兑 ${Number(item.redeemCount || 0)} / ${Number(item.maxUses)}`
+      return `
     <tr>
       <td><code class="cdk-code">${escapeHtml(item.code)}</code></td>
       <td class="amount-positive">+${Number(item.credits)}</td>
@@ -680,7 +903,20 @@ async function loadCdks() {
           : ''}
       </td>
     </tr>`
-  }).join('') || emptyRow(8, '还没有 CDK，请先生成')
+    }).join('') || emptyRow(8, '还没有 CDK，请先生成')
+  } catch (error) {
+    elements.cdkRows.innerHTML = emptyRow(8, error.message || '加载失败')
+    throw error
+  } finally {
+    q.loading = false
+    renderListPager({
+      infoEl: elements.cdkPagerInfo,
+      prevEl: elements.cdkPrevPage,
+      nextEl: elements.cdkNextPage,
+      sizeEl: elements.cdkPageSize,
+      query: q
+    })
+  }
 }
 
 async function loadMessagesPage() {
@@ -939,9 +1175,61 @@ if (elements.bannerCarouselForm) {
   })
 }
 
-elements.userFilterForm.addEventListener('submit', event => { event.preventDefault(); loadUsers().catch(error => showToast(error.message, true)) })
-elements.transactionFilterForm.addEventListener('submit', event => { event.preventDefault(); loadTransactions().catch(error => showToast(error.message, true)) })
-elements.jobFilterForm.addEventListener('submit', event => { event.preventDefault(); loadJobs().catch(error => showToast(error.message, true)) })
+elements.userFilterForm.addEventListener('submit', event => {
+  event.preventDefault()
+  loadUsers({ resetPage: true }).catch(error => showToast(error.message, true))
+})
+elements.transactionFilterForm.addEventListener('submit', event => {
+  event.preventDefault()
+  loadTransactions({ resetPage: true }).catch(error => showToast(error.message, true))
+})
+elements.jobFilterForm.addEventListener('submit', event => {
+  event.preventDefault()
+  loadJobs({ resetPage: true }).catch(error => showToast(error.message, true))
+})
+
+wireListPager({
+  prevEl: elements.userPrevPage,
+  nextEl: elements.userNextPage,
+  sizeEl: elements.userPageSize,
+  getQuery: () => state.userQuery,
+  loadFn: () => loadUsers()
+})
+wireListPager({
+  prevEl: elements.transactionPrevPage,
+  nextEl: elements.transactionNextPage,
+  sizeEl: elements.transactionPageSize,
+  getQuery: () => state.transactionQuery,
+  loadFn: () => loadTransactions()
+})
+wireListPager({
+  prevEl: elements.jobPrevPage,
+  nextEl: elements.jobNextPage,
+  sizeEl: elements.jobPageSize,
+  getQuery: () => state.jobQuery,
+  loadFn: () => loadJobs()
+})
+wireListPager({
+  prevEl: elements.feedbackPrevPage,
+  nextEl: elements.feedbackNextPage,
+  sizeEl: elements.feedbackPageSize,
+  getQuery: () => state.feedbackQuery,
+  loadFn: () => loadFeedbacks()
+})
+wireListPager({
+  prevEl: elements.cdkPrevPage,
+  nextEl: elements.cdkNextPage,
+  sizeEl: elements.cdkPageSize,
+  getQuery: () => state.cdkQuery,
+  loadFn: () => loadCdks()
+})
+wireListPager({
+  prevEl: elements.templatePrevPage,
+  nextEl: elements.templateNextPage,
+  sizeEl: elements.templatePageSize,
+  getQuery: () => state.templateQuery,
+  loadFn: () => loadTemplates()
+})
 
 elements.jobRows?.addEventListener('click', async event => {
   const button = event.target.closest('[data-job-action="add-sample"], [data-job-action="remove-sample"]')
@@ -967,7 +1255,7 @@ elements.jobRows?.addEventListener('click', async event => {
 
 elements.feedbackFilterForm?.addEventListener('submit', event => {
   event.preventDefault()
-  loadFeedbacks().catch(error => showToast(error.message, true))
+  loadFeedbacks({ resetPage: true }).catch(error => showToast(error.message, true))
 })
 
 elements.feedbackRows?.addEventListener('click', event => {
@@ -1180,7 +1468,8 @@ elements.templateForm.addEventListener('submit', async event => {
       await api('/api/admin/templates', { method: 'POST', json: payload })
     }
     elements.templateDialog.close()
-    await Promise.all([loadTemplates({ resetPage: !state.editingTemplateId }), loadOverview()])
+    // Keep current page after create/edit so user stays on the list page they were viewing
+    await Promise.all([loadTemplates(), loadOverview()])
     showToast('模板已保存')
   } catch (error) { showToast(error.message, true) }
 })
@@ -1208,22 +1497,6 @@ if (elements.templateFilterForm) {
     }
   })
 }
-
-elements.templatePrevPage?.addEventListener('click', async () => {
-  if (state.templateQuery.page <= 1 || state.templatesLoading) return
-  state.templateQuery.page -= 1
-  await loadTemplates()
-})
-
-elements.templateNextPage?.addEventListener('click', async () => {
-  if (state.templateQuery.page >= state.templateQuery.pages || state.templatesLoading) return
-  state.templateQuery.page += 1
-  await loadTemplates()
-})
-
-elements.templatePageSize?.addEventListener('change', async () => {
-  await loadTemplates({ resetPage: true })
-})
 
 document.querySelector('#addPackageButton').addEventListener('click', () => {
   elements.packageForm.reset()
@@ -1303,13 +1576,14 @@ elements.cdkGenerateForm?.addEventListener('submit', async event => {
       await navigator.clipboard.writeText(codes).catch(() => {})
     }
     showToast(`已生成 ${result.count || 0} 个 CDK${codes ? '（已复制）' : ''}`)
-    await loadCdks()
+    // New codes are newest-first; jump to page 1 so they are visible
+    await loadCdks({ resetPage: true })
   } catch (error) { showToast(error.message, true) }
 })
 
 elements.cdkFilterForm?.addEventListener('submit', event => {
   event.preventDefault()
-  loadCdks().catch(error => showToast(error.message, true))
+  loadCdks({ resetPage: true }).catch(error => showToast(error.message, true))
 })
 
 document.querySelector('#refreshCdkList')?.addEventListener('click', () => {

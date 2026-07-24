@@ -140,6 +140,8 @@
 
   <view wx:if="{{!loading && !filteredTemplates.length}}" class="empty">这个分类的模板还在准备中</view>
 
+  <view wx:if="{{!loading && filteredTemplates.length && listFooter}}" class="list-footer">{{listFooter}}</view>
+
   <!-- Admin in-app announcement -->
   <view wx:if="{{showAnnouncement && announcement}}" class="announce-mask" catchtouchmove="noop">
     <view class="announce-sheet">

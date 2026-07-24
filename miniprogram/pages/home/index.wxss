@@ -1,5 +1,12 @@
 .home-page {
-  padding-bottom: 24rpx;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 48rpx);
+}
+
+.list-footer {
+  padding: 28rpx 16rpx 12rpx;
+  text-align: center;
+  color: var(--muted);
+  font-size: 22rpx;
 }
 
 .banner-swiper {

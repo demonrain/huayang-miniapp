@@ -163,6 +163,20 @@
           </form>
         </div>
         <div class="table-wrap"><table><thead><tr><th>用户</th><th>积分</th><th>作品</th><th>累计充值</th><th>累计消费</th><th>注册/登录</th><th>状态</th><th>操作</th></tr></thead><tbody id="userRows"></tbody></table></div>
+        <div class="pager" id="userPager">
+          <span class="pager-info" id="userPagerInfo">—</span>
+          <div class="pager-actions">
+            <label class="pager-size">每页
+              <select id="userPageSize">
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button class="button button--quiet" id="userPrevPage" type="button">上一页</button>
+            <button class="button button--quiet" id="userNextPage" type="button">下一页</button>
+          </div>
+        </div>
       </section>
 
       <section id="transactionsView" class="view-panel" hidden>
@@ -175,6 +189,20 @@
           </form>
         </div>
         <div class="table-wrap"><table><thead><tr><th>时间</th><th>用户</th><th>类型</th><th>摘要</th><th>变动</th><th>余额</th><th>支付金额</th><th>关联单号</th></tr></thead><tbody id="transactionRows"></tbody></table></div>
+        <div class="pager" id="transactionPager">
+          <span class="pager-info" id="transactionPagerInfo">—</span>
+          <div class="pager-actions">
+            <label class="pager-size">每页
+              <select id="transactionPageSize">
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button class="button button--quiet" id="transactionPrevPage" type="button">上一页</button>
+            <button class="button button--quiet" id="transactionNextPage" type="button">下一页</button>
+          </div>
+        </div>
       </section>
 
       <section id="jobsView" class="view-panel" hidden>
@@ -187,6 +215,20 @@
           </form>
         </div>
         <div class="table-wrap"><table><thead><tr><th>图片</th><th>用户</th><th>模板</th><th>状态</th><th>数量/积分</th><th>生成时间</th><th>完成时间</th><th>耗时</th><th>异常 / 操作</th></tr></thead><tbody id="jobRows"></tbody></table></div>
+        <div class="pager" id="jobPager">
+          <span class="pager-info" id="jobPagerInfo">—</span>
+          <div class="pager-actions">
+            <label class="pager-size">每页
+              <select id="jobPageSize">
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button class="button button--quiet" id="jobPrevPage" type="button">上一页</button>
+            <button class="button button--quiet" id="jobNextPage" type="button">下一页</button>
+          </div>
+        </div>
       </section>
 
       <section id="feedbacksView" class="view-panel" hidden>
@@ -222,6 +264,20 @@
           </thead>
           <tbody id="feedbackRows"></tbody>
         </table></div>
+        <div class="pager" id="feedbackPager">
+          <span class="pager-info" id="feedbackPagerInfo">—</span>
+          <div class="pager-actions">
+            <label class="pager-size">每页
+              <select id="feedbackPageSize">
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button class="button button--quiet" id="feedbackPrevPage" type="button">上一页</button>
+            <button class="button button--quiet" id="feedbackNextPage" type="button">下一页</button>
+          </div>
+        </div>
       </section>
 
       <section id="bannersView" class="view-panel" hidden>
@@ -370,6 +426,20 @@
               </thead>
               <tbody id="cdkRows"></tbody>
             </table>
+          </div>
+          <div class="pager" id="cdkPager">
+            <span class="pager-info" id="cdkPagerInfo">—</span>
+            <div class="pager-actions">
+              <label class="pager-size">每页
+                <select id="cdkPageSize">
+                  <option value="20" selected>20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+              <button class="button button--quiet" id="cdkPrevPage" type="button">上一页</button>
+              <button class="button button--quiet" id="cdkNextPage" type="button">下一页</button>
+            </div>
           </div>
         </div>
       </section>

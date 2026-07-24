@@ -3,7 +3,7 @@
 
   <view wx:if="{{!user}}" class="guest-panel">
     <view class="guest-title">欢迎来到花漾相绘</view>
-    <view class="guest-sub">使用微信快捷登录，同步你的作品、积分与个人资料。未登录也可先逛逛模板。</view>
+    <view class="guest-sub">点击登录将授权微信登录，并尽量自动填入头像与昵称（需你在弹窗中允许；若未能自动获取，登录后点头像/昵称可一键授权）。</view>
     <button class="primary-button guest-login" bindtap="doLogin">微信快捷登录</button>
   </view>
 
@@ -40,7 +40,7 @@
 
     <view wx:if="{{!profileComplete}}" class="profile-setup">
       <view class="profile-setup__title">完善微信资料</view>
-      <view class="profile-setup__text">点头像授权微信头像，点昵称栏使用微信昵称（需主动授权，无法静默获取）。</view>
+      <view class="profile-setup__text">微信规定头像/昵称需你主动授权：点上方头像选择微信头像，点昵称栏使用微信昵称。完成后资料会自动保存。</view>
     </view>
 
     <view class="stats-grid">
@@ -80,42 +80,54 @@
     <view class="menu-list">
       <button bindtap="goWorks" hover-class="menu-item--hover">
         <view class="menu-label">
-          <view class="menu-icon menu-icon--works">作</view>
+          <view class="menu-icon menu-icon--works">
+            <image class="menu-icon__img" src="/assets/icons/menu-works.svg" mode="aspectFit"></image>
+          </view>
           <text>我的作品</text>
         </view>
         <text class="menu-arrow">›</text>
       </button>
       <button bindtap="goRedeem" hover-class="menu-item--hover">
         <view class="menu-label">
-          <view class="menu-icon menu-icon--redeem">兑</view>
+          <view class="menu-icon menu-icon--redeem">
+            <image class="menu-icon__img" src="/assets/icons/menu-redeem.svg" mode="aspectFit"></image>
+          </view>
           <text>积分兑换</text>
         </view>
         <text class="menu-arrow">›</text>
       </button>
       <button bindtap="goFeedback" hover-class="menu-item--hover">
         <view class="menu-label">
-          <view class="menu-icon menu-icon--feedback">建</view>
+          <view class="menu-icon menu-icon--feedback">
+            <image class="menu-icon__img" src="/assets/icons/menu-feedback.svg" mode="aspectFit"></image>
+          </view>
           <text>建议反馈</text>
         </view>
         <text class="menu-arrow">›</text>
       </button>
       <button bindtap="openHelp" hover-class="menu-item--hover">
         <view class="menu-label">
-          <view class="menu-icon menu-icon--help">?</view>
+          <view class="menu-icon menu-icon--help">
+            <image class="menu-icon__img" src="/assets/icons/menu-help.svg" mode="aspectFit"></image>
+          </view>
           <text>使用帮助 / 新手练习</text>
         </view>
         <text class="menu-arrow">›</text>
       </button>
       <button bindtap="openPrivacy" hover-class="menu-item--hover">
         <view class="menu-label">
-          <view class="menu-icon menu-icon--privacy">隐</view>
+          <view class="menu-icon menu-icon--privacy">
+            <image class="menu-icon__img" src="/assets/icons/menu-privacy.svg" mode="aspectFit"></image>
+          </view>
           <text>隐私与安全</text>
         </view>
         <text class="menu-arrow">›</text>
       </button>
       <button bindtap="openUserAgreement" hover-class="menu-item--hover">
         <view class="menu-label">
-          <view class="menu-icon menu-icon--agree">约</view>
+          <view class="menu-icon menu-icon--agree">
+            <image class="menu-icon__img" src="/assets/icons/menu-agreement.svg" mode="aspectFit"></image>
+          </view>
           <text>用户服务协议</text>
         </view>
         <text class="menu-arrow">›</text>

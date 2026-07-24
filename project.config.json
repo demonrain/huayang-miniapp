@@ -10,7 +10,8 @@
     "enhance": true,
     "postcss": true,
     "minified": true,
-    "urlCheck": false
+    "urlCheck": false,
+    "minifyWXML": true
   },
   "simulatorPluginLibVersion": {}
 }

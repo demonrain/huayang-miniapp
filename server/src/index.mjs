@@ -139,6 +139,28 @@ function boundedInteger(value, label, min, max) {
   return number
 }
 
+/** Slice a filtered list with page / pageSize query params. */
+function paginateArray(list, url, { defaultPageSize = 20, maxPageSize = 100 } = {}) {
+  const pageRaw = Number(url.searchParams.get('page') || 1)
+  const pageSizeRaw = Number(url.searchParams.get('pageSize') || defaultPageSize)
+  const page = Math.max(1, Number.isFinite(pageRaw) ? Math.floor(pageRaw) : 1)
+  const pageSize = Math.min(
+    maxPageSize,
+    Math.max(1, Number.isFinite(pageSizeRaw) ? Math.floor(pageSizeRaw) : defaultPageSize)
+  )
+  const total = list.length
+  const pages = Math.max(1, Math.ceil(total / pageSize) || 1)
+  const safePage = Math.min(page, pages)
+  const offset = (safePage - 1) * pageSize
+  return {
+    items: list.slice(offset, offset + pageSize),
+    total,
+    page: safePage,
+    pageSize,
+    pages
+  }
+}
+
 function cleanText(value, label, maxLength, required = true) {
   const text = String(value ?? '').trim()
   if ((required && !text) || text.length > maxLength) {
@@ -686,7 +708,46 @@ export async function createApplication() {
 
       if (request.method === 'GET' && pathname === '/api/templates') {
         const state = store.read()
-        json(response, 200, { templates: publicTemplates(state) })
+        const category = String(url.searchParams.get('category') || 'all')
+        const id = String(url.searchParams.get('id') || '').trim()
+        let list = publicTemplates(state)
+        if (id) {
+          const one = list.find(item => item.id === id)
+          json(response, 200, {
+            templates: one ? [one] : [],
+            total: one ? 1 : 0,
+            page: 1,
+            pageSize: 1,
+            pages: one ? 1 : 0,
+            hasMore: false
+          })
+          return
+        }
+        if (category && category !== 'all') {
+          list = list.filter(item => item.category === category)
+        }
+        // Backward compatible: no page/pageSize → return full list (detail/create/guide)
+        const hasPaging = url.searchParams.has('page') || url.searchParams.has('pageSize')
+        if (!hasPaging) {
+          json(response, 200, {
+            templates: list,
+            total: list.length,
+            page: 1,
+            pageSize: list.length || 20,
+            pages: 1,
+            hasMore: false
+          })
+          return
+        }
+        const page = paginateArray(list, url, { defaultPageSize: 12 })
+        json(response, 200, {
+          templates: page.items,
+          total: page.total,
+          page: page.page,
+          pageSize: page.pageSize,
+          pages: page.pages,
+          hasMore: page.page < page.pages
+        })
         return
       }
 
@@ -995,13 +1056,18 @@ export async function createApplication() {
           const state = store.read()
           const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
           const status = String(url.searchParams.get('status') || 'all')
-          const users = state.users
+          const filtered = state.users
             .filter(item => status === 'all' || (status === 'enabled' ? item.enabled !== false : item.enabled === false))
             .filter(item => !query || item.id.toLowerCase().includes(query) || String(item.nickname || '').toLowerCase().includes(query) || String(item.openid || '').toLowerCase().includes(query))
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-            .slice(0, 500)
-            .map(item => adminUser(item, state))
-          json(response, 200, { users, total: users.length })
+          const page = paginateArray(filtered, url)
+          json(response, 200, {
+            users: page.items.map(item => adminUser(item, state)),
+            total: page.total,
+            page: page.page,
+            pageSize: page.pageSize,
+            pages: page.pages
+          })
           return
         }
 
@@ -1047,7 +1113,7 @@ export async function createApplication() {
           const state = store.read()
           const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
           const type = String(url.searchParams.get('type') || 'all')
-          const transactions = state.transactions
+          const filtered = state.transactions
             .filter(item => type === 'all' || item.type === type)
             .filter(item => {
               if (!query) return true
@@ -1055,20 +1121,26 @@ export async function createApplication() {
               return item.userId.toLowerCase().includes(query) || String(owner?.nickname || '').toLowerCase().includes(query) || String(item.title || '').toLowerCase().includes(query)
             })
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-            .slice(0, 1000)
-            .map(item => {
-              const owner = state.users.find(user => user.id === item.userId)
-              const order = item.type === 'recharge' ? state.orders.find(entry => entry.id === item.externalRef) : null
-              return {
-                ...publicTransaction(item),
-                typeLabel: transactionLabels[item.type] || item.type,
-                userNickname: owner?.nickname || '未知用户',
-                userMaskedId: item.userId.slice(0, 8),
-                orderAmountYuan: order ? (Number(order.amountFen || 0) / 100).toFixed(2) : '',
-                orderStatus: order?.status || ''
-              }
-            })
-          json(response, 200, { transactions, total: transactions.length })
+          const page = paginateArray(filtered, url)
+          const transactions = page.items.map(item => {
+            const owner = state.users.find(user => user.id === item.userId)
+            const order = item.type === 'recharge' ? state.orders.find(entry => entry.id === item.externalRef) : null
+            return {
+              ...publicTransaction(item),
+              typeLabel: transactionLabels[item.type] || item.type,
+              userNickname: owner?.nickname || '未知用户',
+              userMaskedId: item.userId.slice(0, 8),
+              orderAmountYuan: order ? (Number(order.amountFen || 0) / 100).toFixed(2) : '',
+              orderStatus: order?.status || ''
+            }
+          })
+          json(response, 200, {
+            transactions,
+            total: page.total,
+            page: page.page,
+            pageSize: page.pageSize,
+            pages: page.pages
+          })
           return
         }
 
@@ -1076,7 +1148,7 @@ export async function createApplication() {
           const state = store.read()
           const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
           const status = String(url.searchParams.get('status') || 'all')
-          const jobs = state.jobs
+          const filtered = state.jobs
             .filter(item => status === 'all' || item.status === status)
             .filter(item => {
               if (!query) return true
@@ -1085,29 +1157,35 @@ export async function createApplication() {
               return item.id.toLowerCase().includes(query) || String(owner?.nickname || '').toLowerCase().includes(query) || String(template?.name || '').toLowerCase().includes(query)
             })
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-            .slice(0, 1000)
-            .map(item => {
-              const owner = state.users.find(user => user.id === item.userId)
-              const job = publicJob(item, state)
-              const endTime = item.completedAt || item.updatedAt
-              const template = findTemplate(state, item.templateId, true)
-              const sampleResultIds = new Set(
-                (template?.sampleRefs || []).filter(ref => ref.jobId === item.id).map(ref => ref.resultId)
-              )
-              return {
-                ...job,
-                userNickname: owner?.nickname || '未知用户',
-                userMaskedId: item.userId.slice(0, 8),
-                createdTime: displayTime(item.createdAt),
-                completedTime: item.completedAt ? displayTime(item.completedAt) : '',
-                durationSeconds: item.startedAt && endTime ? Math.max(0, Math.round((new Date(endTime) - new Date(item.startedAt)) / 1000)) : null,
-                results: (job.results || []).map(result => ({
-                  ...result,
-                  isSample: sampleResultIds.has(result.id)
-                }))
-              }
-            })
-          json(response, 200, { jobs, total: jobs.length })
+          const page = paginateArray(filtered, url)
+          const jobs = page.items.map(item => {
+            const owner = state.users.find(user => user.id === item.userId)
+            const job = publicJob(item, state)
+            const endTime = item.completedAt || item.updatedAt
+            const template = findTemplate(state, item.templateId, true)
+            const sampleResultIds = new Set(
+              (template?.sampleRefs || []).filter(ref => ref.jobId === item.id).map(ref => ref.resultId)
+            )
+            return {
+              ...job,
+              userNickname: owner?.nickname || '未知用户',
+              userMaskedId: item.userId.slice(0, 8),
+              createdTime: displayTime(item.createdAt),
+              completedTime: item.completedAt ? displayTime(item.completedAt) : '',
+              durationSeconds: item.startedAt && endTime ? Math.max(0, Math.round((new Date(endTime) - new Date(item.startedAt)) / 1000)) : null,
+              results: (job.results || []).map(result => ({
+                ...result,
+                isSample: sampleResultIds.has(result.id)
+              }))
+            }
+          })
+          json(response, 200, {
+            jobs,
+            total: page.total,
+            page: page.page,
+            pageSize: page.pageSize,
+            pages: page.pages
+          })
           return
         }
 
@@ -1189,7 +1267,7 @@ export async function createApplication() {
           const state = store.read()
           const type = String(url.searchParams.get('type') || 'all')
           const status = String(url.searchParams.get('status') || 'all')
-          const list = (state.feedbacks || [])
+          const filtered = (state.feedbacks || [])
             .filter(item => type === 'all' || item.type === type)
             .filter(item => {
               if (status === 'all') return true
@@ -1197,9 +1275,14 @@ export async function createApplication() {
               return itemStatus === status
             })
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-            .slice(0, 500)
-            .map(item => publicFeedback(item, state, { includeUser: true }))
-          json(response, 200, { feedbacks: list, total: list.length })
+          const page = paginateArray(filtered, url)
+          json(response, 200, {
+            feedbacks: page.items.map(item => publicFeedback(item, state, { includeUser: true })),
+            total: page.total,
+            page: page.page,
+            pageSize: page.pageSize,
+            pages: page.pages
+          })
           return
         }
 
@@ -1287,10 +1370,6 @@ export async function createApplication() {
           const query = String(url.searchParams.get('query') || '').trim().toLowerCase()
           const status = String(url.searchParams.get('status') || 'all')
           const category = String(url.searchParams.get('category') || 'all')
-          const pageRaw = Number(url.searchParams.get('page') || 1)
-          const pageSizeRaw = Number(url.searchParams.get('pageSize') || 20)
-          const page = Math.max(1, Number.isFinite(pageRaw) ? Math.floor(pageRaw) : 1)
-          const pageSize = Math.min(100, Math.max(1, Number.isFinite(pageSizeRaw) ? Math.floor(pageSizeRaw) : 20))
 
           let list = state.templates.slice()
           if (status === 'enabled') list = list.filter(item => item.enabled !== false)
@@ -1310,12 +1389,14 @@ export async function createApplication() {
             })
           }
           list.sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || String(a.id).localeCompare(String(b.id)))
-          const total = list.length
-          const pages = Math.max(1, Math.ceil(total / pageSize) || 1)
-          const safePage = Math.min(page, pages)
-          const offset = (safePage - 1) * pageSize
-          const templates = list.slice(offset, offset + pageSize).map(item => publicTemplate(item, state, true))
-          json(response, 200, { templates, total, page: safePage, pageSize, pages })
+          const page = paginateArray(list, url)
+          json(response, 200, {
+            templates: page.items.map(item => publicTemplate(item, state, true)),
+            total: page.total,
+            page: page.page,
+            pageSize: page.pageSize,
+            pages: page.pages
+          })
           return
         }
 
@@ -1423,7 +1504,7 @@ export async function createApplication() {
           const status = String(url.searchParams.get('status') || 'all')
           const query = String(url.searchParams.get('query') || '').trim().toUpperCase()
           if (!Array.isArray(state.cdks)) state.cdks = []
-          const cdks = state.cdks
+          const filtered = state.cdks
             .map(item => publicCdk(item, state))
             .filter(item => status === 'all' || item.status === status)
             .filter(item => {
@@ -1432,11 +1513,14 @@ export async function createApplication() {
               return item.code.replace(/-/g, '').includes(needle)
             })
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-            .slice(0, 500)
+          const page = paginateArray(filtered, url)
           const all = state.cdks.map(item => cdkStatus(item))
           json(response, 200, {
-            cdks,
-            total: cdks.length,
+            cdks: page.items,
+            total: page.total,
+            page: page.page,
+            pageSize: page.pageSize,
+            pages: page.pages,
             summary: {
               total: state.cdks.length,
               unused: all.filter(s => s === 'unused').length,

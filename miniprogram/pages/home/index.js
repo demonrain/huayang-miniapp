@@ -10,6 +10,17 @@ const LOADING_TIPS = [
   '正在把心动装进模板盒子里'
 ]
 
+const PAGE_SIZE = 12
+
+function mapTemplate(item) {
+  return {
+    ...item,
+    popularityText: item.popularity >= 10000
+      ? `${(item.popularity / 10000).toFixed(1)}万`
+      : String(item.popularity || 0)
+  }
+}
+
 Page({
   data: {
     loading: true,
@@ -31,6 +42,11 @@ Page({
       { id: 'art', name: '艺术' }
     ],
     activeCategory: 'all',
+    page: 1,
+    pageSize: PAGE_SIZE,
+    hasMore: false,
+    loadingMore: false,
+    listFooter: '',
     navSpacer: 176,
     showOnboarding: false,
     announcements: [],
@@ -84,27 +100,27 @@ Page({
     wx.stopPullDownRefresh()
   },
 
+  onReachBottom() {
+    this.loadMoreTemplates()
+  },
+
+  /** Initial / pull-refresh: meta + first page of templates */
   async loadPage() {
     try {
       const app = getApp()
-      // Guest can browse templates; only restore session if already logged in
       const user = await app.ensureSession()
-      const [{ templates }, { banners }, config, announcementResult] = await Promise.all([
-        api.get('/api/templates'),
+      const [{ banners }, config, announcementResult, firstPage] = await Promise.all([
         api.get('/api/banners'),
         api.get('/api/config'),
         api.get('/api/announcements').catch(error => {
           console.warn('[announcement] load failed', error && error.message)
           return { announcements: [] }
+        }),
+        this.fetchTemplatesPage({
+          page: 1,
+          category: this.data.activeCategory || 'all'
         })
       ])
-      const displayTemplates = templates.map(item => ({
-        ...item,
-        popularityText: item.popularity >= 10000
-          ? `${(item.popularity / 10000).toFixed(1)}万`
-          : String(item.popularity || 0)
-      }))
-      // Prefer server-provided categories (Chinese labels) when available
       const categories = Array.isArray(config.templateCategories) && config.templateCategories.length
         ? [{ id: 'all', name: '全部' }, ...config.templateCategories.map(item => ({ id: item.id, name: item.name }))]
         : this.data.categories
@@ -116,6 +132,7 @@ Page({
       this.stopLoadingTips()
       const announcements = Array.isArray(announcementResult.announcements) ? announcementResult.announcements : []
       const showOnboarding = !app.isLoggedIn() && !wx.getStorageSync('huayang_onboarding_done')
+      const templates = firstPage.list
       this.setData({
         user: app.isLoggedIn() ? user : null,
         banners,
@@ -124,10 +141,12 @@ Page({
         bannerCircular,
         welcomeCredits: config.newUserCredits,
         categories,
-        templates: displayTemplates,
-        filteredTemplates: this.data.activeCategory === 'all'
-          ? displayTemplates
-          : displayTemplates.filter(item => item.category === this.data.activeCategory),
+        templates,
+        filteredTemplates: templates,
+        page: firstPage.page,
+        hasMore: firstPage.hasMore,
+        loadingMore: false,
+        listFooter: this.footerText(templates.length, firstPage.hasMore),
         loading: false,
         showOnboarding,
         announcements,
@@ -136,8 +155,64 @@ Page({
       if (!showOnboarding) this.maybeShowAnnouncement()
     } catch (error) {
       this.stopLoadingTips()
-      this.setData({ loading: false })
+      this.setData({ loading: false, loadingMore: false })
       wx.showToast({ title: error.message, icon: 'none' })
+    }
+  },
+
+  footerText(count, hasMore) {
+    if (!count) return ''
+    if (hasMore) return '上拉加载更多'
+    return '已经到底啦'
+  },
+
+  async fetchTemplatesPage({ page, category }) {
+    const params = new URLSearchParams({
+      page: String(page || 1),
+      pageSize: String(PAGE_SIZE),
+      category: category && category !== 'all' ? category : 'all'
+    })
+    const result = await api.get(`/api/templates?${params}`)
+    const list = (Array.isArray(result.templates) ? result.templates : []).map(mapTemplate)
+    const hasMore = typeof result.hasMore === 'boolean'
+      ? result.hasMore
+      : Number(result.page || page) < Number(result.pages || 1)
+    return {
+      list,
+      page: Number(result.page) || page || 1,
+      pages: Number(result.pages) || 1,
+      total: Number(result.total) || list.length,
+      hasMore
+    }
+  },
+
+  async loadMoreTemplates() {
+    if (this.data.loading || this.data.loadingMore || !this.data.hasMore) return
+    this.setData({ loadingMore: true, listFooter: '加载中…' })
+    try {
+      const nextPage = (this.data.page || 1) + 1
+      const result = await this.fetchTemplatesPage({
+        page: nextPage,
+        category: this.data.activeCategory
+      })
+      // Dedupe by id
+      const seen = new Set(this.data.filteredTemplates.map(item => item.id))
+      const appended = result.list.filter(item => item && item.id && !seen.has(item.id))
+      const filteredTemplates = this.data.filteredTemplates.concat(appended)
+      this.setData({
+        templates: filteredTemplates,
+        filteredTemplates,
+        page: result.page,
+        hasMore: result.hasMore,
+        loadingMore: false,
+        listFooter: this.footerText(filteredTemplates.length, result.hasMore)
+      })
+    } catch (error) {
+      this.setData({
+        loadingMore: false,
+        listFooter: this.data.hasMore ? '加载失败，上拉重试' : this.footerText(this.data.filteredTemplates.length, false)
+      })
+      wx.showToast({ title: error.message || '加载失败', icon: 'none' })
     }
   },
 
@@ -154,12 +229,36 @@ Page({
     } catch (error) {}
   },
 
-  selectCategory(event) {
+  async selectCategory(event) {
     const activeCategory = event.currentTarget.dataset.id
-    const filteredTemplates = activeCategory === 'all'
-      ? this.data.templates
-      : this.data.templates.filter(item => item.category === activeCategory)
-    this.setData({ activeCategory, filteredTemplates })
+    if (activeCategory === this.data.activeCategory && this.data.filteredTemplates.length) return
+    this.setData({
+      activeCategory,
+      loading: true,
+      loadingTip: LOADING_TIPS[0],
+      filteredTemplates: [],
+      templates: [],
+      page: 1,
+      hasMore: false,
+      listFooter: ''
+    })
+    this.startLoadingTips()
+    try {
+      const result = await this.fetchTemplatesPage({ page: 1, category: activeCategory })
+      this.stopLoadingTips()
+      this.setData({
+        templates: result.list,
+        filteredTemplates: result.list,
+        page: result.page,
+        hasMore: result.hasMore,
+        listFooter: this.footerText(result.list.length, result.hasMore),
+        loading: false
+      })
+    } catch (error) {
+      this.stopLoadingTips()
+      this.setData({ loading: false })
+      wx.showToast({ title: error.message || '加载失败', icon: 'none' })
+    }
   },
 
   startCreate(event) {
@@ -182,7 +281,10 @@ Page({
   },
 
   finishOnboarding() {
-    const recommended = this.data.templates.find(item => Array.isArray(item.tags) && item.tags.includes('热门')) || this.data.templates[0]
+    const pool = (this.data.filteredTemplates && this.data.filteredTemplates.length)
+      ? this.data.filteredTemplates
+      : (this.data.templates || [])
+    const recommended = pool.find(item => Array.isArray(item.tags) && item.tags.includes('热门')) || pool[0]
     if (!recommended) {
       wx.showToast({ title: '模板还在准备中，请稍后再试', icon: 'none' })
       return
@@ -248,7 +350,8 @@ Page({
       if (!Array.isArray(dismissed)) dismissed = []
       if (dismissed.indexOf(id) === -1) dismissed.push(id)
       // Keep storage bounded
-      wx.setStorageSync('huayang_dismissed_announcements', JSON.stringify(dismissed.slice(-50)))
+      if (dismissed.length > 50) dismissed = dismissed.slice(-50)
+      wx.setStorageSync('huayang_dismissed_announcements', JSON.stringify(dismissed))
     }
     this.setData({ showAnnouncement: false, announcement: null })
   },

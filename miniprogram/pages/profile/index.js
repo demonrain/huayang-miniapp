@@ -107,8 +107,9 @@ Page({
   },
 
   /**
-   * Intentional login from profile guest panel (not a feature-gate prompt).
-   * Other pages use requireLogin() with “需要登录 / 再逛逛” when a feature needs auth.
+   * Intentional login from profile guest panel.
+   * Call getUserProfile first while the button tap gesture is still valid,
+   * then create session and auto-fill avatar/nickname when WeChat returns them.
    */
   async doLogin() {
     const app = getApp()
@@ -122,24 +123,23 @@ Page({
       return
     }
 
-    const confirmed = await new Promise(resolve => {
-      wx.showModal({
-        title: '微信快捷登录',
-        content: '使用当前微信账号登录花漾相绘，同步作品、积分与个人主页。登录后可签到领积分、管理资料与创作记录。',
-        confirmText: '立即登录',
-        cancelText: '取消',
-        success: res => resolve(Boolean(res.confirm)),
-        fail: () => resolve(false)
-      })
-    })
-    if (!confirmed) return
+    // Must request profile in the same user gesture as the login button
+    const profile = await app.getUserProfileIfAvailable()
 
     wx.showLoading({ title: '登录中', mask: true })
     try {
       const user = await app.login()
+      let next = user
+      if (profile) {
+        next = (await app.applyWechatProfile(profile)) || user
+      }
       wx.hideLoading()
-      wx.showToast({ title: '登录成功', icon: 'success' })
-      app.maybePromptProfileSetup(user)
+      if (next && next.profileComplete) {
+        wx.showToast({ title: '登录成功', icon: 'success' })
+      } else {
+        wx.showToast({ title: '登录成功，请完善资料', icon: 'none', duration: 2200 })
+      }
+      app.maybePromptProfileSetup(next)
       await this.loadProfile()
     } catch (error) {
       wx.hideLoading()

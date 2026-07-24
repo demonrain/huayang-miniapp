@@ -75,6 +75,68 @@ App({
     }
   },
 
+  /**
+   * Try to read WeChat avatar/nickname while still in a user-gesture context.
+   * Note: WeChat no longer allows fully silent fetch; getUserProfile may return
+   * defaults on some clients. Prefer chooseAvatar + type=nickname when empty.
+   */
+  getUserProfileIfAvailable() {
+    return new Promise(resolve => {
+      if (typeof wx.getUserProfile !== 'function') {
+        resolve(null)
+        return
+      }
+      wx.getUserProfile({
+        desc: '用于完善头像和昵称',
+        success: res => resolve((res && res.userInfo) || null),
+        fail: () => resolve(null)
+      })
+    })
+  },
+
+  /** Save WeChat profile fields to server when they look real (not defaults). */
+  async applyWechatProfile(userInfo) {
+    if (!userInfo || !this.isLoggedIn()) return null
+    const nickname = String(userInfo.nickName || userInfo.nickname || '').trim()
+    const avatarUrl = String(userInfo.avatarUrl || '').trim()
+    const defaultNicks = new Set(['', '微信用户', 'WeChat User', '微信网友'])
+    const isDefaultNick = defaultNicks.has(nickname)
+    // Known gray default avatar hashes used by WeChat when user has no custom avatar
+    const isDefaultAvatar = !avatarUrl
+      || avatarUrl.includes('mmhead/SQoo8roBCEE1lGkgb77yeg')
+      || /\/POgEwh4mIHO4nibH0KlMECNjjGxQUq24ZEaGT4poC6icRiccVGKSyXwibcPq4BWmiaIGuG1icwxaQX6grC9VemZoJ8rg/i.test(avatarUrl)
+
+    const payload = {}
+    if (!isDefaultNick) payload.nickname = nickname.slice(0, 20)
+    // Persist https WeChat CDN avatars (skip only known placeholders)
+    if (avatarUrl && /^https:\/\//i.test(avatarUrl) && !isDefaultAvatar) {
+      payload.avatarUrl = avatarUrl.slice(0, 500)
+    }
+    if (!Object.keys(payload).length) return null
+    try {
+      const { user } = await api.patch('/api/me', payload)
+      this.setUser(user)
+      return user
+    } catch (error) {
+      console.warn('[profile] apply wechat profile failed', error && error.message)
+      return null
+    }
+  },
+
+  /**
+   * Login with optional profile authorization in the same user action.
+   * Call getUserProfile first (gesture), then wx.login + session.
+   */
+  async loginWithProfile() {
+    const profile = await this.getUserProfileIfAvailable()
+    const user = await this.login()
+    if (profile) {
+      const updated = await this.applyWechatProfile(profile)
+      return updated || user
+    }
+    return user
+  },
+
   /** WeChat login and create/restore server session. */
   async login() {
     if (this.loginPromise) return this.loginPromise
@@ -142,14 +204,24 @@ App({
       throw error
     }
 
+    // getUserProfile must run in the confirm-button gesture chain before heavy awaits when possible.
+    // After modal, it may still work on some clients; loginWithProfile tries then falls back.
     wx.showLoading({ title: '登录中', mask: true })
     try {
+      // Re-try profile after confirm (gesture may be weak; chooseAvatar remains fallback)
+      let profile = null
+      try {
+        profile = await this.getUserProfileIfAvailable()
+      } catch (e) {}
       const user = await this.login()
+      let next = user
+      if (profile) {
+        next = (await this.applyWechatProfile(profile)) || user
+      }
       wx.hideLoading()
       wx.showToast({ title: '登录成功', icon: 'success' })
-      // WeChat no longer allows silent getUserInfo; prompt profile setup after login
-      this.maybePromptProfileSetup(user)
-      return user
+      this.maybePromptProfileSetup(next)
+      return next
     } catch (error) {
       wx.hideLoading()
       wx.showToast({ title: error.message || '登录失败', icon: 'none' })
@@ -158,8 +230,8 @@ App({
   },
 
   /**
-   * After WeChat login, open profile tab so user can one-tap authorize
-   * avatar (chooseAvatar) and nickname (type=nickname). Cannot silent-fetch.
+   * After WeChat login, if avatar/nickname still missing, guide user to profile.
+   * Official policy: cannot silent-fetch; chooseAvatar + type=nickname are required fallbacks.
    */
   maybePromptProfileSetup(user) {
     if (!user || user.profileComplete) return
@@ -167,8 +239,8 @@ App({
     wx.setStorageSync('huayang_profile_setup_prompted', '1')
     setTimeout(() => {
       wx.showModal({
-        title: '设置头像与昵称',
-        content: '登录成功！请授权使用微信头像和昵称，方便在作品页展示你的主页。',
+        title: '完善头像与昵称',
+        content: '登录成功！点「去设置」后点头像选用微信头像、点昵称栏使用微信昵称（微信规定需你主动授权，无法静默读取）。',
         confirmText: '去设置',
         cancelText: '稍后',
         success: res => {

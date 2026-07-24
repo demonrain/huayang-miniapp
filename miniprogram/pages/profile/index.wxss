@@ -342,46 +342,44 @@
 }
 
 .menu-icon {
-  width: 44rpx;
-  height: 44rpx;
+  width: 52rpx;
+  height: 52rpx;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  font-family: Georgia, "PingFang SC", serif;
-  font-size: 20rpx;
-  font-weight: 700;
-  line-height: 44rpx;
+  border-radius: 14rpx;
+  overflow: hidden;
+}
+
+.menu-icon__img {
+  width: 32rpx;
+  height: 32rpx;
+  display: block;
 }
 
 .menu-icon--works {
   background: var(--mint-soft);
-  color: var(--green);
 }
 
 .menu-icon--feedback {
   background: #fff6e8;
-  color: #c48a3a;
 }
 
 .menu-icon--redeem {
   background: #fff6e0;
-  color: #b08a2e;
 }
 
 .menu-icon--help {
   background: var(--pink-soft);
-  color: var(--coral);
 }
 
 .menu-icon--privacy {
   background: #eef6f3;
-  color: #4a8f7c;
 }
 
 .menu-icon--agree {
   background: #f3eef8;
-  color: var(--lavender);
 }
 
 .menu-arrow {

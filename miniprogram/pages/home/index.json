@@ -1,6 +1,7 @@
 {
   "navigationStyle": "custom",
   "enablePullDownRefresh": true,
+  "onReachBottomDistance": 120,
   "usingComponents": {
     "custom-nav": "/components/custom-nav/index"
   }
