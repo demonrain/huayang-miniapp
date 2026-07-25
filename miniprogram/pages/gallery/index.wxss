@@ -133,13 +133,15 @@
   align-self: flex-end;
   display: inline-flex;
   align-items: center;
-  gap: 4rpx;
-  padding: 4rpx 10rpx;
+  gap: 6rpx;
+  padding: 8rpx 14rpx;
+  min-height: 48rpx;
   background: #fff5f7;
   border-radius: 999rpx;
   color: #c56f60;
-  font-size: 20rpx;
+  font-size: 24rpx;
   line-height: 1.2;
+  font-weight: 600;
 }
 
 .gallery-like.is-liked {
@@ -149,8 +151,8 @@
 }
 
 .gallery-like__icon {
-  width: 26rpx;
-  height: 26rpx;
+  width: 34rpx;
+  height: 34rpx;
   flex: none;
 }
 
