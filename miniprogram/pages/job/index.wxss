@@ -25,53 +25,16 @@
   max-width: 100%;
 }
 
-.job-meta__author-row {
-  margin-top: 7rpx;
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  min-width: 0;
-  padding: 0 !important;
-  border-right: 0 !important;
-  text-align: left;
-}
-
-.job-meta__avatar {
-  flex: none;
-  width: 36rpx;
-  height: 36rpx;
-  border-radius: 50%;
-  background: #f0e8ea;
-  border: 1rpx solid #f0e8ea;
-}
-
-.job-meta__avatar--placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #c56f60;
-  font-size: 18rpx;
-  font-weight: 700;
-  background: #fff5f7;
-  border-color: #f7dce2;
-  padding: 0 !important;
-  border-right: 0 !important;
-}
-
-.job-meta__author-name {
-  margin-top: 0 !important;
-  min-width: 0;
-  flex: 1;
-  text-align: left !important;
-}
-
 .job-meta__author {
   cursor: pointer;
 }
 
 .job-meta__author--hover {
   background: #fff8f9;
+}
+
+.job-meta__author-name {
+  max-width: 100%;
 }
 
 .author-card-mask {
@@ -108,18 +71,21 @@
 
 .author-card__head {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 18rpx;
-  margin-bottom: 22rpx;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+  text-align: center;
 }
 
 .author-card__avatar {
   flex: none;
-  width: 88rpx;
-  height: 88rpx;
+  width: 128rpx;
+  height: 128rpx;
   border-radius: 50%;
   background: #f0e8ea;
-  border: 2rpx solid #f7e8ec;
+  border: 3rpx solid #f7e8ec;
+  box-shadow: 0 8rpx 24rpx rgba(108, 81, 92, 0.1);
 }
 
 .author-card__avatar--placeholder {
@@ -127,13 +93,13 @@
   align-items: center;
   justify-content: center;
   color: #c56f60;
-  font-size: 36rpx;
+  font-size: 48rpx;
   font-weight: 700;
   background: #fff5f7;
 }
 
 .author-card__identity {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
@@ -141,7 +107,7 @@
   display: block;
   overflow: hidden;
   color: var(--ink);
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -478,7 +444,7 @@
 .job-meta > view:last-child { border-right: 0; }
 .job-meta > view > text:first-child { display: block; color: var(--muted); font-size: 18rpx; }
 .job-meta__value { display: block; margin-top: 7rpx; color: var(--ink) !important; font-size: 22rpx !important; font-weight: 650; }
-.job-meta__author-name.job-meta__value {
+.job-meta__author .job-meta__author-name {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
