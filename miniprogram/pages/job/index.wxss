@@ -66,6 +66,126 @@
   text-align: left !important;
 }
 
+.job-meta__author {
+  cursor: pointer;
+}
+
+.job-meta__author--hover {
+  background: #fff8f9;
+}
+
+.author-card-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx 40rpx;
+  background: rgba(42, 36, 40, 0.48);
+}
+
+.author-card {
+  width: 100%;
+  max-width: 560rpx;
+  padding: 32rpx 28rpx 24rpx;
+  background: #fff;
+  border-radius: 22rpx;
+  box-shadow: 0 28rpx 80rpx rgba(55, 39, 45, 0.22);
+  animation: author-card-pop 0.22s ease-out;
+}
+
+@keyframes author-card-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16rpx) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.author-card__head {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 22rpx;
+}
+
+.author-card__avatar {
+  flex: none;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #f0e8ea;
+  border: 2rpx solid #f7e8ec;
+}
+
+.author-card__avatar--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c56f60;
+  font-size: 36rpx;
+  font-weight: 700;
+  background: #fff5f7;
+}
+
+.author-card__identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.author-card__name {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 32rpx;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.author-card__hint {
+  display: block;
+  margin-top: 6rpx;
+  color: var(--muted);
+  font-size: 20rpx;
+}
+
+.author-card__bio-label {
+  margin-bottom: 10rpx;
+  color: #c56f60;
+  font-size: 20rpx;
+  font-weight: 650;
+}
+
+.author-card__bio {
+  min-height: 88rpx;
+  max-height: 280rpx;
+  overflow-y: auto;
+  padding: 18rpx 18rpx;
+  background: #fff8f9;
+  border: 2rpx solid #f7e8ec;
+  border-radius: 14rpx;
+  color: var(--ink);
+  font-size: 26rpx;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.author-card__bio.is-empty {
+  color: var(--muted);
+}
+
+.author-card__close {
+  margin-top: 22rpx;
+  width: 100%;
+  height: 80rpx !important;
+}
+
 .generating {
   margin-top: 24rpx;
   padding: 56rpx 36rpx 48rpx;

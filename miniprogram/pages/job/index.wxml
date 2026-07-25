@@ -8,8 +8,8 @@
       <view><text>风格</text><text class="job-meta__value">{{job.templateName}}</text></view>
       <view wx:if="{{!showcase}}"><text>数量</text><text class="job-meta__value">{{job.assetIds.length}} 张</text></view>
       <view wx:if="{{!showcase}}"><text>消耗</text><text class="job-meta__value">{{demo ? '0（演示）' : (job.cost + ' 积分')}}</text></view>
-      <view wx:else class="job-meta__author">
-        <text>作者</text>
+      <view wx:else class="job-meta__author" bindtap="openAuthorCard" hover-class="job-meta__author--hover">
+        <text>作者 · 点看简介</text>
         <view class="job-meta__author-row">
           <image
             wx:if="{{authorAvatarUrl}}"
@@ -275,6 +275,30 @@
         <image class="qr-image" src="{{share.qrcodeUrl}}" mode="aspectFit"></image>
         <view class="qr-subtitle">长按小程序码即可分享</view>
         <button class="ghost-button" bindtap="hideQrCode">关闭</button>
+      </view>
+    </view>
+
+    <!-- Showcase: floating author bio card -->
+    <view wx:if="{{showAuthorCard && showcase}}" class="author-card-mask" bindtap="closeAuthorCard" catchtouchmove="noop">
+      <view class="author-card" catchtap="noop">
+        <view class="author-card__head">
+          <image
+            wx:if="{{authorAvatarUrl}}"
+            class="author-card__avatar"
+            src="{{authorAvatarUrl}}"
+            mode="aspectFill"
+          ></image>
+          <view wx:else class="author-card__avatar author-card__avatar--placeholder">{{authorInitial}}</view>
+          <view class="author-card__identity">
+            <text class="author-card__name">{{authorNickname || '花漾用户'}}</text>
+            <text class="author-card__hint">花海作者</text>
+          </view>
+        </view>
+        <view class="author-card__bio-label">个人简介</view>
+        <view class="author-card__bio {{authorBio ? '' : 'is-empty'}}">
+          {{authorBio || '这位作者还没有填写简介～'}}
+        </view>
+        <button class="ghost-button author-card__close" bindtap="closeAuthorCard">知道了</button>
       </view>
     </view>
   </block>

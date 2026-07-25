@@ -71,8 +71,10 @@ Page({
     authorId: '',
     authorNickname: '',
     authorAvatarUrl: '',
+    authorBio: '',
     authorInitial: '花',
-    authorWorks: []
+    authorWorks: [],
+    showAuthorCard: false
   },
 
   onLoad(query) {
@@ -235,6 +237,7 @@ Page({
         authorId: job.authorId || '',
         authorNickname: job.authorNickname || '',
         authorAvatarUrl: job.authorAvatarUrl || '',
+        authorBio: String(job.authorBio || '').trim(),
         authorInitial: this.authorInitialFrom(job.authorNickname),
         galleryLikeLikerCredits: Number(rewards.likeLikerCredits != null ? rewards.likeLikerCredits : this.data.galleryLikeLikerCredits),
         galleryLikeAuthorCredits: Number(rewards.likeAuthorCredits != null ? rewards.likeAuthorCredits : this.data.galleryLikeAuthorCredits)
@@ -254,6 +257,15 @@ Page({
     const name = String(nickname || '').trim()
     if (!name) return '花'
     return name.slice(0, 1)
+  },
+
+  openAuthorCard() {
+    if (!this.data.showcase) return
+    this.setData({ showAuthorCard: true })
+  },
+
+  closeAuthorCard() {
+    this.setData({ showAuthorCard: false })
   },
 
   async loadAuthorWorks(authorId, excludeId) {

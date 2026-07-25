@@ -970,6 +970,7 @@ export async function createApplication() {
             authorId: job.userId,
             authorNickname: owner?.nickname || '花漾用户',
             authorAvatarUrl: userAvatarUrl(owner, state),
+            authorBio: String(owner?.bio || '').trim().slice(0, 80),
             isOwner: Boolean(viewerUserId && viewerUserId === job.userId)
           },
           galleryRewards: {
