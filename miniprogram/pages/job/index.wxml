@@ -8,7 +8,19 @@
       <view><text>风格</text><text class="job-meta__value">{{job.templateName}}</text></view>
       <view wx:if="{{!showcase}}"><text>数量</text><text class="job-meta__value">{{job.assetIds.length}} 张</text></view>
       <view wx:if="{{!showcase}}"><text>消耗</text><text class="job-meta__value">{{demo ? '0（演示）' : (job.cost + ' 积分')}}</text></view>
-      <view wx:else><text>作者</text><text class="job-meta__value">{{authorNickname || '花漾用户'}}</text></view>
+      <view wx:else class="job-meta__author">
+        <text>作者</text>
+        <view class="job-meta__author-row">
+          <image
+            wx:if="{{authorAvatarUrl}}"
+            class="job-meta__avatar"
+            src="{{authorAvatarUrl}}"
+            mode="aspectFill"
+          ></image>
+          <view wx:else class="job-meta__avatar job-meta__avatar--placeholder">{{authorInitial}}</view>
+          <text class="job-meta__value job-meta__author-name">{{authorNickname || '花漾用户'}}</text>
+        </view>
+      </view>
       <view wx:if="{{showcase}}"><text>效果</text><text class="job-meta__value">{{job.results.length}} 张</text></view>
     </view>
 

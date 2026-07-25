@@ -58,17 +58,17 @@
             </view>
           </view>
           <view class="gallery-card__meta">
-            <text class="gallery-card__name">{{item.templateName}}</text>
-            <text class="gallery-card__sub">{{item.authorNickname}} · {{item.relativeTime}}</text>
-            <view class="gallery-card__actions">
-              <view
-                class="gallery-like {{item.likedByMe ? 'is-liked' : ''}}"
-                data-id="{{item.id}}"
-                catchtap="onLike"
-              >
-                <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/gallery-active.png' : '/assets/icons/gallery.png'}}" mode="aspectFit"></image>
-                <text class="gallery-like__count">{{item.flowerCount || item.likeCount || 0}}</text>
-              </view>
+            <view class="gallery-card__meta-main">
+              <text class="gallery-card__name">{{item.templateName}}</text>
+              <text class="gallery-card__sub">{{item.authorNickname}} · {{item.relativeTime}}</text>
+            </view>
+            <view
+              class="gallery-like {{item.likedByMe ? 'is-liked' : ''}}"
+              data-id="{{item.id}}"
+              catchtap="onLike"
+            >
+              <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/gallery-active.png' : '/assets/icons/gallery.png'}}" mode="aspectFit"></image>
+              <text class="gallery-like__count">{{item.flowerCount || item.likeCount || 0}}</text>
             </view>
           </view>
         </view>
@@ -94,17 +94,17 @@
             </view>
           </view>
           <view class="gallery-card__meta">
-            <text class="gallery-card__name">{{item.templateName}}</text>
-            <text class="gallery-card__sub">{{item.authorNickname}} · {{item.relativeTime}}</text>
-            <view class="gallery-card__actions">
-              <view
-                class="gallery-like {{item.likedByMe ? 'is-liked' : ''}}"
-                data-id="{{item.id}}"
-                catchtap="onLike"
-              >
-                <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/gallery-active.png' : '/assets/icons/gallery.png'}}" mode="aspectFit"></image>
-                <text class="gallery-like__count">{{item.flowerCount || item.likeCount || 0}}</text>
-              </view>
+            <view class="gallery-card__meta-main">
+              <text class="gallery-card__name">{{item.templateName}}</text>
+              <text class="gallery-card__sub">{{item.authorNickname}} · {{item.relativeTime}}</text>
+            </view>
+            <view
+              class="gallery-like {{item.likedByMe ? 'is-liked' : ''}}"
+              data-id="{{item.id}}"
+              catchtap="onLike"
+            >
+              <image class="gallery-like__icon" src="{{item.likedByMe ? '/assets/icons/gallery-active.png' : '/assets/icons/gallery.png'}}" mode="aspectFit"></image>
+              <text class="gallery-like__count">{{item.flowerCount || item.likeCount || 0}}</text>
             </view>
           </view>
         </view>

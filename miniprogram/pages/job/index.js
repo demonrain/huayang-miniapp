@@ -70,6 +70,8 @@ Page({
     liking: false,
     authorId: '',
     authorNickname: '',
+    authorAvatarUrl: '',
+    authorInitial: '花',
     authorWorks: []
   },
 
@@ -232,6 +234,8 @@ Page({
         likedByMe: Boolean(job.likedByMe),
         authorId: job.authorId || '',
         authorNickname: job.authorNickname || '',
+        authorAvatarUrl: job.authorAvatarUrl || '',
+        authorInitial: this.authorInitialFrom(job.authorNickname),
         galleryLikeLikerCredits: Number(rewards.likeLikerCredits != null ? rewards.likeLikerCredits : this.data.galleryLikeLikerCredits),
         galleryLikeAuthorCredits: Number(rewards.likeAuthorCredits != null ? rewards.likeAuthorCredits : this.data.galleryLikeAuthorCredits)
       })
@@ -244,6 +248,12 @@ Page({
         success: () => wx.switchTab({ url: '/pages/home/index' })
       })
     }
+  },
+
+  authorInitialFrom(nickname) {
+    const name = String(nickname || '').trim()
+    if (!name) return '花'
+    return name.slice(0, 1)
   },
 
   async loadAuthorWorks(authorId, excludeId) {

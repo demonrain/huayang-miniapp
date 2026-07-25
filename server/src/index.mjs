@@ -53,15 +53,20 @@ function countUserFlowersReceived(state, userId) {
   return likes.filter(like => ownedJobIds.has(like.jobId)).length
 }
 
-function publicUser(user, state) {
+function userAvatarUrl(user, state) {
+  if (!user) return ''
   const avatar = user.avatarAssetId ? state.assets.find(item => item.id === user.avatarAssetId) : null
+  return avatar ? assetUrl(avatar) : (user.avatarUrl || '')
+}
+
+function publicUser(user, state) {
   return {
     id: user.id,
     maskedId: user.id.slice(0, 4).toUpperCase(),
     nickname: user.nickname || '微信用户',
     bio: String(user.bio || '').trim(),
     // Prefer uploaded asset; fall back to WeChat CDN / external avatar URL
-    avatarUrl: avatar ? assetUrl(avatar) : (user.avatarUrl || ''),
+    avatarUrl: userAvatarUrl(user, state),
     profileComplete: Boolean(
       user.nickname &&
       user.nickname !== '微信用户' &&
@@ -964,6 +969,7 @@ export async function createApplication() {
             ...shared,
             authorId: job.userId,
             authorNickname: owner?.nickname || '花漾用户',
+            authorAvatarUrl: userAvatarUrl(owner, state),
             isOwner: Boolean(viewerUserId && viewerUserId === job.userId)
           },
           galleryRewards: {
@@ -2474,6 +2480,7 @@ export async function createApplication() {
             publicShareShowOriginals: pub.publicShareShowOriginals,
             publicShareAt: job.publicShareAt || job.completedAt || job.createdAt,
             authorNickname: owner?.nickname || '花漾用户',
+            authorAvatarUrl: userAvatarUrl(owner, state),
             authorId: job.userId,
             likeCount: jobLikes.length,
             flowerCount: jobLikes.length,
