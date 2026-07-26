@@ -60,7 +60,7 @@
         <view class="announcement-entry__badge">{{item.displayMode === 'popup' ? '公告' : '通知'}}</view>
         <view class="announcement-entry__copy">
           <view class="announcement-entry__title">{{item.title}}</view>
-          <view class="announcement-entry__content">{{item.content}}</view>
+          <view class="announcement-entry__content">{{item.contentPlain || item.content}}</view>
         </view>
         <view class="announcement-entry__arrow">›</view>
       </view>
@@ -160,7 +160,9 @@
     <view class="announce-sheet">
       <view class="announce-kicker">公告</view>
       <view class="announce-title">{{announcement.title}}</view>
-      <view class="announce-body">{{announcement.content}}</view>
+      <scroll-view class="announce-body-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+        <rich-text class="announce-body" nodes="{{announcement.contentHtml || announcement.content}}"></rich-text>
+      </scroll-view>
       <button class="primary-button announce-btn" bindtap="dismissAnnouncementOnce">我知道了</button>
       <view class="announce-skip" bindtap="dismissAnnouncementForever">不再提示</view>
     </view>

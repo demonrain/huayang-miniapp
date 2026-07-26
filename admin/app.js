@@ -143,6 +143,8 @@ const elements = {
   announcementFormReset: document.querySelector('#announcementFormReset'),
   announcementCarouselForm: document.querySelector('#announcementCarouselForm'),
   announcementRows: document.querySelector('#announcementRows'),
+  announcementContent: document.querySelector('#announcementContent'),
+  announcementMdPreview: document.querySelector('#announcementMdPreview'),
   subscribeBroadcastForm: document.querySelector('#subscribeBroadcastForm'),
   subscribeStatsHint: document.querySelector('#subscribeStatsHint'),
   subscribeStatTemplate: document.querySelector('#subscribeStatTemplate'),
@@ -1288,6 +1290,23 @@ function fillAnnouncementCarouselForm(carousel = {}) {
   }
 }
 
+function updateAnnouncementMdPreview() {
+  if (!elements.announcementMdPreview) return
+  const source = elements.announcementContent?.value || ''
+  const md = globalThis.HuayangMarkdown
+  if (!source.trim()) {
+    elements.announcementMdPreview.classList.add('muted')
+    elements.announcementMdPreview.textContent = '输入内容后在此预览渲染效果'
+    return
+  }
+  elements.announcementMdPreview.classList.remove('muted')
+  if (md && typeof md.mdToHtml === 'function') {
+    elements.announcementMdPreview.innerHTML = md.mdToHtml(source)
+  } else {
+    elements.announcementMdPreview.textContent = source
+  }
+}
+
 function resetAnnouncementForm() {
   state.editingAnnouncementId = ''
   if (elements.announcementForm) elements.announcementForm.reset()
@@ -1300,6 +1319,7 @@ function resetAnnouncementForm() {
   if (elements.announcementFormTitle) elements.announcementFormTitle.textContent = '发布新公告'
   if (elements.announcementFormSubmit) elements.announcementFormSubmit.textContent = '发布公告'
   if (elements.announcementFormReset) elements.announcementFormReset.hidden = true
+  updateAnnouncementMdPreview()
 }
 
 function openAnnouncementEdit(item) {
@@ -1313,6 +1333,7 @@ function openAnnouncementEdit(item) {
   if (elements.announcementFormTitle) elements.announcementFormTitle.textContent = '编辑公告'
   if (elements.announcementFormSubmit) elements.announcementFormSubmit.textContent = '保存修改'
   if (elements.announcementFormReset) elements.announcementFormReset.hidden = false
+  updateAnnouncementMdPreview()
   elements.announcementForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
@@ -1322,11 +1343,14 @@ async function loadAnnouncements() {
   const result = await api('/api/admin/announcements')
   fillAnnouncementCarouselForm(result.carousel || {})
   state.announcementListCache = result.announcements || []
-  elements.announcementRows.innerHTML = (result.announcements || []).map(item => `
+  const md = globalThis.HuayangMarkdown
+  elements.announcementRows.innerHTML = (result.announcements || []).map(item => {
+    const plain = md && md.mdToPlain ? md.mdToPlain(item.content || '') : String(item.content || '')
+    return `
     <tr>
       <td class="col-time">${escapeHtml(item.createdTime)}</td>
       <td class="col-title"><strong>${escapeHtml(item.title)}</strong></td>
-      <td class="col-content"><div class="messages-announce-content" title="${escapeHtml(item.content)}">${escapeHtml(item.content)}</div></td>
+      <td class="col-content"><div class="messages-announce-content" title="${escapeHtml(plain)}">${escapeHtml(plain)}</div></td>
       <td class="col-status"><span class="status-pill${item.displayMode === 'silent' ? '' : ' is-active'}">${escapeHtml(item.displayModeLabel || (item.displayMode === 'silent' ? '静默' : '弹窗'))}</span></td>
       <td class="col-status"><span class="status-pill${item.enabled ? ' is-active' : ''}">${item.enabled ? '启用' : '停用'}</span></td>
       <td class="col-actions row-actions">
@@ -1335,7 +1359,8 @@ async function loadAnnouncements() {
         <button class="row-button" data-announcement-action="delete" data-id="${escapeHtml(item.id)}" type="button">删除</button>
       </td>
     </tr>
-  `).join('') || emptyRow(6, '暂无站内公告')
+  `
+  }).join('') || emptyRow(6, '暂无站内公告')
 }
 
 async function loadSubscribeStats() {
@@ -2326,6 +2351,10 @@ elements.announcementCarouselForm?.addEventListener('submit', async event => {
 
 elements.announcementFormReset?.addEventListener('click', () => {
   resetAnnouncementForm()
+})
+
+elements.announcementContent?.addEventListener('input', () => {
+  updateAnnouncementMdPreview()
 })
 
 elements.announcementForm?.addEventListener('submit', async event => {

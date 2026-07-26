@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
+const { mdToHtml, mdToPlain } = require('../../utils/markdown')
 
 const LOADING_TIPS = [
   '小花瓣在排队挑风格，马上就好…',
@@ -18,6 +19,16 @@ function mapTemplate(item) {
     popularityText: item.popularity >= 10000
       ? `${(item.popularity / 10000).toFixed(1)}万`
       : String(item.popularity || 0)
+  }
+}
+
+function mapAnnouncement(item) {
+  if (!item) return null
+  const content = item.content || ''
+  return {
+    ...item,
+    contentHtml: mdToHtml(content),
+    contentPlain: mdToPlain(content)
   }
 }
 
@@ -132,7 +143,9 @@ Page({
       const bannerInterval = Math.min(30000, Math.max(1500, Number(carousel.intervalMs) || 4500))
       const bannerCircular = multiBanner && carousel.circular !== false
       this.stopLoadingTips()
-      const announcements = Array.isArray(announcementResult.announcements) ? announcementResult.announcements : []
+      const announcements = (Array.isArray(announcementResult.announcements) ? announcementResult.announcements : [])
+        .map(mapAnnouncement)
+        .filter(Boolean)
       const annCarousel = announcementResult.carousel
         || config.announcementCarousel
         || {}
@@ -358,7 +371,9 @@ Page({
       let list = Array.isArray(this.data.announcements) ? this.data.announcements : []
       if (!list.length) {
         const result = await api.get('/api/announcements')
-        list = Array.isArray(result.announcements) ? result.announcements : []
+        list = (Array.isArray(result.announcements) ? result.announcements : [])
+          .map(mapAnnouncement)
+          .filter(Boolean)
         const carousel = result.carousel || {}
         this.setData({
           announcements: list,
@@ -384,7 +399,7 @@ Page({
       ))
       if (!next) return
       this.setData({
-        announcement: next,
+        announcement: mapAnnouncement(next),
         showAnnouncement: true
       })
     } catch (error) {
@@ -393,7 +408,7 @@ Page({
   },
 
   openLatestAnnouncement() {
-    const announcement = this.data.latestAnnouncement
+    const announcement = mapAnnouncement(this.data.latestAnnouncement)
     if (!announcement) return
     this.setData({ announcement, showAnnouncement: true })
   },
@@ -401,7 +416,9 @@ Page({
   openAnnouncementById(event) {
     const id = event.currentTarget.dataset.id
     const list = this.data.announcements || []
-    const announcement = list.find(item => item && item.id === id) || this.data.latestAnnouncement
+    const announcement = mapAnnouncement(
+      list.find(item => item && item.id === id) || this.data.latestAnnouncement
+    )
     if (!announcement) return
     this.setData({ announcement, showAnnouncement: true })
   },

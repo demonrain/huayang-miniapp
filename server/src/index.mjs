@@ -2071,7 +2071,7 @@ export async function createApplication() {
         if (request.method === 'POST' && pathname === '/api/admin/announcements') {
           const body = await readJson(request)
           const title = cleanText(body.title, '公告标题', 40, true)
-          const content = cleanText(body.content, '公告内容', 500, true)
+          const content = cleanText(body.content, '公告内容', 3000, true)
           const displayMode = normalizeAnnouncementDisplayMode(body.displayMode)
           const id = randomUUID()
           await store.transaction(draft => {
@@ -2105,7 +2105,7 @@ export async function createApplication() {
             const item = draft.announcements.find(entry => entry.id === id)
             if (!item) throw new HttpError(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在')
             if ('title' in body) item.title = cleanText(body.title, '公告标题', 40, true)
-            if ('content' in body) item.content = cleanText(body.content, '公告内容', 500, true)
+            if ('content' in body) item.content = cleanText(body.content, '公告内容', 3000, true)
             if ('displayMode' in body) item.displayMode = normalizeAnnouncementDisplayMode(body.displayMode)
             if ('enabled' in body) item.enabled = Boolean(body.enabled)
             item.updatedAt = now()

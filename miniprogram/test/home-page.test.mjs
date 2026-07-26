@@ -23,6 +23,12 @@ async function loadHomePage() {
     require: id => {
       if (id === '../../utils/api') return { get: async () => ({ announcements: [] }) }
       if (id === '../../utils/nav') return { getNavMetrics: () => ({ navSpacer: 176 }) }
+      if (id === '../../utils/markdown') {
+        return {
+          mdToHtml: s => `<p>${String(s || '')}</p>`,
+          mdToPlain: s => String(s || '').replace(/\s+/g, ' ').trim()
+        }
+      }
       throw new Error(`Unexpected require: ${id}`)
     },
     Page: value => { definition = value }
@@ -82,7 +88,9 @@ test('active popup announcements remain available for automatic display', async 
   await page.maybeShowAnnouncement()
 
   assert.equal(page.data.showAnnouncement, true)
-  assert.deepEqual(page.data.announcement, item)
+  assert.equal(page.data.announcement.id, item.id)
+  assert.equal(page.data.announcement.title, item.title)
+  assert.ok(page.data.announcement.contentHtml)
 })
 
 test('silent announcements do not auto popup', async () => {

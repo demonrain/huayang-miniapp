@@ -532,9 +532,21 @@
                   <label class="field-wide">标题
                     <input name="title" maxlength="40" required placeholder="例如：春季活动上新">
                   </label>
-                  <label class="field-wide">内容
-                    <textarea name="content" maxlength="500" rows="3" required placeholder="公告正文，支持多行说明"></textarea>
+                  <label class="field-wide">内容（Markdown）
+                    <textarea
+                      name="content"
+                      id="announcementContent"
+                      maxlength="3000"
+                      rows="8"
+                      required
+                      placeholder="支持 Markdown：&#10;**加粗** *斜体* &#10;## 标题&#10;- 列表项&#10;[链接](https://example.com)"
+                    ></textarea>
+                    <span class="field-hint">支持标题、加粗/斜体、列表、引用、链接、代码块等；最多 3000 字</span>
                   </label>
+                  <div class="field-wide announcement-md-preview-wrap">
+                    <div class="messages-block__title" style="margin-bottom:8px">预览</div>
+                    <div id="announcementMdPreview" class="announcement-md-preview muted">输入内容后在此预览渲染效果</div>
+                  </div>
                   <label>发布方式
                     <select name="displayMode">
                       <option value="popup" selected>弹窗（打开小程序时弹出）</option>
@@ -845,6 +857,7 @@
   <input id="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
   <input id="bannerImageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/admin/markdown.js"></script>
   <script src="/admin/app.js"></script>
 </body>
 </html>
