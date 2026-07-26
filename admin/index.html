@@ -643,8 +643,9 @@
         <label id="templateIdField" hidden>模板 ID<input name="id" pattern="[a-z0-9][a-z0-9-]+" maxlength="40" readonly></label>
         <label>模板名称<input name="name" maxlength="30" required></label>
         <label>模板简称<input name="shortName" maxlength="8" placeholder="可留空，默认取名称前几字"></label>
-        <label>分类
-          <select name="category" id="templateCategorySelect" required></select>
+        <label class="field-wide">分类（可多选）
+          <div id="templateCategorySelect" class="category-check-list" role="group" aria-label="模板分类"></div>
+          <span class="field-hint">至少选 1 个；列表筛选时命中任一分类即可</span>
         </label>
         <label>每张积分<input name="cost" type="number" min="0" max="10000" required></label>
         <label>人气值（用户每次使用模板按张数自动 +1，也可手调）<input name="popularity" type="number" min="0" max="100000000" required></label>

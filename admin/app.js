@@ -439,21 +439,45 @@ function categoryLabel(categoryId) {
   return found?.name || categoryId || '-'
 }
 
-function fillCategorySelect(selectedId = '') {
-  const categories = categoryList()
-  const options = categories.length
-    ? categories.map(item => {
-      const label = item.enabled === false ? `${item.name}（已停用）` : item.name
-      return `<option value="${escapeHtml(item.id)}">${escapeHtml(label)}</option>`
-    }).join('')
-    : '<option value="">请先创建分类</option>'
-  elements.templateCategorySelect.innerHTML = options
-  if (selectedId && categories.some(item => item.id === selectedId)) {
-    elements.templateCategorySelect.value = selectedId
-  } else if (categories.length) {
-    const enabled = categories.find(item => item.enabled !== false) || categories[0]
-    elements.templateCategorySelect.value = enabled.id
+function templateCategoryIds(template) {
+  if (!template) return []
+  if (Array.isArray(template.categories) && template.categories.length) {
+    return template.categories.map(item => String(item || '').trim()).filter(Boolean)
   }
+  const single = String(template.category || '').trim()
+  return single ? [single] : []
+}
+
+function fillCategorySelect(selectedIds = []) {
+  if (!elements.templateCategorySelect) return
+  const categories = categoryList()
+  const selected = new Set(
+    (Array.isArray(selectedIds) ? selectedIds : [selectedIds])
+      .map(item => String(item || '').trim())
+      .filter(Boolean)
+  )
+  if (!categories.length) {
+    elements.templateCategorySelect.innerHTML = '<span class="muted">请先创建分类</span>'
+    return
+  }
+  // Default first enabled when creating
+  if (!selected.size) {
+    const enabled = categories.find(item => item.enabled !== false) || categories[0]
+    if (enabled) selected.add(enabled.id)
+  }
+  elements.templateCategorySelect.innerHTML = categories.map(item => {
+    const label = item.enabled === false ? `${item.name}（已停用）` : item.name
+    const checked = selected.has(item.id) ? ' checked' : ''
+    return `<label class="category-check">
+      <input type="checkbox" name="categories" value="${escapeHtml(item.id)}"${checked}>
+      <span>${escapeHtml(label)}</span>
+    </label>`
+  }).join('')
+}
+
+function selectedCategoryIds(form) {
+  const boxes = form.querySelectorAll('input[name="categories"]:checked')
+  return Array.from(boxes).map(input => String(input.value || '').trim()).filter(Boolean)
 }
 
 function fillBannerCarouselForm() {
@@ -506,7 +530,12 @@ function renderTemplates() {
         <div class="cover-thumb" style="background:${escapeHtml(template.palette)}">${template.coverUrl ? `<img src="${escapeHtml(template.coverUrl)}" alt="">` : escapeHtml(template.shortName || template.name || '')}</div>
         <div><strong>${escapeHtml(template.name)}</strong><span>${escapeHtml(template.id)}</span></div>
       </div></td>
-      <td><span class="tag">${escapeHtml(template.categoryLabel || categoryLabel(template.category))}</span></td>
+      <td><div class="tag-list">${
+        (Array.isArray(template.categoryLabels) && template.categoryLabels.length
+          ? template.categoryLabels
+          : templateCategoryIds(template).map(id => categoryLabel(id))
+        ).map(label => `<span class="tag">${escapeHtml(label)}</span>`).join('') || '<span class="muted">未分类</span>'
+      }</div></td>
       <td><div class="tag-list">${(template.tags || []).length ? template.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('') : '<span class="muted">未设置</span>'}</div></td>
       <td>${Number(template.popularity).toLocaleString('zh-CN')}</td>
       <td>${Number(template.cost)}</td>
@@ -611,13 +640,16 @@ async function loadUsers({ resetPage = false } = {}) {
       const unionid = user.unionid || ''
       return `
     <tr>
-      <td><strong>${escapeHtml(user.nickname || '微信用户')}</strong><span class="cell-subtitle">UID ${escapeHtml(shortId(user.id, 12))}</span></td>
+      <td>
+        <strong>${escapeHtml(user.nickname || '微信用户')}</strong>
+        <code class="uuid-code" title="点击复制完整 UUID" data-copy="${escapeHtml(user.id || '')}">${escapeHtml(user.id || '—')}</code>
+      </td>
       <td class="openid-cell">
         ${openid
           ? `<code class="openid-code" title="点击复制 OpenID" data-copy="${escapeHtml(openid)}">${escapeHtml(openid)}</code>`
           : '<span class="muted">—</span>'}
         ${unionid
-          ? `<span class="cell-subtitle" title="unionid">union ${escapeHtml(shortId(unionid, 16))}</span>`
+          ? `<code class="openid-code openid-code--sub" title="点击复制 unionid" data-copy="${escapeHtml(unionid)}">${escapeHtml(unionid)}</code>`
           : ''}
       </td>
       <td><strong>${Number(user.credits).toLocaleString('zh-CN')}</strong></td>
@@ -1348,14 +1380,13 @@ function openTemplateDialog(template = null) {
     form.id.readOnly = true
     form.id.required = false
   }
-  fillCategorySelect(template?.category || '')
+  fillCategorySelect(templateCategoryIds(template))
   if (template) {
     for (const key of ['id', 'name', 'shortName', 'cost', 'popularity', 'sortOrder', 'badge', 'palette', 'description', 'prompt']) {
       if (form[key]) form[key].value = template[key] ?? ''
     }
     form.tags.value = (template.tags || []).join('，')
     form.enabled.checked = template.enabled
-    if (template.category) elements.templateCategorySelect.value = template.category
   } else {
     if (form.id) form.id.value = ''
     form.enabled.checked = true
@@ -1402,10 +1433,15 @@ function openCategoryDialog(category = null) {
 
 function templatePayload(form) {
   const values = new FormData(form)
+  const categories = selectedCategoryIds(form)
+  if (!categories.length) {
+    throw new Error('请至少选择一个模板分类')
+  }
   const payload = {
     name: String(values.get('name') || ''),
     shortName: String(values.get('shortName') || ''),
-    category: String(values.get('category') || ''),
+    categories,
+    category: categories[0],
     cost: Number(values.get('cost')),
     popularity: Number(values.get('popularity')),
     sortOrder: Number(values.get('sortOrder')),
@@ -2054,8 +2090,8 @@ elements.templateRows.addEventListener('click', async event => {
 
 elements.templateForm.addEventListener('submit', async event => {
   event.preventDefault()
-  const payload = templatePayload(elements.templateForm)
   try {
+    const payload = templatePayload(elements.templateForm)
     if (state.editingTemplateId) {
       delete payload.id
       await api(`/api/admin/templates/${encodeURIComponent(state.editingTemplateId)}`, { method: 'PATCH', json: payload })

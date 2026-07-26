@@ -32,6 +32,22 @@ export function categoryLabelFromState(state, categoryId) {
   return found?.name || categoryId || ''
 }
 
+/** Normalize template categories: prefer categories[], fall back to single category. */
+export function normalizeTemplateCategories(template = {}) {
+  const fromArray = Array.isArray(template.categories)
+    ? template.categories.map(item => String(item || '').trim()).filter(Boolean)
+    : []
+  if (fromArray.length) return [...new Set(fromArray)]
+  const single = String(template.category || '').trim()
+  return single ? [single] : []
+}
+
+export function templateHasCategory(template, categoryId) {
+  const id = String(categoryId || '').trim()
+  if (!id) return false
+  return normalizeTemplateCategories(template).includes(id)
+}
+
 export const DEFAULT_SHARE_REWARD_SETTINGS = {
   shareRewardEnabled: true,
   shareFriendCredits: 2,
@@ -216,12 +232,17 @@ export function publicTemplate(template, state, admin = false) {
       }
     })
     .filter(item => item.url)
+  const categories = normalizeTemplateCategories(template)
+  const categoryLabels = categories.map(id => categoryLabelFromState(state, id))
   const value = {
     id: template.id,
     name: template.name,
     shortName: template.shortName || String(template.name || '').slice(0, 4),
-    category: template.category,
-    categoryLabel: categoryLabelFromState(state, template.category),
+    // Primary category kept for backward compatibility (first selected)
+    category: categories[0] || '',
+    categories,
+    categoryLabel: categoryLabels[0] || '',
+    categoryLabels,
     description: template.description,
     cost: template.cost,
     badge: template.badge || '',

@@ -25,6 +25,8 @@ import {
   publicShareRewardSettings,
   publicTemplate,
   publicTemplates,
+  normalizeTemplateCategories,
+  templateHasCategory,
   seedConfig
 } from './domain.mjs'
 import { ensureThumb, findOriginalForThumb, isThumbPath } from './thumbs.mjs'
@@ -230,12 +232,30 @@ function applyTemplateFields(target, body, creating = false, categories = DEFAUL
     if (shortName) target.shortName = cleanText(shortName, '模板简称', 8, false)
     else target.shortName = cleanText(String(target.name || body.name || '风格').slice(0, 4), '模板简称', 8, true)
   }
-  if (creating || 'category' in body) {
-    const category = cleanText(body.category, '模板分类', 40, true)
-    if (!categories.some(item => item.id === category)) {
-      throw new HttpError(400, 'INVALID_CATEGORY', `分类需为：${categories.map(item => item.name).join('、') || '请先创建分类'}`)
+  if (creating || 'category' in body || 'categories' in body) {
+    let selected = []
+    if (Array.isArray(body.categories)) {
+      selected = body.categories.map(item => String(item || '').trim()).filter(Boolean)
+    } else if (typeof body.categories === 'string' && body.categories.trim()) {
+      selected = body.categories.split(/[,，\s]+/).map(item => item.trim()).filter(Boolean)
+    } else if (body.category != null && String(body.category).trim()) {
+      selected = [String(body.category).trim()]
     }
-    target.category = category
+    selected = [...new Set(selected)]
+    if (!selected.length) {
+      throw new HttpError(400, 'INVALID_CATEGORY', '请至少选择一个模板分类')
+    }
+    if (selected.length > 12) {
+      throw new HttpError(400, 'INVALID_CATEGORY', '单个模板最多选择 12 个分类')
+    }
+    for (const category of selected) {
+      if (!categories.some(item => item.id === category)) {
+        throw new HttpError(400, 'INVALID_CATEGORY', `分类需为：${categories.map(item => item.name).join('、') || '请先创建分类'}`)
+      }
+    }
+    target.categories = selected
+    // Keep primary category for older clients / filters
+    target.category = selected[0]
   }
   if (creating || 'description' in body) target.description = cleanText(body.description, '模板描述', 80, true)
   if (creating || 'badge' in body) target.badge = cleanText(body.badge, '模板角标', 12, false)
@@ -907,7 +927,7 @@ export async function createApplication() {
           return
         }
         if (category && category !== 'all') {
-          list = list.filter(item => item.category === category)
+          list = list.filter(item => templateHasCategory(item, category))
         }
         // Backward compatible: no page/pageSize → return full list (detail/create/guide)
         const hasPaging = url.searchParams.has('page') || url.searchParams.has('pageSize')
@@ -1072,9 +1092,9 @@ export async function createApplication() {
           // Templates are loaded via paginated GET /api/admin/templates (avoid shipping full list here)
           const templateCategoryCounts = {}
           for (const item of state.templates) {
-            const key = String(item.category || '')
-            if (!key) continue
-            templateCategoryCounts[key] = (templateCategoryCounts[key] || 0) + 1
+            for (const key of normalizeTemplateCategories(item)) {
+              templateCategoryCounts[key] = (templateCategoryCounts[key] || 0) + 1
+            }
           }
           json(response, 200, {
             settings: state.settings,
@@ -1280,7 +1300,7 @@ export async function createApplication() {
             if (!Array.isArray(draft.templateCategories)) draft.templateCategories = []
             const index = draft.templateCategories.findIndex(entry => entry.id === categoryId)
             if (index === -1) throw new HttpError(404, 'CATEGORY_NOT_FOUND', '分类不存在')
-            const inUse = draft.templates.some(item => item.category === categoryId)
+            const inUse = draft.templates.some(item => templateHasCategory(item, categoryId))
             if (inUse) throw new HttpError(409, 'CATEGORY_IN_USE', '仍有模板使用该分类，请先调整模板后再删除')
             if (draft.templateCategories.length <= 1) throw new HttpError(409, 'CATEGORY_REQUIRED', '至少保留一个模板分类')
             draft.templateCategories.splice(index, 1)
@@ -1737,17 +1757,19 @@ export async function createApplication() {
           let list = state.templates.slice()
           if (status === 'enabled') list = list.filter(item => item.enabled !== false)
           else if (status === 'disabled') list = list.filter(item => item.enabled === false)
-          if (category !== 'all') list = list.filter(item => item.category === category)
+          if (category !== 'all') list = list.filter(item => templateHasCategory(item, category))
           if (query) {
             list = list.filter(item => {
               const tags = Array.isArray(item.tags) ? item.tags.join(' ') : ''
+              const cats = normalizeTemplateCategories(item).join(' ')
               return [
                 item.id,
                 item.name,
                 item.shortName,
                 item.description,
                 item.badge,
-                tags
+                tags,
+                cats
               ].some(field => String(field || '').toLowerCase().includes(query))
             })
           }
