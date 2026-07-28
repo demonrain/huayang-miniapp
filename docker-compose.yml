@@ -5,12 +5,51 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-json}
+      MEDIA_DRIVER: ${MEDIA_DRIVER:-local}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://huayang:huayang@postgres:5432/huayang}
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_BUCKET: ${S3_BUCKET:-huayang}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
     ports:
       - "8787:8787"
     volumes:
       - huayang-data:/app/server/data
       - huayang-media:/app/server/media
+    depends_on:
+      - postgres
+      - minio
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: huayang
+      POSTGRES_USER: huayang
+      POSTGRES_PASSWORD: huayang
+    ports:
+      - "5432:5432"
+    volumes:
+      - huayang-pg:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - huayang-minio:/data
 
 volumes:
   huayang-data:
   huayang-media:
+  huayang-pg:
+  huayang-minio:

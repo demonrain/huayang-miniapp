@@ -299,6 +299,10 @@ Page({
     wx.switchTab({ url: '/pages/history/index' })
   },
 
+  goFavorites() {
+    wx.navigateTo({ url: '/pages/favorites/index' })
+  },
+
   goRedeem() {
     wx.navigateTo({ url: '/pages/redeem/index' })
   },

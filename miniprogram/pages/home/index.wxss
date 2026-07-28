@@ -2,6 +2,46 @@
   padding-bottom: calc(env(safe-area-inset-bottom) + 48rpx);
 }
 
+.shelf-block {
+  margin: 8rpx 0 22rpx;
+}
+.shelf-title {
+  margin-bottom: 12rpx;
+  font-size: 28rpx;
+  font-weight: 650;
+}
+.shelf-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+.shelf-row {
+  display: inline-flex;
+  gap: 14rpx;
+}
+.shelf-card {
+  width: 180rpx;
+  flex: none;
+}
+.shelf-card__art {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 14rpx;
+  overflow: hidden;
+  background: #f3ecee;
+}
+.shelf-card__cover {
+  width: 100%;
+  height: 100%;
+}
+.shelf-card__name {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .list-footer {
   padding: 28rpx 16rpx 12rpx;
   text-align: center;

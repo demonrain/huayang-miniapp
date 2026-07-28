@@ -16,8 +16,16 @@ const STATUS_TEXT = {
   queued: '正在排队',
   processing: '正在出图',
   succeeded: '作品完成',
+  partial: '部分完成',
   failed: '生成失败'
 }
+
+const FEEDBACK_OPTIONS = [
+  { id: 'satisfied', name: '很满意' },
+  { id: 'unlike_person', name: '不像本人' },
+  { id: 'abnormal', name: '画面异常' },
+  { id: 'style_mismatch', name: '风格不符' }
+]
 
 const FAIL_MESSAGES = [
   '小精灵打了个瞌睡，这回没能完成魔法。',
@@ -42,6 +50,7 @@ Page({
     share: null,
     sharing: false,
     showQr: false,
+    savingQr: false,
     credits: null,
     retrying: false,
     deleting: false,
@@ -74,7 +83,9 @@ Page({
     authorBio: '',
     authorInitial: '花',
     authorWorks: [],
-    showAuthorCard: false
+    showAuthorCard: false,
+    feedbackOptions: FEEDBACK_OPTIONS,
+    resultFeedbackMap: {}
   },
 
   onLoad(query) {
@@ -352,6 +363,11 @@ Page({
       const count = (job.assetIds && job.assetIds.length) || 1
       this.applyEta(count)
 
+      const resultFeedbackMap = {}
+      ;(job.myFeedbacks || []).forEach(item => {
+        if (item && item.resultId) resultFeedbackMap[item.resultId] = item.rating
+      })
+
       const patch = {
         job,
         statusText: STATUS_TEXT[job.status] || '处理中',
@@ -361,7 +377,8 @@ Page({
         isOwner: true,
         publicShareEnabled: Boolean(job.publicShareEnabled),
         publicShareShowOriginals: Boolean(job.publicShareShowOriginals),
-        likeCount: Number(job.flowerCount != null ? job.flowerCount : (job.likeCount || 0))
+        likeCount: Number(job.flowerCount != null ? job.flowerCount : (job.likeCount || 0)),
+        resultFeedbackMap
       }
 
       if (job.status === 'failed') {
@@ -389,7 +406,7 @@ Page({
           clearTimeout(this.pollTimer)
           this.pollTimer = null
         }
-        if (job.status === 'succeeded') this.ensureShare()
+        if (job.status === 'succeeded' || job.status === 'partial') this.ensureShare()
       }
     } catch (error) {
       wx.showToast({ title: error.message, icon: 'none' })
@@ -508,32 +525,22 @@ Page({
 
   applyShareRewardTips(shareRewards, friendRemaining, timelineRemaining) {
     const enabled = Boolean(shareRewards && shareRewards.shareRewardEnabled)
-    const friendCredits = enabled ? Number(shareRewards.shareFriendCredits || 0) : 0
-    const timelineCredits = enabled ? Number(shareRewards.shareTimelineCredits || 0) : 0
-    const fRem = friendRemaining == null ? null : Number(friendRemaining)
-    const tRem = timelineRemaining == null ? null : Number(timelineRemaining)
-
-    let shareFriendTip = ''
-    let shareTimelineTip = ''
-    if (enabled && friendCredits > 0) {
-      shareFriendTip = fRem == null
-        ? `本次分享好友可获得 ${friendCredits} 积分`
-        : `本次分享好友可获得 ${friendCredits} 积分 · 今日还可 ${fRem} 次`
-    }
-    if (enabled && timelineCredits > 0) {
-      shareTimelineTip = tRem == null
-        ? `本次分享朋友圈可获得 ${timelineCredits} 积分`
-        : `本次分享朋友圈可获得 ${timelineCredits} 积分 · 今日还可 ${tRem} 次`
-    }
+    const openCredits = enabled ? Number(shareRewards.shareOpenCredits || 0) : 0
+    const loginCredits = enabled ? Number(shareRewards.inviteLoginCredits || 0) : 0
+    const firstJobCredits = enabled ? Number(shareRewards.inviteFirstJobCredits || 0) : 0
+    const tips = []
+    if (openCredits > 0) tips.push(`好友打开 +${openCredits}`)
+    if (loginCredits > 0) tips.push(`新用户登录 +${loginCredits}`)
+    if (firstJobCredits > 0) tips.push(`完成首作 +${firstJobCredits}`)
     this.setData({
       shareRewards,
-      shareRewardEnabled: enabled,
-      shareFriendCredits: friendCredits,
-      shareTimelineCredits: timelineCredits,
-      shareFriendRemaining: fRem,
-      shareTimelineRemaining: tRem,
-      shareFriendTip,
-      shareTimelineTip
+      shareRewardEnabled: enabled && tips.length > 0,
+      shareFriendCredits: 0,
+      shareTimelineCredits: 0,
+      shareFriendRemaining: friendRemaining == null ? null : Number(friendRemaining),
+      shareTimelineRemaining: timelineRemaining == null ? null : Number(timelineRemaining),
+      shareFriendTip: tips.length ? tips.join(' · ') : '',
+      shareTimelineTip: tips.length ? '分享本身不计分，仅记录行为' : ''
     })
   },
 
@@ -558,7 +565,8 @@ Page({
   },
 
   async claimShareReward(channel) {
-    if (!this.data.id || !this.data.job || this.data.job.status !== 'succeeded') return
+    if (!this.data.id || !this.data.job) return
+    if (!['succeeded', 'partial'].includes(this.data.job.status)) return
     if (this.shareRewardLocks[channel]) return
     this.shareRewardLocks[channel] = true
     try {
@@ -572,20 +580,11 @@ Page({
         getApp().setUser(result.user)
         this.setData({ credits: result.user.credits })
       }
-      // Refresh remaining counts for UI
       if (result.shareRewards || result.remainingToday != null) {
         const sr = result.shareRewards || this.data.shareRewards
-        let fRem = this.data.shareFriendRemaining
-        let tRem = this.data.shareTimelineRemaining
-        if (channel === 'friend' && result.remainingToday != null) fRem = result.remainingToday
-        if (channel === 'timeline' && result.remainingToday != null) tRem = result.remainingToday
-        this.applyShareRewardTips(sr, fRem, tRem)
+        this.applyShareRewardTips(sr, this.data.shareFriendRemaining, this.data.shareTimelineRemaining)
       }
-      if (result.rewarded && result.reward > 0) {
-        wx.showToast({ title: `分享成功 +${result.reward} 积分`, icon: 'success' })
-      } else if (result.message && (result.reason === 'daily_limit' || result.reason === 'already_shared_job')) {
-        wx.showToast({ title: result.message, icon: 'none' })
-      }
+      // 分享本身不再发分，静默记录即可
     } catch (error) {
       // Share still works even if reward fails
     } finally {
@@ -736,6 +735,49 @@ Page({
     this.setData({ showQr: false })
   },
 
+  onQrLongPress() {
+    // show-menu-by-longpress handles system menu; toast as soft hint
+    wx.showToast({ title: '可选择转发或保存', icon: 'none' })
+  },
+
+  async saveQrCode() {
+    const url = this.data.share && this.data.share.qrcodeUrl
+    if (!url || this.data.savingQr) return
+    this.setData({ savingQr: true })
+    try {
+      await ensureAlbumPermission()
+      wx.showLoading({ title: '保存中', mask: true })
+      const tempFilePath = await this.download(url)
+      if (wx.showShareImageMenu) {
+        hideLoadingQuiet()
+        wx.showShareImageMenu({
+          path: tempFilePath,
+          fail: async () => {
+            try {
+              await saveImageToAlbum(tempFilePath)
+              wx.showToast({ title: '已保存到相册', icon: 'success' })
+            } catch (error) {
+              wx.showToast({ title: error.message || '保存失败', icon: 'none' })
+            }
+          }
+        })
+      } else {
+        await saveImageToAlbum(tempFilePath)
+        hideLoadingQuiet()
+        wx.showToast({ title: '已保存到相册', icon: 'success' })
+      }
+    } catch (error) {
+      hideLoadingQuiet()
+      wx.showModal({
+        title: error.code === 'ALBUM_DENIED' ? '需要相册权限' : '保存失败',
+        content: error.message || '请开启相册权限后重试',
+        showCancel: false
+      })
+    } finally {
+      this.setData({ savingQr: false })
+    }
+  },
+
   noop() {},
 
   async copyUrlLink() {
@@ -743,11 +785,27 @@ Page({
     this.setData({ sharing: true })
     wx.showLoading({ title: '生成链接', mask: true })
     try {
-      const { share } = await api.post(`/api/jobs/${this.data.id}/share/url-link`, {})
-      await new Promise((resolve, reject) => wx.setClipboardData({ data: share.urlLink, success: resolve, fail: reject }))
+      const result = await api.post(`/api/jobs/${this.data.id}/share/url-link`, {})
+      const share = result.share || {}
+      const text = share.urlLink || result.fallbackText || ''
+      if (!text) throw new Error(result.message || '暂时无法生成链接')
+      await new Promise((resolve, reject) => wx.setClipboardData({ data: text, success: resolve, fail: reject }))
       wx.hideLoading()
       this.setData({ share })
-      wx.showToast({ title: '链接已复制', icon: 'success' })
+      wx.showToast({
+        title: share.urlLink ? '链接已复制' : '已复制打开方式',
+        icon: 'none',
+        duration: 2200
+      })
+      if (!share.urlLink && result.message) {
+        setTimeout(() => {
+          wx.showModal({
+            title: '外链权限未开通',
+            content: result.message,
+            showCancel: false
+          })
+        }, 400)
+      }
     } catch (error) {
       wx.hideLoading()
       wx.showModal({ title: '暂时无法生成', content: error.message, showCancel: false })
@@ -789,9 +847,54 @@ Page({
     wx.redirectTo({ url: `/pages/template/index?id=${encodeURIComponent(id)}${demoQ}` })
   },
 
+  async submitResultFeedback(event) {
+    if (this.data.demo || this.data.showcase) return
+    const resultId = event.currentTarget.dataset.resultId
+    const rating = event.currentTarget.dataset.rating
+    if (!resultId || !rating) return
+    try {
+      await api.post(`/api/jobs/${this.data.id}/result-feedbacks`, { resultId, rating })
+      const map = Object.assign({}, this.data.resultFeedbackMap)
+      map[resultId] = rating
+      this.setData({ resultFeedbackMap: map })
+      wx.showToast({ title: '感谢反馈', icon: 'success' })
+    } catch (error) {
+      wx.showToast({ title: error.message || '提交失败', icon: 'none' })
+    }
+  },
+
+  async retryFailedImages() {
+    const job = this.data.job
+    if (!job || !['partial', 'failed'].includes(job.status) || this.data.retrying) return
+    if (!(job.failures || []).length && job.status === 'partial') {
+      wx.showToast({ title: '没有失败项', icon: 'none' })
+      return
+    }
+    this.setData({ retrying: true })
+    wx.showLoading({ title: '重试失败项', mask: true })
+    try {
+      await getApp().requireLogin('登录后可重试')
+      const result = await api.post(`/api/jobs/${this.data.id}/retry-failed`, {})
+      if (result.user) getApp().setUser(result.user)
+      wx.hideLoading()
+      wx.showToast({ title: '已重新提交', icon: 'success' })
+      this.loadJob()
+    } catch (error) {
+      wx.hideLoading()
+      wx.showToast({ title: error.message || '重试失败', icon: 'none' })
+    } finally {
+      this.setData({ retrying: false })
+    }
+  },
+
   async retryJob() {
     const job = this.data.job
-    if (!job || job.status !== 'failed' || this.data.retrying) return
+    if (!job || this.data.retrying) return
+    // Prefer partial retry when failures exist
+    if ((job.status === 'partial' || job.status === 'failed') && (job.failures || []).length) {
+      return this.retryFailedImages()
+    }
+    if (job.status !== 'failed') return
     if (this.data.serviceUnstable) {
       const go = await new Promise(resolve => {
         wx.showModal({

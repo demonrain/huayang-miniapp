@@ -75,6 +75,46 @@
     <view class="section-title__sub">2 积分起</view>
   </view>
 
+  <view wx:if="{{recommendedTemplates.length}}" class="shelf-block">
+    <view class="shelf-title">为你推荐</view>
+    <scroll-view class="shelf-scroll" scroll-x enhanced show-scrollbar="false">
+      <view class="shelf-row">
+        <view
+          wx:for="{{recommendedTemplates}}"
+          wx:key="id"
+          class="shelf-card"
+          data-id="{{item.id}}"
+          bindtap="startCreate"
+        >
+          <view class="shelf-card__art" style="background: {{item.palette}}">
+            <image wx:if="{{item.coverUrl}}" class="shelf-card__cover" src="{{item.coverUrl}}" mode="aspectFill"></image>
+          </view>
+          <text class="shelf-card__name">{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view wx:if="{{recentTemplates.length}}" class="shelf-block">
+    <view class="shelf-title">最近使用</view>
+    <scroll-view class="shelf-scroll" scroll-x enhanced show-scrollbar="false">
+      <view class="shelf-row">
+        <view
+          wx:for="{{recentTemplates}}"
+          wx:key="id"
+          class="shelf-card"
+          data-id="{{item.id}}"
+          bindtap="startCreate"
+        >
+          <view class="shelf-card__art" style="background: {{item.palette}}">
+            <image wx:if="{{item.coverUrl}}" class="shelf-card__cover" src="{{item.coverUrl}}" mode="aspectFill"></image>
+          </view>
+          <text class="shelf-card__name">{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
   <scroll-view class="category-scroll" scroll-x enhanced show-scrollbar="false">
     <view class="category-row">
       <view

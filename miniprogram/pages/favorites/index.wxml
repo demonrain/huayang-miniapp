@@ -1,0 +1,27 @@
+<view class="page favorites-page page-enter" style="padding-top: {{navSpacer}}rpx">
+  <custom-nav show-back credits="{{user ? user.credits : null}}"></custom-nav>
+  <view class="section-title">
+    <view class="section-title__main">我的收藏</view>
+    <view class="section-title__sub">喜欢的风格都在这里</view>
+  </view>
+  <view wx:if="{{loading}}" class="empty">加载中…</view>
+  <view wx:elif="{{!templates.length}}" class="empty">
+    <view class="empty-title">还没有收藏</view>
+    <view class="empty-sub">去首页挑一款风格，点「收藏」即可收纳</view>
+    <button class="primary-button" bindtap="goHome">去逛逛</button>
+  </view>
+  <view wx:else class="template-grid">
+    <view
+      wx:for="{{templates}}"
+      wx:key="id"
+      class="template-card"
+      data-id="{{item.id}}"
+      bindtap="openTemplate"
+    >
+      <view class="template-art" style="background: {{item.palette}}">
+        <image wx:if="{{item.coverUrl}}" class="template-cover" src="{{item.coverUrl}}" mode="aspectFill"></image>
+      </view>
+      <view class="template-name">{{item.name}}</view>
+    </view>
+  </view>
+</view>

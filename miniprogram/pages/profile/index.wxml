@@ -110,6 +110,15 @@
         </view>
         <text class="menu-arrow">›</text>
       </button>
+      <button bindtap="goFavorites" hover-class="menu-item--hover">
+        <view class="menu-label">
+          <view class="menu-icon menu-icon--works">
+            <image class="menu-icon__img" src="/assets/icons/menu-works.svg" mode="aspectFit"></image>
+          </view>
+          <text>我的收藏</text>
+        </view>
+        <text class="menu-arrow">›</text>
+      </button>
       <button bindtap="goRedeem" hover-class="menu-item--hover">
         <view class="menu-label">
           <view class="menu-icon menu-icon--redeem">

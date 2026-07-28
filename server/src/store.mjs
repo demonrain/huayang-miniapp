@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const initialState = {
-  version: 7,
+  version: 8,
   users: [],
   transactions: [],
   assets: [],
@@ -19,6 +19,9 @@ const initialState = {
   announcements: [],
   feedbacks: [],
   jobLikes: [],
+  jobResultFeedbacks: [],
+  templateFavorites: [],
+  templateRecents: [],
   settings: null
 }
 
@@ -35,7 +38,7 @@ export class JsonStore {
     try {
       const saved = JSON.parse(await readFile(this.filename, 'utf8'))
       this.state = { ...structuredClone(initialState), ...saved, version: initialState.version }
-      for (const key of ['users', 'transactions', 'assets', 'jobs', 'orders', 'templates', 'templateCategories', 'banners', 'packages', 'shares', 'shareEvents', 'invites', 'cdks', 'announcements', 'feedbacks', 'jobLikes']) {
+      for (const key of ['users', 'transactions', 'assets', 'jobs', 'orders', 'templates', 'templateCategories', 'banners', 'packages', 'shares', 'shareEvents', 'invites', 'cdks', 'announcements', 'feedbacks', 'jobLikes', 'jobResultFeedbacks', 'templateFavorites', 'templateRecents']) {
         if (!Array.isArray(this.state[key])) this.state[key] = []
       }
       // Ensure sample refs array exists on templates

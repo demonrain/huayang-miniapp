@@ -55,12 +55,12 @@
       </view>
     </view>
 
-    <view wx:if="{{job.status === 'succeeded'}}">
+    <view wx:if="{{job.status === 'succeeded' || job.status === 'partial'}}">
       <view class="section-title">
         <view class="section-title__main">{{demo ? '演示作品' : (showcase ? '精选效果' : '你的作品')}}</view>
         <view class="section-title__sub">{{job.results.length}} 张已完成 · {{demo ? '效果图为风格封面演示' : '点击查看大图'}}</view>
       </view>
-      <view wx:if="{{!demo && !showcase && isOwner && job.status === 'succeeded'}}" class="owner-flower-chip">
+      <view wx:if="{{!demo && !showcase && isOwner && (job.status === 'succeeded' || job.status === 'partial')}}" class="owner-flower-chip">
         <image class="owner-flower-chip__icon" src="/assets/icons/gallery-active.png" mode="aspectFit"></image>
         <text>收到 {{likeCount || job.flowerCount || job.likeCount || 0}} 朵花</text>
         <text wx:if="{{publicShareEnabled}}" class="owner-flower-chip__hint">已分享到花海</text>
@@ -75,7 +75,30 @@
             bindtap="preview"
           ></image>
           <view class="result-number">{{index + 1}} / {{job.results.length}}</view>
+          <view wx:if="{{!demo && !showcase && isOwner}}" class="result-feedback">
+            <view class="result-feedback__label">这张效果如何？</view>
+            <view class="result-feedback__row">
+              <view
+                wx:for="{{feedbackOptions}}"
+                wx:for-item="opt"
+                wx:key="id"
+                class="result-feedback__chip {{resultFeedbackMap[item.id] === opt.id ? 'is-active' : ''}}"
+                data-result-id="{{item.id}}"
+                data-rating="{{opt.id}}"
+                bindtap="submitResultFeedback"
+              >{{opt.name}}</view>
+            </view>
+          </view>
         </view>
+      </view>
+
+      <view wx:if="{{!demo && !showcase && isOwner && job.failures.length}}" class="failure-panel">
+        <view class="failure-panel__title">有 {{job.failures.length}} 张未生成成功</view>
+        <view class="failure-panel__desc">成功图片已保留；失败项积分已退回，可单独重试。</view>
+        <view wx:for="{{job.failures}}" wx:key="assetId" class="failure-row">
+          <text class="failure-row__error">{{item.error}}</text>
+        </view>
+        <button class="primary-button" loading="{{retrying}}" disabled="{{retrying}}" bindtap="retryFailedImages">重试失败图片</button>
       </view>
 
       <view wx:if="{{job.originals.length}}" class="original-section">
@@ -100,7 +123,7 @@
       </view>
 
       <!-- Owner: share to 花海 — switch auto-saves -->
-      <view wx:if="{{!demo && !showcase && isOwner && job.status === 'succeeded'}}" class="public-share-panel">
+      <view wx:if="{{!demo && !showcase && isOwner && (job.status === 'succeeded' || job.status === 'partial')}}" class="public-share-panel">
         <view class="public-share-panel__title">分享到花海</view>
         <view class="public-share-panel__desc">开启后作品会出现在「花海」，其他用户可浏览与送花；同一作品分享奖励仅能获得一次。切换开关后自动保存。</view>
         <view wx:if="{{galleryPublishCredits > 0 || galleryLikeAuthorCredits > 0}}" class="public-share-reward-tip">
@@ -119,7 +142,7 @@
       </view>
 
       <!-- Make avatar: open crop preview -->
-      <view wx:if="{{!demo && !showcase && job.status === 'succeeded' && job.results.length}}" class="avatar-panel">
+      <view wx:if="{{!demo && !showcase && (job.status === 'succeeded' || job.status === 'partial') && job.results.length}}" class="avatar-panel">
         <view class="avatar-panel__title">一键制作头像</view>
         <view class="avatar-panel__desc">进入预览界面，拖动/缩放作品，裁成方形或圆形后保存到相册</view>
         <button class="primary-button avatar-make-btn" data-index="0" bindtap="openAvatarCrop">制作头像</button>
@@ -171,30 +194,28 @@
       </view>
 
       <view wx:if="{{!demo && !showcase && shareRewardEnabled && (shareFriendTip || shareTimelineTip)}}" class="share-reward-panel">
-        <view class="share-reward-panel__title">分享领积分</view>
+        <view class="share-reward-panel__title">邀请奖励</view>
         <view wx:if="{{shareFriendTip}}" class="share-reward-panel__row">
-          <text class="share-reward-panel__channel">微信好友</text>
+          <text class="share-reward-panel__channel">好友转化</text>
           <text class="share-reward-panel__detail">{{shareFriendTip}}</text>
         </view>
         <view wx:if="{{shareTimelineTip}}" class="share-reward-panel__row">
-          <text class="share-reward-panel__channel">朋友圈</text>
+          <text class="share-reward-panel__channel">说明</text>
           <text class="share-reward-panel__detail">{{shareTimelineTip}}</text>
         </view>
-        <view class="share-reward-panel__note">同一作品同一渠道每天最多领 1 次；好友打开链接并登录/完成首作，你还可获得邀请奖励</view>
+        <view class="share-reward-panel__note">单纯分享只记录行为不加分；好友打开、登录或完成首作后给你发积分</view>
       </view>
       <view wx:if="{{!demo && !showcase}}" class="share-actions">
         <view class="share-action-cell">
           <button class="share-action" open-type="share" disabled="{{!share}}">
             <image class="share-action__icon" src="/assets/icons/share.png" mode="aspectFit"></image>
             <text class="share-action__label">微信好友</text>
-            <text wx:if="{{shareFriendCredits > 0}}" class="share-action__sub">+{{shareFriendCredits}}分</text>
           </button>
         </view>
         <view class="share-action-cell">
           <view class="share-action" data-url="{{job.results[0].url}}" bindtap="shareImage">
             <image class="share-action__icon" src="/assets/icons/moments.png" mode="aspectFit"></image>
             <text class="share-action__label">朋友圈</text>
-            <text wx:if="{{shareTimelineCredits > 0}}" class="share-action__sub">+{{shareTimelineCredits}}分</text>
           </view>
         </view>
         <view class="share-action-cell">
@@ -254,7 +275,7 @@
         </view>
       </view>
     </view>
-    <view wx:elif="{{job.status === 'succeeded'}}" class="job-footer-actions job-row-actions job-row-actions--single">
+    <view wx:elif="{{job.status === 'succeeded' || job.status === 'partial'}}" class="job-footer-actions job-row-actions job-row-actions--single">
       <view class="job-row-actions__cell">
         <button class="primary-button job-row-btn" bindtap="goHome">{{demo ? '结束练习，去首页正式创作' : '返回首页'}}</button>
       </view>
@@ -263,8 +284,15 @@
     <view wx:if="{{showQr}}" class="qr-mask" bindtap="hideQrCode">
       <view class="qr-dialog" catchtap="noop">
         <view class="qr-title">扫码打开这组作品</view>
-        <image class="qr-image" src="{{share.qrcodeUrl}}" mode="aspectFit"></image>
-        <view class="qr-subtitle">长按小程序码即可分享</view>
+        <image
+          class="qr-image"
+          src="{{share.qrcodeUrl}}"
+          mode="aspectFit"
+          show-menu-by-longpress="{{true}}"
+          bindlongpress="onQrLongPress"
+        ></image>
+        <view class="qr-subtitle">长按可识别/转发小程序码，或点下方保存到相册</view>
+        <button class="primary-button qr-save-btn" loading="{{savingQr}}" disabled="{{savingQr}}" bindtap="saveQrCode">保存小程序码</button>
         <button class="ghost-button" bindtap="hideQrCode">关闭</button>
       </view>
     </view>

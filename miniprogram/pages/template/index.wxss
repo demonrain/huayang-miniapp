@@ -104,6 +104,12 @@
   line-height: 1.7;
 }
 
+.detail-fav {
+  margin-left: auto;
+  color: var(--coral);
+  font-weight: 600;
+}
+
 .detail-meta {
   margin-top: 18rpx;
   display: flex;

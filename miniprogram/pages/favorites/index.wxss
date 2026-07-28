@@ -1,0 +1,23 @@
+.favorites-page { padding-bottom: 48rpx; }
+.template-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+}
+.template-card { min-width: 0; }
+.template-art {
+  height: 220rpx;
+  border-radius: 14rpx;
+  overflow: hidden;
+}
+.template-cover { width: 100%; height: 100%; }
+.template-name {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.empty { padding: 80rpx 24rpx; text-align: center; color: var(--muted); }
+.empty-title { font-size: 30rpx; color: #333; margin-bottom: 10rpx; }
+.empty-sub { margin-bottom: 24rpx; font-size: 24rpx; }

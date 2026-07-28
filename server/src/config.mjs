@@ -28,6 +28,17 @@ export const config = {
   publicBaseUrl: (process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${port}`).replace(/\/$/, ''),
   dataDir: path.join(rootDir, 'server', 'data'),
   mediaDir: path.join(rootDir, 'server', 'media'),
+  storageDriver: (process.env.STORAGE_DRIVER || 'json').toLowerCase(),
+  databaseUrl: process.env.DATABASE_URL || '',
+  mediaDriver: (process.env.MEDIA_DRIVER || 'local').toLowerCase(),
+  s3: {
+    endpoint: process.env.S3_ENDPOINT || 'http://127.0.0.1:9000',
+    bucket: process.env.S3_BUCKET || 'huayang',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
+    publicBaseUrl: process.env.S3_PUBLIC_BASE_URL || '',
+    publicRead: process.env.S3_PUBLIC_READ !== 'false'
+  },
   tokenSecret: process.env.TOKEN_SECRET || 'dev-only-secret-change-before-production',
   tokenTtlSeconds: 60 * 60 * 24 * 30,
   newUserCredits: Number(process.env.NEW_USER_CREDITS || 20),
@@ -54,8 +65,11 @@ export const config = {
     apiBase: process.env.IMAGE_API_BASE || 'https://api.openai.com/v1/images/edits',
     apiKey: process.env.IMAGE_API_KEY || '',
     model: process.env.IMAGE_MODEL || 'gpt-image-1',
-    // Leave empty to omit size when gateway rejects size values
-    size: process.env.IMAGE_SIZE === '' ? '' : (process.env.IMAGE_SIZE || '1024x1024'),
+    // auto = 按上传原图比例选 1024x1536 / 1536x1024 / 1024x1024；空字符串=不传 size；也可写死如 1024x1024
+    size: process.env.IMAGE_SIZE === '' ? '' : (process.env.IMAGE_SIZE || 'auto'),
+    sizePortrait: process.env.IMAGE_SIZE_PORTRAIT || '1024x1536',
+    sizeLandscape: process.env.IMAGE_SIZE_LANDSCAPE || '1536x1024',
+    sizeSquare: process.env.IMAGE_SIZE_SQUARE || '1024x1024',
     // Optional: b64_json | url — omit by default (some gpt-image gateways reject response_format)
     responseFormat: process.env.IMAGE_RESPONSE_FORMAT || '',
     // image | image[] — gpt-image edits / playground use image[]

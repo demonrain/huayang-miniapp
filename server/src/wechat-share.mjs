@@ -77,8 +77,47 @@ export async function createMiniProgramUrlLink(share) {
     })
   })
   const body = await response.json()
-  if (!response.ok || body.errcode || !body.url_link) {
-    throw serviceError('WECHAT_URL_LINK_FAILED', body.errmsg || '生成小程序链接失败')
+  if (response.ok && !body.errcode && body.url_link) return body.url_link
+
+  const errmsg = String(body.errmsg || '')
+  const noScheme = /no scheme permission|scheme/i.test(errmsg) || Number(body.errcode) === 85400
+  // Fallback: short link (also needs MP console permission, but different capability)
+  try {
+    const short = await createMiniProgramShortLink(share, token)
+    if (short) return short
+  } catch (error) {
+    // continue to structured failure
   }
-  return body.url_link
+  const hint = noScheme
+    ? '微信后台未开通「URL Link / 明文 scheme」权限，请在公众平台开通后再试；也可先用小程序码分享'
+    : (errmsg || '生成小程序链接失败')
+  const error = serviceError('WECHAT_URL_LINK_FAILED', hint)
+  error.wechatErrcode = body.errcode
+  error.noScheme = noScheme
+  throw error
+}
+
+/** Short link fallback when URL Link is unavailable. */
+export async function createMiniProgramShortLink(share, existingToken = '') {
+  const token = existingToken || await getAccessToken()
+  const response = await fetch(`https://api.weixin.qq.com/wxa/genwxashortlink?access_token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      page_url: `pages/share/index?token=${encodeURIComponent(share.token)}`,
+      page_title: '花漾相绘作品',
+      is_permanent: false
+    })
+  })
+  const body = await response.json()
+  if (!response.ok || body.errcode || !body.link) {
+    throw serviceError('WECHAT_SHORT_LINK_FAILED', body.errmsg || '生成短链失败')
+  }
+  return body.link
+}
+
+/** Plain-text fallback when WeChat link APIs are unavailable. */
+export function buildShareFallbackText(share, appName = '花漾相绘') {
+  const path = `pages/share/index?token=${share.token}`
+  return `打开微信小程序「${appName}」，在顶部搜索或从分享卡片进入作品。\n路径：${path}\n口令：${share.token}`
 }

@@ -3,7 +3,13 @@ import { config } from './config.mjs'
 import { templates as defaultTemplates, creditPackages as defaultPackages } from './catalog.mjs'
 import { thumbStoragePath } from './thumbs.mjs'
 
-const statusLabels = { queued: '排队中', processing: '生成中', succeeded: '已完成', failed: '失败' }
+const statusLabels = {
+  queued: '排队中',
+  processing: '生成中',
+  succeeded: '已完成',
+  partial: '部分完成',
+  failed: '失败'
+}
 
 /** 微信隐私策略下无法静默拿到真实昵称时的占位名（含历史产品占位） */
 export const DEFAULT_WECHAT_NICKNAMES = new Set(['', '微信用户', 'WeChat User', '微信网友', '花漾用户'])
@@ -78,10 +84,13 @@ export function templateHasCategory(template, categoryId) {
 
 export const DEFAULT_SHARE_REWARD_SETTINGS = {
   shareRewardEnabled: true,
-  shareFriendCredits: 2,
-  shareTimelineCredits: 1,
+  // 分享动作本身不再直接发分；以下分值用于「好友打开」奖励与后台展示
+  shareFriendCredits: 0,
+  shareTimelineCredits: 0,
   shareFriendDailyLimit: 3,
   shareTimelineDailyLimit: 1,
+  shareOpenCredits: 2,
+  shareOpenDailyLimit: 5,
   inviteRewardEnabled: true,
   inviteLoginCredits: 5,
   inviteFirstJobCredits: 10,
@@ -98,6 +107,8 @@ export function publicShareRewardSettings(settings = {}) {
     shareTimelineCredits: Number(settings.shareTimelineCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.shareTimelineCredits),
     shareFriendDailyLimit: Number(settings.shareFriendDailyLimit ?? DEFAULT_SHARE_REWARD_SETTINGS.shareFriendDailyLimit),
     shareTimelineDailyLimit: Number(settings.shareTimelineDailyLimit ?? DEFAULT_SHARE_REWARD_SETTINGS.shareTimelineDailyLimit),
+    shareOpenCredits: Number(settings.shareOpenCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.shareOpenCredits),
+    shareOpenDailyLimit: Number(settings.shareOpenDailyLimit ?? DEFAULT_SHARE_REWARD_SETTINGS.shareOpenDailyLimit),
     inviteRewardEnabled: settings.inviteRewardEnabled !== false,
     inviteLoginCredits: Number(settings.inviteLoginCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.inviteLoginCredits),
     inviteFirstJobCredits: Number(settings.inviteFirstJobCredits ?? DEFAULT_SHARE_REWARD_SETTINGS.inviteFirstJobCredits),
@@ -368,11 +379,18 @@ export function publicJob(job, state) {
     const thumb = mediaThumbUrl(result.storagePath)
     return {
       id: result.id,
+      assetId: result.assetId || '',
       mime: result.mime,
       url: full,
-      thumbUrl: thumb || full
+      thumbUrl: thumb || full,
+      status: 'succeeded'
     }
   })
+  const failures = (job.failures || []).map(item => ({
+    assetId: item.assetId || '',
+    error: item.error || '生图失败',
+    status: 'failed'
+  }))
   const originals = (job.assetIds || []).map((assetId, index) => {
     const asset = state.assets.find(item => item.id === assetId)
     if (!asset) return null
@@ -387,11 +405,14 @@ export function publicJob(job, state) {
   }).filter(Boolean)
   const coverFull = results[0]?.url || originals[0]?.url || ''
   const coverThumb = results[0]?.thumbUrl || originals[0]?.thumbUrl || coverFull
+  const feedbacks = (Array.isArray(state.jobResultFeedbacks) ? state.jobResultFeedbacks : [])
+    .filter(item => item.jobId === job.id)
   return {
     id: job.id,
     templateId: job.templateId,
     assetIds: job.assetIds,
     cost: job.cost,
+    unitCost: job.assetIds?.length ? Math.round(job.cost / job.assetIds.length) : job.cost,
     status: job.status,
     error: job.error,
     createdAt: job.createdAt,
@@ -405,6 +426,7 @@ export function publicJob(job, state) {
     templateCategories,
     statusLabel: statusLabels[job.status] || job.status,
     results,
+    failures,
     originals,
     // List / grid uses thumb; keep full for preview / share
     coverUrl: coverThumb,
@@ -416,7 +438,8 @@ export function publicJob(job, state) {
     publicSharePublishRewarded: Boolean(job.publicSharePublishRewarded),
     likeCount: (Array.isArray(state.jobLikes) ? state.jobLikes : []).filter(item => item.jobId === job.id).length,
     // Alias for product language「送花」
-    flowerCount: (Array.isArray(state.jobLikes) ? state.jobLikes : []).filter(item => item.jobId === job.id).length
+    flowerCount: (Array.isArray(state.jobLikes) ? state.jobLikes : []).filter(item => item.jobId === job.id).length,
+    myFeedbacks: feedbacks
   }
 }
 
@@ -442,7 +465,7 @@ export function publicSharedJob(job, state, { viewerUserId = '' } = {}) {
 
 export function publicShare(share, state) {
   const job = state.jobs.find(item => item.id === share.jobId)
-  if (!job || job.status !== 'succeeded') return null
+  if (!job || !['succeeded', 'partial'].includes(job.status) || !(job.results || []).length) return null
   const template = findTemplate(state, job.templateId, true)
   return {
     token: share.token,
@@ -458,7 +481,6 @@ export function publicShare(share, state) {
       const full = mediaUrl(result.storagePath)
       return {
         id: result.id,
-        mime: result.mime,
         url: full,
         thumbUrl: mediaThumbUrl(result.storagePath) || full
       }

@@ -19,7 +19,8 @@ Page({
     popularityText: '',
     credits: null,
     navSpacer: 176,
-    demo: false
+    demo: false,
+    favorited: false
   },
 
   async onLoad(query) {
@@ -29,6 +30,8 @@ Page({
       demo: isDemoQuery(query)
     })
     await this.loadTemplate()
+    this.touchRecent()
+    this.checkFavorite()
   },
 
   onShow() {
@@ -133,5 +136,42 @@ Page({
         url: `/pages/create/index?templateId=${encodeURIComponent(this.data.template.id)}`
       })
     } catch (error) {}
+  },
+
+  async touchRecent() {
+    if (this.data.demo || !this.data.templateId) return
+    if (!getApp().isLoggedIn()) return
+    try {
+      await api.post(`/api/templates/${encodeURIComponent(this.data.templateId)}/touch`, {})
+    } catch (error) {}
+  },
+
+  async checkFavorite() {
+    if (this.data.demo || !this.data.templateId || !getApp().isLoggedIn()) return
+    try {
+      const result = await api.get('/api/me/favorites/templates')
+      const favorited = (result.templates || []).some(item => item.id === this.data.templateId)
+      this.setData({ favorited })
+    } catch (error) {}
+  },
+
+  async toggleFavorite() {
+    if (this.data.demo || !this.data.templateId) return
+    try {
+      await getApp().requireLogin('登录后可收藏风格')
+      if (this.data.favorited) {
+        await api.del(`/api/me/favorites/templates/${encodeURIComponent(this.data.templateId)}`)
+        this.setData({ favorited: false })
+        wx.showToast({ title: '已取消收藏', icon: 'none' })
+      } else {
+        await api.post(`/api/me/favorites/templates/${encodeURIComponent(this.data.templateId)}`, {})
+        this.setData({ favorited: true })
+        wx.showToast({ title: '已收藏', icon: 'success' })
+      }
+    } catch (error) {
+      if (error.code !== 'LOGIN_CANCELLED') {
+        wx.showToast({ title: error.message || '操作失败', icon: 'none' })
+      }
+    }
   }
 })

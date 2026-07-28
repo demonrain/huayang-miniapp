@@ -4,7 +4,8 @@ import { copyFile, mkdir, stat, writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import { config, assertProductionConfig } from './config.mjs'
-import { JsonStore } from './store.mjs'
+import { createStore } from './pg-store.mjs'
+import { createJobRunner } from './job-queue.mjs'
 import { bearerToken, createAdminToken, createToken, isAdminToken, verifyToken } from './auth.mjs'
 import { exchangeWechatCode } from './wechat.mjs'
 import { generateImages } from './generator.mjs'
@@ -33,7 +34,7 @@ import {
   seedConfig
 } from './domain.mjs'
 import { ensureThumb, findOriginalForThumb, isThumbPath } from './thumbs.mjs'
-import { createMiniProgramCode, createMiniProgramUrlLink, isWechatShareConfigured } from './wechat-share.mjs'
+import { createMiniProgramCode, createMiniProgramUrlLink, buildShareFallbackText, isWechatShareConfigured } from './wechat-share.mjs'
 import {
   isSubscribeNotifyConfigured,
   sendAdminSubscribeMessage,
@@ -698,9 +699,9 @@ function applyInviteFirstJobReward(draft, inviteeUserId) {
     invite.firstJobSkipped = true
     return null
   }
-  // Called after current job is marked succeeded — first work only when total succeeded === 1
+  // Called after current job is marked succeeded/partial — first work only when total with results === 1
   const succeededCount = draft.jobs.filter(
-    item => item.userId === inviteeUserId && item.status === 'succeeded'
+    item => item.userId === inviteeUserId && (item.status === 'succeeded' || item.status === 'partial') && (item.results || []).length
   ).length
   if (succeededCount !== 1) return null
   creditUser(
@@ -750,8 +751,7 @@ export async function createApplication() {
     mkdir(path.join(config.mediaDir, 'uploads'), { recursive: true }),
     mkdir(path.join(config.mediaDir, 'outputs'), { recursive: true })
   ])
-  const store = new JsonStore(config.dataDir)
-  await store.init()
+  const store = await createStore(config)
   if (store.read(state => !state.settings || state.settings.shareTitle === '来看看我用画漾制作的作品' || !state.templates.length || !state.banners.length || !state.packages.length || !state.templateCategories?.length || state.settings.bannerSwitchMode === undefined || state.templates.some(item => !Array.isArray(item.tags) || !Number.isFinite(Number(item.popularity))))) {
     await store.transaction(draft => seedConfig(draft))
   }
@@ -795,14 +795,20 @@ export async function createApplication() {
     }
   }
 
-  async function processJob(jobId) {
+  async function processJob(jobId, { onlyAssetIds = null } = {}) {
     const claimed = await store.transaction(draft => {
       const job = draft.jobs.find(item => item.id === jobId)
-      if (!job || !['queued', 'processing'].includes(job.status)) return null
+      if (!job) return null
+      // Full run: queued/processing; retry-failed: partial/failed with failures
+      if (onlyAssetIds?.length) {
+        if (!['partial', 'failed', 'processing'].includes(job.status)) return null
+      } else if (!['queued', 'processing'].includes(job.status)) {
+        return null
+      }
       job.status = 'processing'
       job.startedAt ||= now()
       job.updatedAt = now()
-      return job
+      return structuredClone(job)
     })
     if (!claimed) return
 
@@ -811,27 +817,71 @@ export async function createApplication() {
       const state = store.read()
       const template = findTemplate(state, claimed.templateId, true)
       if (!template) throw new Error('模板已下架')
-      const assets = claimed.assetIds.map(id => state.assets.find(item => item.id === id))
-      if (assets.some(item => !item)) throw new Error('原始图片不存在')
-      const results = await generateImages(claimed, template, assets)
+
+      const targetAssetIds = onlyAssetIds?.length
+        ? onlyAssetIds.filter(id => claimed.assetIds.includes(id))
+        : claimed.assetIds
+      const assets = targetAssetIds.map(id => state.assets.find(item => item.id === id)).filter(Boolean)
+      if (!assets.length) throw new Error('原始图片不存在')
+
+      const { results: newResults, failures: newFailures } = await generateImages(claimed, template, assets)
+      const unitCost = claimed.assetIds.length ? Math.round(claimed.cost / claimed.assetIds.length) : claimed.cost
+
       await store.transaction(draft => {
         const job = draft.jobs.find(item => item.id === jobId)
         if (!job || job.status !== 'processing') return
-        job.results = results
-        job.status = 'succeeded'
+
+        const keptResults = (job.results || []).filter(item => !targetAssetIds.includes(item.assetId))
+        job.results = keptResults.concat(newResults)
+        const remainingFailures = (job.failures || []).filter(item => !targetAssetIds.includes(item.assetId))
+        job.failures = remainingFailures.concat(newFailures)
+
+        // Partial refund for newly failed images (idempotent per jobId:assetId)
+        for (const fail of newFailures) {
+          const ref = `${job.id}:${fail.assetId}`
+          const already = draft.transactions.some(item => item.type === 'job_refund' && item.externalRef === ref)
+          if (already) continue
+          const user = draft.users.find(item => item.id === job.userId)
+          if (!user) continue
+          user.credits += unitCost
+          user.updatedAt = now()
+          draft.transactions.push({
+            id: randomUUID(),
+            userId: user.id,
+            type: 'job_refund',
+            title: '单张生成失败退回',
+            amount: unitCost,
+            balanceAfter: user.credits,
+            externalRef: ref,
+            createdAt: now()
+          })
+        }
+
+        if (job.results.length && job.failures.length) {
+          job.status = 'partial'
+          job.error = `${job.failures.length} 张失败，已退回对应积分；成功 ${job.results.length} 张已保留`
+        } else if (job.results.length) {
+          job.status = 'succeeded'
+          job.error = ''
+          applyInviteFirstJobReward(draft, job.userId)
+        } else {
+          job.status = 'failed'
+          job.error = `全部生图失败：${(job.failures[0] && job.failures[0].error) || '未知错误'}（积分已退回）`
+        }
         job.completedAt = now()
         job.updatedAt = now()
-        // Invite first-job reward for inviter (when invitee completes first succeeded work)
-        applyInviteFirstJobReward(draft, job.userId)
       })
-      console.log(`[job:${jobId}] succeeded results=${results.length}`)
+      console.log(`[job:${jobId}] done results=${newResults.length} failures=${newFailures.length}`)
       await notifyJobResult(jobId)
     } catch (error) {
       console.error(`[job:${jobId}] failed:`, error)
       await store.transaction(draft => {
         const job = draft.jobs.find(item => item.id === jobId)
-        if (!job || job.status === 'succeeded') return
-        const alreadyRefunded = draft.transactions.some(item => item.type === 'job_refund' && item.externalRef === job.id)
+        if (!job || job.status === 'succeeded' || job.status === 'partial') return
+        // Hard failure before any per-image work: full refund once
+        const alreadyRefunded = draft.transactions.some(
+          item => item.type === 'job_refund' && (item.externalRef === job.id || String(item.externalRef).startsWith(`${job.id}:`))
+        )
         if (!alreadyRefunded) {
           const user = draft.users.find(item => item.id === job.userId)
           if (user) {
@@ -1039,7 +1089,49 @@ export async function createApplication() {
         const share = state.shares.find(item => item.token === token)
         const result = share ? publicShare(share, state) : null
         if (!result) throw new HttpError(404, 'SHARE_NOT_FOUND', '分享不存在或作品已失效')
-        json(response, 200, { share: result })
+
+        // 好友打开奖励：已登录且非作者，幂等每人每分享一次
+        let openReward = null
+        try {
+          const viewer = getAuthenticatedUser(request, store)
+          if (viewer && share.userId && viewer.id !== share.userId) {
+            openReward = await store.transaction(draft => {
+              if (!Array.isArray(draft.shareEvents)) draft.shareEvents = []
+              const settings = publicShareRewardSettings(draft.settings)
+              if (!settings.shareRewardEnabled || settings.shareOpenCredits <= 0) return null
+              const existing = draft.shareEvents.find(
+                item => item.channel === 'open' && item.jobId === share.jobId && item.viewerId === viewer.id
+              )
+              if (existing) return { rewarded: false, reward: 0, reason: 'already_opened' }
+              const dateKey = chinaDateKey()
+              const openedToday = draft.shareEvents.filter(
+                item => item.userId === share.userId && item.channel === 'open' && item.dateKey === dateKey && item.reward > 0
+              ).length
+              let reward = 0
+              if (openedToday < settings.shareOpenDailyLimit) {
+                reward = settings.shareOpenCredits
+                creditUser(draft, share.userId, reward, 'share_open', '好友打开作品奖励', share.jobId)
+              }
+              draft.shareEvents.push({
+                id: randomUUID(),
+                userId: share.userId,
+                viewerId: viewer.id,
+                jobId: share.jobId,
+                channel: 'open',
+                reward,
+                dateKey,
+                clientRequestId: '',
+                reason: reward > 0 ? 'ok' : 'daily_limit',
+                createdAt: now()
+              })
+              return { rewarded: reward > 0, reward, reason: reward > 0 ? 'ok' : 'daily_limit' }
+            })
+          }
+        } catch (error) {
+          // anonymous visitor — no open reward
+        }
+
+        json(response, 200, { share: result, openReward })
         return
       }
 
@@ -1188,6 +1280,8 @@ export async function createApplication() {
             if ('shareTimelineCredits' in body) draft.settings.shareTimelineCredits = boundedInteger(body.shareTimelineCredits, '分享朋友圈积分', 0, 100000)
             if ('shareFriendDailyLimit' in body) draft.settings.shareFriendDailyLimit = boundedInteger(body.shareFriendDailyLimit, '分享好友每日上限', 0, 100)
             if ('shareTimelineDailyLimit' in body) draft.settings.shareTimelineDailyLimit = boundedInteger(body.shareTimelineDailyLimit, '分享朋友圈每日上限', 0, 100)
+            if ('shareOpenCredits' in body) draft.settings.shareOpenCredits = boundedInteger(body.shareOpenCredits, '好友打开积分', 0, 100000)
+            if ('shareOpenDailyLimit' in body) draft.settings.shareOpenDailyLimit = boundedInteger(body.shareOpenDailyLimit, '好友打开每日上限', 0, 100)
             if ('inviteRewardEnabled' in body) draft.settings.inviteRewardEnabled = Boolean(body.inviteRewardEnabled)
             if ('inviteLoginCredits' in body) draft.settings.inviteLoginCredits = boundedInteger(body.inviteLoginCredits, '邀请登录积分', 0, 100000)
             if ('inviteFirstJobCredits' in body) draft.settings.inviteFirstJobCredits = boundedInteger(body.inviteFirstJobCredits, '邀请首作积分', 0, 100000)
@@ -2416,6 +2510,7 @@ export async function createApplication() {
             cost,
             status: 'queued',
             results: [],
+            failures: [],
             error: '',
             notifyRequested: Boolean(body.notify),
             createdAt: now(),
@@ -2429,6 +2524,19 @@ export async function createApplication() {
           // Accumulate template popularity when user creates a job (per image)
           const popularityBump = body.assetIds.length
           currentTemplate.popularity = Number(currentTemplate.popularity || 0) + popularityBump
+          // Track recent templates for recommendations
+          if (!Array.isArray(draft.templateRecents)) draft.templateRecents = []
+          draft.templateRecents = draft.templateRecents.filter(
+            item => !(item.userId === user.id && item.templateId === currentTemplate.id)
+          )
+          draft.templateRecents.unshift({
+            id: randomUUID(),
+            userId: user.id,
+            templateId: currentTemplate.id,
+            source: 'generate',
+            createdAt: now()
+          })
+          draft.templateRecents = draft.templateRecents.slice(0, 500)
           // Mark user eligible for admin subscribe broadcast after they accept notify once
           if (body.notify) {
             target.subscribeEligible = true
@@ -2436,7 +2544,7 @@ export async function createApplication() {
           }
           return { job, created: true }
         })
-        if (created.created) setTimeout(() => processJob(created.job.id), 10)
+        if (created.created) jobRunner.enqueue(created.job.id).catch(error => console.error('[queue] enqueue', error))
         const state = store.read()
         json(response, created.created ? 201 : 200, {
           job: publicJob(created.job, state),
@@ -2456,6 +2564,7 @@ export async function createApplication() {
           .filter(item => {
             if (status === 'all') return true
             if (status === 'active') return item.status === 'queued' || item.status === 'processing'
+            if (status === 'succeeded') return item.status === 'succeeded' || item.status === 'partial'
             return item.status === status
           })
           .filter(item => {
@@ -2508,8 +2617,11 @@ export async function createApplication() {
         const result = await store.transaction(draft => {
           const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
           if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
-          if (job.status !== 'succeeded') {
+          if (job.status !== 'succeeded' && job.status !== 'partial') {
             throw new HttpError(409, 'JOB_NOT_READY', '仅已完成的作品可以公开共享')
+          }
+          if (!(job.results || []).length) {
+            throw new HttpError(409, 'JOB_NOT_READY', '没有可公开的生成结果')
           }
           const wasPublic = Boolean(job.publicShareEnabled)
           job.publicShareEnabled = enabled
@@ -2696,6 +2808,245 @@ export async function createApplication() {
         return
       }
 
+      // Retry only failed images in a partial/failed job
+      const retryFailedMatch = pathname.match(/^\/api\/jobs\/([^/]+)\/retry-failed$/)
+      if (request.method === 'POST' && retryFailedMatch) {
+        const jobId = retryFailedMatch[1]
+        const prepared = await store.transaction(draft => {
+          const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
+          if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+          if (!['partial', 'failed'].includes(job.status)) {
+            throw new HttpError(409, 'JOB_NOT_RETRYABLE', '仅部分失败或失败任务可重试失败项')
+          }
+          const failIds = (job.failures || []).map(item => item.assetId).filter(Boolean)
+          if (!failIds.length) throw new HttpError(409, 'NOTHING_TO_RETRY', '没有可重试的失败图片')
+          const template = findTemplate(draft, job.templateId, true)
+          if (!template) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在或已下架')
+          const unitCost = template.cost
+          const charge = unitCost * failIds.length
+          const target = draft.users.find(item => item.id === user.id)
+          if (target.credits < charge) throw new HttpError(409, 'INSUFFICIENT_CREDITS', '积分不足，请先充值')
+          target.credits -= charge
+          target.updatedAt = now()
+          job.cost += charge
+          draft.transactions.push({
+            id: randomUUID(),
+            userId: user.id,
+            type: 'job_charge',
+            title: `${template.name} · 重试 ${failIds.length} 张`,
+            amount: -charge,
+            balanceAfter: target.credits,
+            externalRef: `${job.id}:retry`,
+            createdAt: now()
+          })
+          job.status = 'processing'
+          job.updatedAt = now()
+          return { job, failIds, user: target }
+        })
+        jobRunner.enqueue(jobId, { onlyAssetIds: prepared.failIds }).catch(error => console.error('[queue] enqueue retry', error))
+        const state = store.read()
+        json(response, 200, {
+          job: publicJob(state.jobs.find(item => item.id === jobId), state),
+          user: publicUser(state.users.find(item => item.id === user.id), state)
+        })
+        return
+      }
+
+      const RESULT_FEEDBACK_TYPES = {
+        satisfied: '很满意',
+        unlike_person: '不像本人',
+        abnormal: '画面异常',
+        style_mismatch: '风格不符'
+      }
+
+      const resultFeedbackMatch = pathname.match(/^\/api\/jobs\/([^/]+)\/result-feedbacks$/)
+      if (request.method === 'POST' && resultFeedbackMatch) {
+        const jobId = resultFeedbackMatch[1]
+        const body = await readJson(request)
+        const resultId = String(body.resultId || '').trim()
+        const rating = String(body.rating || '').trim()
+        if (!RESULT_FEEDBACK_TYPES[rating]) {
+          throw new HttpError(400, 'INVALID_RATING', '反馈类型无效')
+        }
+        const updated = await store.transaction(draft => {
+          const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
+          if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+          if (!['succeeded', 'partial'].includes(job.status)) {
+            throw new HttpError(409, 'JOB_NOT_READY', '作品完成后才能反馈')
+          }
+          const result = (job.results || []).find(item => item.id === resultId)
+          if (!result) throw new HttpError(404, 'RESULT_NOT_FOUND', '生成结果不存在')
+          if (!Array.isArray(draft.jobResultFeedbacks)) draft.jobResultFeedbacks = []
+          const existing = draft.jobResultFeedbacks.find(
+            item => item.jobId === jobId && item.resultId === resultId && item.userId === user.id
+          )
+          if (existing) {
+            existing.rating = rating
+            existing.updatedAt = now()
+          } else {
+            draft.jobResultFeedbacks.push({
+              id: randomUUID(),
+              jobId,
+              resultId,
+              templateId: job.templateId,
+              userId: user.id,
+              rating,
+              createdAt: now(),
+              updatedAt: now()
+            })
+          }
+          const template = findTemplate(draft, job.templateId, true)
+          if (template) {
+            const delta = rating === 'satisfied' ? 1 : -1
+            template.popularity = Math.max(0, Number(template.popularity || 0) + delta)
+          }
+          return draft.jobResultFeedbacks.find(
+            item => item.jobId === jobId && item.resultId === resultId && item.userId === user.id
+          )
+        })
+        json(response, 200, {
+          feedback: {
+            ...updated,
+            ratingLabel: RESULT_FEEDBACK_TYPES[updated.rating]
+          }
+        })
+        return
+      }
+
+      if (request.method === 'GET' && resultFeedbackMatch) {
+        const jobId = resultFeedbackMatch[1]
+        const state = store.read()
+        const job = state.jobs.find(item => item.id === jobId && item.userId === user.id)
+        if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+        const list = (state.jobResultFeedbacks || [])
+          .filter(item => item.jobId === jobId && item.userId === user.id)
+          .map(item => ({ ...item, ratingLabel: RESULT_FEEDBACK_TYPES[item.rating] || item.rating }))
+        json(response, 200, { feedbacks: list })
+        return
+      }
+
+      // Template favorites
+      if (request.method === 'GET' && pathname === '/api/me/favorites/templates') {
+        const state = store.read()
+        const ids = (state.templateFavorites || [])
+          .filter(item => item.userId === user.id)
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+          .map(item => item.templateId)
+        const templates = ids
+          .map(id => findTemplate(state, id, true))
+          .filter(Boolean)
+          .map(item => publicTemplate(item, state))
+        json(response, 200, { templates, total: templates.length })
+        return
+      }
+
+      const favoriteMatch = pathname.match(/^\/api\/me\/favorites\/templates\/([^/]+)$/)
+      if (request.method === 'POST' && favoriteMatch) {
+        const templateId = favoriteMatch[1]
+        await store.transaction(draft => {
+          const template = findTemplate(draft, templateId, true)
+          if (!template) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在')
+          if (!Array.isArray(draft.templateFavorites)) draft.templateFavorites = []
+          if (!draft.templateFavorites.some(item => item.userId === user.id && item.templateId === templateId)) {
+            draft.templateFavorites.push({
+              id: randomUUID(),
+              userId: user.id,
+              templateId,
+              createdAt: now()
+            })
+          }
+        })
+        json(response, 200, { ok: true, templateId, favorited: true })
+        return
+      }
+
+      if (request.method === 'DELETE' && favoriteMatch) {
+        const templateId = favoriteMatch[1]
+        await store.transaction(draft => {
+          if (!Array.isArray(draft.templateFavorites)) draft.templateFavorites = []
+          draft.templateFavorites = draft.templateFavorites.filter(
+            item => !(item.userId === user.id && item.templateId === templateId)
+          )
+        })
+        json(response, 200, { ok: true, templateId, favorited: false })
+        return
+      }
+
+      if (request.method === 'GET' && pathname === '/api/me/recents/templates') {
+        const state = store.read()
+        const seen = new Set()
+        const templates = []
+        for (const item of (state.templateRecents || [])
+          .filter(entry => entry.userId === user.id)
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))) {
+          if (seen.has(item.templateId)) continue
+          seen.add(item.templateId)
+          const template = findTemplate(state, item.templateId)
+          if (template) templates.push(publicTemplate(template, state))
+          if (templates.length >= 12) break
+        }
+        json(response, 200, { templates, total: templates.length })
+        return
+      }
+
+      if (request.method === 'GET' && pathname === '/api/templates/recommended') {
+        const state = store.read()
+        const favorites = (state.templateFavorites || []).filter(item => item.userId === user.id)
+        const recents = (state.templateRecents || []).filter(item => item.userId === user.id)
+        const favoriteCats = new Set()
+        for (const fav of favorites) {
+          const t = findTemplate(state, fav.templateId, true)
+          for (const c of normalizeTemplateCategories(t || {})) favoriteCats.add(c)
+        }
+        for (const recent of recents.slice(0, 8)) {
+          const t = findTemplate(state, recent.templateId, true)
+          for (const c of normalizeTemplateCategories(t || {})) favoriteCats.add(c)
+        }
+        const exclude = new Set([
+          ...favorites.map(item => item.templateId),
+          ...recents.slice(0, 5).map(item => item.templateId)
+        ])
+        let pool = publicTemplates(state).filter(item => !exclude.has(item.id))
+        let recommended = pool.filter(item =>
+          normalizeTemplateCategories(item).some(c => favoriteCats.has(c))
+        )
+        if (recommended.length < 6) {
+          const hot = pool
+            .slice()
+            .sort((a, b) => Number(b.popularity || 0) - Number(a.popularity || 0))
+          for (const item of hot) {
+            if (recommended.some(r => r.id === item.id)) continue
+            recommended.push(item)
+            if (recommended.length >= 8) break
+          }
+        }
+        json(response, 200, { templates: recommended.slice(0, 8), total: Math.min(8, recommended.length) })
+        return
+      }
+
+      // Track recent when opening a template detail (soft signal)
+      const recentTouchMatch = pathname.match(/^\/api\/templates\/([^/]+)\/touch$/)
+      if (request.method === 'POST' && recentTouchMatch) {
+        const templateId = recentTouchMatch[1]
+        await store.transaction(draft => {
+          if (!findTemplate(draft, templateId)) return
+          if (!Array.isArray(draft.templateRecents)) draft.templateRecents = []
+          draft.templateRecents = draft.templateRecents.filter(
+            item => !(item.userId === user.id && item.templateId === templateId)
+          )
+          draft.templateRecents.unshift({
+            id: randomUUID(),
+            userId: user.id,
+            templateId,
+            source: 'view',
+            createdAt: now()
+          })
+          draft.templateRecents = draft.templateRecents.slice(0, 500)
+        })
+        json(response, 200, { ok: true })
+        return
+      }
+
       const shareJobMatch = pathname.match(/^\/api\/jobs\/([^/]+)\/share(?:\/(qrcode|url-link))?$/)
       if (request.method === 'POST' && shareJobMatch) {
         const jobId = shareJobMatch[1]
@@ -2703,7 +3054,9 @@ export async function createApplication() {
         const share = await store.transaction(draft => {
           const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
           if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
-          if (job.status !== 'succeeded') throw new HttpError(409, 'JOB_NOT_READY', '作品完成后才能分享')
+          if (!['succeeded', 'partial'].includes(job.status) || !(job.results || []).length) {
+            throw new HttpError(409, 'JOB_NOT_READY', '作品完成后才能分享')
+          }
           let item = draft.shares.find(entry => entry.jobId === job.id && entry.userId === user.id)
           if (!item) {
             item = {
@@ -2732,21 +3085,38 @@ export async function createApplication() {
         }
 
         if (action === 'url-link' && !share.urlLink) {
-          const urlLink = await createMiniProgramUrlLink(share)
-          await store.transaction(draft => {
-            const item = draft.shares.find(entry => entry.id === share.id)
-            item.urlLink = urlLink
-            item.updatedAt = now()
-          })
+          try {
+            const urlLink = await createMiniProgramUrlLink(share)
+            await store.transaction(draft => {
+              const item = draft.shares.find(entry => entry.id === share.id)
+              item.urlLink = urlLink
+              item.updatedAt = now()
+            })
+          } catch (error) {
+            const state = store.read()
+            const current = state.shares.find(item => item.id === share.id)
+            const fallbackText = buildShareFallbackText(current || share)
+            json(response, 200, {
+              share: publicShare(current, state),
+              wechatShareReady: isWechatShareConfigured(),
+              fallbackText,
+              message: error.message || '无法生成外链，已提供小程序打开方式'
+            })
+            return
+          }
         }
 
         const state = store.read()
         const current = state.shares.find(item => item.id === share.id)
-        json(response, 200, { share: publicShare(current, state), wechatShareReady: isWechatShareConfigured() })
+        json(response, 200, {
+          share: publicShare(current, state),
+          wechatShareReady: isWechatShareConfigured(),
+          fallbackText: current?.urlLink ? '' : buildShareFallbackText(current || share)
+        })
         return
       }
 
-      // Report share action and optionally grant credits
+      // Report share action — record only; credits come from open / invite login / first job
       if (request.method === 'POST' && pathname === '/api/share-rewards') {
         const body = await readJson(request)
         const jobId = String(body.jobId || '').trim()
@@ -2759,10 +3129,11 @@ export async function createApplication() {
 
         const result = await store.transaction(draft => {
           if (!Array.isArray(draft.shareEvents)) draft.shareEvents = []
-          const settings = publicShareRewardSettings(draft.settings)
           const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
           if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
-          if (job.status !== 'succeeded') throw new HttpError(409, 'JOB_NOT_READY', '作品完成后才能分享领奖')
+          if (!['succeeded', 'partial'].includes(job.status) || !(job.results || []).length) {
+            throw new HttpError(409, 'JOB_NOT_READY', '作品完成后才能分享')
+          }
 
           const dateKey = chinaDateKey()
           if (clientRequestId) {
@@ -2771,69 +3142,14 @@ export async function createApplication() {
             )
             if (existingByClient) {
               return {
-                rewarded: existingByClient.reward > 0,
-                reward: existingByClient.reward,
+                rewarded: false,
+                reward: 0,
                 reason: 'duplicate',
+                message: '分享行为已记录',
                 event: existingByClient,
                 user: draft.users.find(item => item.id === user.id)
               }
             }
-          }
-
-          // One reward per job + channel + day
-          const alreadyToday = draft.shareEvents.find(
-            item => item.userId === user.id
-              && item.jobId === jobId
-              && item.channel === channel
-              && item.dateKey === dateKey
-              && item.reward > 0
-          )
-          if (alreadyToday) {
-            return {
-              rewarded: false,
-              reward: 0,
-              reason: 'already_shared_job',
-              message: '该作品今日已领取过该渠道分享奖励',
-              event: alreadyToday,
-              user: draft.users.find(item => item.id === user.id)
-            }
-          }
-
-          let reward = 0
-          let reason = 'ok'
-          let message = ''
-          if (!settings.shareRewardEnabled) {
-            reason = 'disabled'
-            message = '分享奖励暂未开启'
-          } else {
-            const dailyLimit = channel === 'friend' ? settings.shareFriendDailyLimit : settings.shareTimelineDailyLimit
-            const creditAmount = channel === 'friend' ? settings.shareFriendCredits : settings.shareTimelineCredits
-            const rewardedToday = draft.shareEvents.filter(
-              item => item.userId === user.id && item.channel === channel && item.dateKey === dateKey && item.reward > 0
-            ).length
-            if (creditAmount <= 0) {
-              reason = 'zero_reward'
-              message = '当前渠道分享积分为 0'
-            } else if (dailyLimit <= 0) {
-              reason = 'limit_zero'
-              message = '当前渠道每日分享奖励已关闭'
-            } else if (rewardedToday >= dailyLimit) {
-              reason = 'daily_limit'
-              message = '今日该渠道分享奖励次数已用完'
-            } else {
-              reward = creditAmount
-            }
-          }
-
-          if (reward > 0) {
-            creditUser(
-              draft,
-              user.id,
-              reward,
-              channel === 'friend' ? 'share_friend' : 'share_timeline',
-              channel === 'friend' ? '分享作品到好友' : '分享作品到朋友圈',
-              jobId
-            )
           }
 
           const event = {
@@ -2841,38 +3157,31 @@ export async function createApplication() {
             userId: user.id,
             jobId,
             channel,
-            reward,
+            reward: 0,
             dateKey,
             clientRequestId: clientRequestId || '',
-            reason,
+            reason: 'recorded',
             createdAt: now()
           }
           draft.shareEvents.push(event)
           return {
-            rewarded: reward > 0,
-            reward,
-            reason,
-            message: reward > 0 ? `分享成功，积分 +${reward}` : message,
+            rewarded: false,
+            reward: 0,
+            reason: 'recorded',
+            message: '分享已记录，好友打开/登录/完成首作后你可获得邀请奖励',
             event,
             user: draft.users.find(item => item.id === user.id),
-            remainingToday: (() => {
-              const s = publicShareRewardSettings(draft.settings)
-              const limit = channel === 'friend' ? s.shareFriendDailyLimit : s.shareTimelineDailyLimit
-              const used = draft.shareEvents.filter(
-                item => item.userId === user.id && item.channel === channel && item.dateKey === dateKey && item.reward > 0
-              ).length
-              return Math.max(0, limit - used)
-            })()
+            remainingToday: 0
           }
         })
 
         const state = store.read()
         json(response, 200, {
-          rewarded: result.rewarded,
-          reward: result.reward,
+          rewarded: false,
+          reward: 0,
           reason: result.reason,
           message: result.message || '',
-          remainingToday: result.remainingToday,
+          remainingToday: 0,
           user: publicUser(result.user, state),
           shareRewards: publicShareRewardSettings(state.settings)
         })
@@ -3119,11 +3428,12 @@ export async function createApplication() {
     }
   }
 
+  const jobRunner = createJobRunner({ store, processJob })
   const server = createServer(handler)
-  const pendingJobs = store.read(state => state.jobs.filter(item => ['queued', 'processing'].includes(item.status)).map(item => item.id))
-  for (const id of pendingJobs) setTimeout(() => processJob(id), 20)
+  jobRunner.start()
+  console.log(`[storage] driver=${config.storageDriver} media=${config.mediaDriver}`)
 
-  return { server, store, processJob }
+  return { server, store, processJob, jobRunner }
 }
 
 export async function startServer(port = config.port) {

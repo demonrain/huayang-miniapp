@@ -13,7 +13,8 @@
     "pages/privacy/index",
     "pages/redeem/index",
     "pages/guide/index",
-    "pages/feedback/index"
+    "pages/feedback/index",
+    "pages/favorites/index"
   ],
   "window": {
     "navigationStyle": "custom",

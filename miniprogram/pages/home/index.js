@@ -65,7 +65,9 @@ Page({
     announcement: null,
     showAnnouncement: false,
     announcementInterval: 4500,
-    announcementCircular: true
+    announcementCircular: true,
+    recommendedTemplates: [],
+    recentTemplates: []
   },
 
   onLoad() {
@@ -195,6 +197,7 @@ Page({
         announcementInterval,
         announcementCircular
       })
+      if (app.isLoggedIn()) this.loadPersonalShelves()
       if (!showOnboarding) this.maybeShowAnnouncement()
     } catch (error) {
       this.stopLoadingTips()
@@ -302,6 +305,21 @@ Page({
       this.stopLoadingTips()
       this.setData({ loading: false })
       wx.showToast({ title: error.message || '加载失败', icon: 'none' })
+    }
+  },
+
+  async loadPersonalShelves() {
+    try {
+      const [recommended, recent] = await Promise.all([
+        api.get('/api/templates/recommended').catch(() => ({ templates: [] })),
+        api.get('/api/me/recents/templates').catch(() => ({ templates: [] }))
+      ])
+      this.setData({
+        recommendedTemplates: (recommended.templates || []).map(mapTemplate),
+        recentTemplates: (recent.templates || []).map(mapTemplate)
+      })
+    } catch (error) {
+      this.setData({ recommendedTemplates: [], recentTemplates: [] })
     }
   },
 
