@@ -11,6 +11,13 @@ const statusLabels = {
   failed: '失败'
 }
 
+const RESULT_FEEDBACK_LABELS = {
+  satisfied: '很满意',
+  unlike_person: '不像本人',
+  abnormal: '画面异常',
+  style_mismatch: '风格不符'
+}
+
 /** 微信隐私策略下无法静默拿到真实昵称时的占位名（含历史产品占位） */
 export const DEFAULT_WECHAT_NICKNAMES = new Set(['', '微信用户', 'WeChat User', '微信网友', '花漾用户'])
 
@@ -407,6 +414,10 @@ export function publicJob(job, state) {
   const coverThumb = results[0]?.thumbUrl || originals[0]?.thumbUrl || coverFull
   const feedbacks = (Array.isArray(state.jobResultFeedbacks) ? state.jobResultFeedbacks : [])
     .filter(item => item.jobId === job.id)
+    .map(item => ({
+      ...item,
+      ratingLabel: RESULT_FEEDBACK_LABELS[item.rating] || item.rating
+    }))
   return {
     id: job.id,
     templateId: job.templateId,

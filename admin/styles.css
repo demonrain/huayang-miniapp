@@ -219,6 +219,7 @@ tr:last-child td { border-bottom: 0; }
 .template-cell span { margin-top: 3px; color: var(--muted); font-size: 11px; }
 .status-pill { padding: 4px 8px; display: inline-flex; border-radius: 5px; background: #f1f2f2; color: var(--muted); font-size: 11px; }
 .status-pill.is-active { background: var(--mint-soft); color: #367b6d; }
+.status-pill.is-warn { background: #fef3e8; color: #b56a2a; }
 .row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .row-button { min-height: 30px; padding: 0 9px; background: #fff; border: 1px solid var(--line); border-radius: 5px; color: #555a5e; font-size: 11px; }
 .cell-subtitle { max-width: 220px; margin-top: 4px; display: block; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }

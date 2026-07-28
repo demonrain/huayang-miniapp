@@ -18,7 +18,7 @@ const state = {
   templates: [],
   userQuery: createPageQuery({ query: '', status: 'all' }),
   transactionQuery: createPageQuery({ query: '', type: 'all' }),
-  jobQuery: createPageQuery({ query: '', status: 'all', share: 'all' }),
+  jobQuery: createPageQuery({ query: '', status: 'all', share: 'all', feedback: 'all' }),
   feedbackQuery: createPageQuery({ type: 'all', status: 'all' }),
   cdkQuery: createPageQuery({ query: '', status: 'all' }),
   templateQuery: createPageQuery({
@@ -509,6 +509,9 @@ function resultThumbsWithSample(job) {
   const list = Array.isArray(job.results) ? job.results.filter(item => item?.url || item?.thumbUrl) : []
   if (!list.length) return `<span class="muted">${job.status === 'succeeded' ? '无' : '未出'}</span>`
   const canAdd = job.status === 'succeeded'
+  const feedbackByResult = new Map(
+    (Array.isArray(job.myFeedbacks) ? job.myFeedbacks : []).map(item => [item.resultId, item])
+  )
   return `<div class="job-media-row job-media-row--results">${list.map((item, index) => {
     const full = item.url || item.thumbUrl
     const thumb = item.thumbUrl || item.url
@@ -517,8 +520,13 @@ function resultThumbsWithSample(job) {
         ? `<button class="row-button sample-add-btn sample-add-btn--on" type="button" data-job-action="remove-sample" data-job-id="${escapeHtml(job.id)}" data-result-id="${escapeHtml(item.id)}">取消加入</button>`
         : `<button class="row-button sample-add-btn" type="button" data-job-action="add-sample" data-job-id="${escapeHtml(job.id)}" data-result-id="${escapeHtml(item.id)}">添加到更多效果</button>`)
       : ''
+    const fb = feedbackByResult.get(item.id)
+    const feedbackPill = fb
+      ? `<span class="status-pill${fb.rating === 'satisfied' ? ' is-active' : (fb.rating === 'abnormal' || fb.rating === 'unlike_person' ? ' is-warn' : '')}" title="用户质量反馈">${escapeHtml(fb.ratingLabel || fb.rating)}</span>`
+      : ''
     return `<div class="job-result-cell">
       <a class="job-media-thumb" href="${escapeHtml(full)}" target="_blank" rel="noreferrer" title="打开大图 ${index + 1}"><img src="${escapeHtml(thumb)}" alt=""></a>
+      ${feedbackPill}
       ${sampleBtn}
     </div>`
   }).join('')}</div>`
@@ -763,6 +771,7 @@ async function loadJobs({ resetPage = false } = {}) {
     q.query = String(values.get('query') || '').trim()
     q.status = String(values.get('status') || 'all')
     q.share = String(values.get('share') || q.share || 'all')
+    q.feedback = String(values.get('feedback') || q.feedback || 'all')
   }
   syncJobShareChips(q.share || 'all')
   syncPageSizeFromSelect(elements.jobPageSize, q)
@@ -781,7 +790,8 @@ async function loadJobs({ resetPage = false } = {}) {
       pageSize: String(q.pageSize),
       query: q.query,
       status: q.status,
-      share: q.share || 'all'
+      share: q.share || 'all',
+      feedback: q.feedback || 'all'
     })
     const result = await api(`/api/admin/jobs?${params}`)
     state.jobs = result.jobs || []
@@ -789,7 +799,7 @@ async function loadJobs({ resetPage = false } = {}) {
     const summary = result.summary || {}
     if (elements.jobSummaryHint) {
       elements.jobSummaryHint.textContent =
-        `共 ${Number(summary.total ?? q.total)} 条 · 用户已公开 ${Number(summary.public || 0)} · 其中含原图 ${Number(summary.publicWithOriginals || 0)} · 未公开 ${Number(summary.private || 0)}。可筛选公开作品后设为 Banner。`
+        `共 ${Number(summary.total ?? q.total)} 条 · 用户已公开 ${Number(summary.public || 0)} · 其中含原图 ${Number(summary.publicWithOriginals || 0)} · 未公开 ${Number(summary.private || 0)} · 有质量反馈 ${Number(summary.withFeedback || 0)} 条任务（${Number(summary.feedbackTotal || 0)} 次评价）。生成图下方可直接看用户反馈。`
     }
     elements.jobRows.innerHTML = state.jobs.map(job => `
     <tr>

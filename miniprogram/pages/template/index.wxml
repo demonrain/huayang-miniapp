@@ -21,7 +21,6 @@
       <view class="detail-meta">
         <text>人气 {{popularityText}}</text>
         <text>{{template.cost}} 积分/张</text>
-        <text wx:if="{{!demo}}" class="detail-fav" bindtap="toggleFavorite">{{favorited ? '已收藏' : '收藏'}}</text>
       </view>
 
       <view class="tag-row" wx:if="{{displayTags.length}}">

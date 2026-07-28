@@ -1550,6 +1550,13 @@ export async function createApplication() {
           const status = String(url.searchParams.get('status') || 'all')
           // share: all | public | private | public_with_originals
           const share = String(url.searchParams.get('share') || 'all')
+          // feedback: all | any | satisfied | unlike_person | abnormal | style_mismatch
+          const feedback = String(url.searchParams.get('feedback') || 'all').trim()
+          const feedbackByJob = new Map()
+          for (const item of state.jobResultFeedbacks || []) {
+            if (!feedbackByJob.has(item.jobId)) feedbackByJob.set(item.jobId, [])
+            feedbackByJob.get(item.jobId).push(item)
+          }
           const filtered = state.jobs
             .filter(item => status === 'all' || item.status === status)
             .filter(item => {
@@ -1559,6 +1566,12 @@ export async function createApplication() {
                 return Boolean(item.publicShareEnabled && item.publicShareShowOriginals)
               }
               return true
+            })
+            .filter(item => {
+              if (feedback === 'all') return true
+              const list = feedbackByJob.get(item.id) || []
+              if (feedback === 'any') return list.length > 0
+              return list.some(entry => entry.rating === feedback)
             })
             .filter(item => {
               if (!query) return true
@@ -1590,6 +1603,7 @@ export async function createApplication() {
               }))
             }
           })
+          const feedbackTotal = (state.jobResultFeedbacks || []).length
           json(response, 200, {
             jobs,
             total: page.total,
@@ -1600,7 +1614,9 @@ export async function createApplication() {
               total: state.jobs.length,
               public: publicCount,
               private: state.jobs.length - publicCount,
-              publicWithOriginals: state.jobs.filter(item => item.publicShareEnabled && item.publicShareShowOriginals).length
+              publicWithOriginals: state.jobs.filter(item => item.publicShareEnabled && item.publicShareShowOriginals).length,
+              withFeedback: [...feedbackByJob.keys()].length,
+              feedbackTotal
             }
           })
           return
