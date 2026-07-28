@@ -547,6 +547,7 @@ function renderTemplates() {
         <button class="row-button" data-template-action="edit" data-id="${escapeHtml(template.id)}">编辑</button>
         <button class="row-button" data-template-action="cover" data-id="${escapeHtml(template.id)}">上传封面</button>
         <button class="row-button" data-template-action="toggle" data-id="${escapeHtml(template.id)}">${template.enabled ? '停用' : '启用'}</button>
+        <button class="row-button row-button--danger" data-template-action="delete" data-id="${escapeHtml(template.id)}">删除</button>
       </div></td>
     </tr>
   `).join('') || emptyRow(8, '暂无模板')
@@ -819,14 +820,15 @@ async function loadJobs({ resetPage = false } = {}) {
       <td>${escapeHtml(job.completedTime || '-')}</td>
       <td>${job.durationSeconds === null ? '-' : `${Number(job.durationSeconds)} 秒`}</td>
       <td class="error-cell" title="${escapeHtml(job.error)}">
-        ${job.status === 'succeeded'
-          ? `<div class="row-actions">
-              <button class="row-button" data-job-action="banner" data-id="${escapeHtml(job.id)}" type="button">设为 Banner</button>
+        <div class="row-actions">
+          ${job.status === 'succeeded'
+            ? `<button class="row-button" data-job-action="banner" data-id="${escapeHtml(job.id)}" type="button">设为 Banner</button>
               ${job.publicShareEnabled
                 ? `<span class="status-pill is-active" title="${job.publicShareShowOriginals ? '公开且显示原图' : '公开不显示原图'}">已公开${job.publicShareShowOriginals ? '·含原图' : ''}</span>`
-                : '<span class="status-pill">未公开</span>'}
-            </div>${job.error ? `<span class="cell-subtitle">${escapeHtml(job.error)}</span>` : ''}`
-          : escapeHtml(job.error || '-')}
+                : '<span class="status-pill">未公开</span>'}`
+            : `<span class="cell-subtitle">${escapeHtml(job.error || '-')}</span>`}
+          <button class="row-button row-button--danger" data-job-action="delete" data-id="${escapeHtml(job.id)}" type="button">删除</button>
+        </div>
       </td>
     </tr>
   `).join('') || emptyRow(9, '没有符合条件的作品任务')
@@ -1813,6 +1815,22 @@ elements.jobRows?.addEventListener('click', async event => {
     openBannerFromJob(job)
     return
   }
+  const deleteBtn = event.target.closest('[data-job-action="delete"]')
+  if (deleteBtn) {
+    const job = (state.jobs || []).find(item => item.id === deleteBtn.dataset.id)
+    if (!job) {
+      showToast('请刷新列表后重试', true)
+      return
+    }
+    const label = job.templateName ? `${job.templateName}（${shortId(job.id, 10)}）` : shortId(job.id, 12)
+    if (!window.confirm(`确认删除作品「${label}」？此操作不可恢复。`)) return
+    try {
+      await api(`/api/admin/jobs/${encodeURIComponent(job.id)}`, { method: 'DELETE' })
+      await loadJobs()
+      showToast('作品已删除')
+    } catch (error) { showToast(error.message, true) }
+    return
+  }
   const button = event.target.closest('[data-job-action="add-sample"], [data-job-action="remove-sample"]')
   if (!button) return
   const jobId = button.dataset.jobId
@@ -2109,6 +2127,14 @@ elements.templateRows.addEventListener('click', async event => {
       await api(`/api/admin/templates/${encodeURIComponent(template.id)}`, { method: 'PATCH', json: { enabled: !template.enabled } })
       await Promise.all([loadTemplates(), loadOverview()])
       showToast(template.enabled ? '模板已停用' : '模板已启用')
+    } catch (error) { showToast(error.message, true) }
+  }
+  if (button.dataset.templateAction === 'delete') {
+    if (!window.confirm(`确认删除模板「${template.name || template.id}」？此操作不可恢复。`)) return
+    try {
+      await api(`/api/admin/templates/${encodeURIComponent(template.id)}`, { method: 'DELETE' })
+      await Promise.all([loadTemplates(), loadOverview()])
+      showToast('模板已删除')
     } catch (error) { showToast(error.message, true) }
   }
 })

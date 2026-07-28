@@ -1470,6 +1470,26 @@ export async function createApplication() {
         }
 
         // Admin can publish a job for Banner showcase (without needing owner action)
+        const adminJobDeleteMatch = pathname.match(/^\/api\/admin\/jobs\/([^/]+)$/)
+        if (request.method === 'DELETE' && adminJobDeleteMatch) {
+          const jobId = adminJobDeleteMatch[1]
+          await store.transaction(draft => {
+            const index = draft.jobs.findIndex(item => item.id === jobId)
+            if (index === -1) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
+            draft.jobs.splice(index, 1)
+            draft.shares = (draft.shares || []).filter(item => item.jobId !== jobId)
+            if (Array.isArray(draft.jobLikes)) {
+              draft.jobLikes = draft.jobLikes.filter(item => item.jobId !== jobId)
+            }
+            for (const template of draft.templates || []) {
+              if (!Array.isArray(template.sampleRefs)) continue
+              template.sampleRefs = template.sampleRefs.filter(item => item.jobId !== jobId)
+            }
+          })
+          json(response, 200, { ok: true, id: jobId, message: '作品已删除' })
+          return
+        }
+
         const adminJobPublicShareMatch = pathname.match(/^\/api\/admin\/jobs\/([^/]+)\/public-share$/)
         if (request.method === 'POST' && adminJobPublicShareMatch) {
           const jobId = adminJobPublicShareMatch[1]
@@ -1818,6 +1838,17 @@ export async function createApplication() {
           })
           const state = store.read()
           json(response, 200, { template: publicTemplates(state, true).find(item => item.id === templateId) })
+          return
+        }
+
+        if (request.method === 'DELETE' && adminTemplateMatch) {
+          const templateId = adminTemplateMatch[1]
+          await store.transaction(draft => {
+            const index = draft.templates.findIndex(template => template.id === templateId)
+            if (index === -1) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在')
+            draft.templates.splice(index, 1)
+          })
+          json(response, 200, { ok: true, id: templateId, message: '模板已删除' })
           return
         }
 
