@@ -456,6 +456,7 @@ const transactionLabels = {
   admin_adjust: '后台调整',
   share_friend: '分享作品到好友',
   share_timeline: '分享作品到朋友圈',
+  share_open: '好友打开作品奖励',
   invite_login: '邀请新用户登录',
   invite_first_job: '邀请新用户完成首作',
   cdk_redeem: 'CDK 兑换积分',
@@ -624,7 +625,8 @@ function publicCdk(item, state = null) {
 
 const shareChannelLabels = {
   friend: '微信好友',
-  timeline: '朋友圈'
+  timeline: '朋友圈',
+  open: '好友打开'
 }
 
 function creditUser(draft, userId, amount, type, title, externalRef = '') {

@@ -1,10 +1,31 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
 
+/** 花漾相绘风格随机话术，进入分享页时挑一句展示 */
+const SHARE_TITLES = [
+  '一组值得收藏的照片',
+  '把日常，画成花漾模样',
+  '这一刻，刚好被花漾留住',
+  '轻轻一绘，专属你的相貌',
+  '温柔出片，留给喜欢的人看',
+  '光影里的小确幸',
+  '换一种风格，遇见更好的你',
+  '花漾相绘 · 把心动定格',
+  '今日份的好看，请收下',
+  '一张图，一种心绪',
+  '把喜欢，留成可以回看的样子',
+  '从真实到花漾，只差一步'
+]
+
+function pickShareTitle() {
+  return SHARE_TITLES[Math.floor(Math.random() * SHARE_TITLES.length)]
+}
+
 Page({
   data: {
     token: '',
     share: null,
+    shareTitle: SHARE_TITLES[0],
     loading: true,
     saving: false,
     navSpacer: 176
@@ -12,7 +33,7 @@ Page({
 
   onLoad(query) {
     const token = query.token || decodeURIComponent(query.scene || '')
-    this.setData({ ...getNavMetrics(), token })
+    this.setData({ ...getNavMetrics(), token, shareTitle: pickShareTitle() })
     // Attribute invite when visitor later logs in
     if (token) getApp().setInviteToken(token)
     getApp().captureInviteFromQuery(query)
@@ -75,19 +96,6 @@ Page({
       })
     } finally {
       this.setData({ saving: false })
-    }
-  },
-
-  async shareImage(event) {
-    try {
-      const filePath = await this.download(event.currentTarget.dataset.url)
-      if (wx.showShareImageMenu) {
-        wx.showShareImageMenu({ path: filePath })
-      } else {
-        wx.previewImage({ current: event.currentTarget.dataset.url, urls: [event.currentTarget.dataset.url] })
-      }
-    } catch (error) {
-      wx.showToast({ title: '图片准备失败', icon: 'none' })
     }
   },
 

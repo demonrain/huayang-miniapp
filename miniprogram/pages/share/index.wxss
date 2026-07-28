@@ -1,18 +1,110 @@
-.share-page { padding-bottom: 80rpx; }
-.share-loading { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22rpx; color: var(--muted); }
-.loading-flower { width: 62rpx; height: 62rpx; background: var(--pink-soft); border: 12rpx solid var(--yellow); border-radius: 50%; animation: breathe 1s ease-in-out infinite alternate; }
-.share-heading { padding: 24rpx 4rpx 30rpx; text-align: center; }
-.share-kicker { color: var(--coral); font-family: Georgia, serif; font-size: 17rpx; }
-.share-title { margin-top: 10rpx; font-family: "Kaiti SC", "STKaiti", serif; font-size: 42rpx; font-weight: 700; }
-.share-meta { margin-top: 10rpx; color: var(--muted); font-size: 20rpx; }
-.shared-results { display: flex; flex-direction: column; gap: 24rpx; }
-.shared-result { padding: 10rpx; overflow: hidden; background: #fff; border: 2rpx solid var(--line); border-radius: 16rpx; box-shadow: 0 12rpx 30rpx rgba(110,83,94,.07); }
-.shared-result image { width: 100%; display: block; border-radius: 10rpx; }
-.shared-actions { height: 74rpx; padding: 10rpx 4rpx 0; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10rpx; }
-.shared-actions button { height: 58rpx; margin: 0; background: var(--mint-soft); color: var(--green); font-size: 21rpx; line-height: 58rpx; }
-.shared-actions button:last-child { background: var(--pink-soft); color: var(--coral); }
-.share-footer { margin-top: 30rpx; padding: 24rpx; display: flex; align-items: center; justify-content: space-between; gap: 20rpx; background: linear-gradient(135deg, var(--mint-soft), #fff4f5); border: 2rpx solid #e6ece9; border-radius: 16rpx; }
-.share-footer__title { font-size: 25rpx; font-weight: 650; }
-.share-footer__sub { margin-top: 7rpx; color: var(--muted); font-size: 18rpx; }
-.share-create-button { width: 150rpx; height: 66rpx; flex: none; margin: 0; background: var(--coral); color: #fff; font-size: 22rpx; line-height: 66rpx; }
-@keyframes breathe { from { transform: scale(.92); opacity: .7; } to { transform: scale(1); opacity: 1; } }
+.share-page { padding-bottom: 64rpx; }
+
+.share-loading {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22rpx;
+  color: var(--muted);
+}
+
+.loading-flower {
+  width: 62rpx;
+  height: 62rpx;
+  background: var(--pink-soft);
+  border: 12rpx solid var(--yellow);
+  border-radius: 50%;
+  animation: breathe 1s ease-in-out infinite alternate;
+}
+
+.share-body { padding: 0 4rpx; }
+
+.share-heading {
+  padding: 20rpx 12rpx 28rpx;
+  text-align: center;
+}
+
+.share-kicker {
+  color: var(--coral);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17rpx;
+  letter-spacing: 0.18em;
+}
+
+.share-title {
+  margin-top: 12rpx;
+  font-family: "Kaiti SC", "STKaiti", "Songti SC", serif;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #3d3438;
+}
+
+.share-meta {
+  margin-top: 12rpx;
+  color: var(--muted);
+  font-size: 20rpx;
+}
+
+.shared-results {
+  display: flex;
+  flex-direction: column;
+  gap: 28rpx;
+}
+
+.shared-result {
+  overflow: hidden;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 18rpx;
+  box-shadow: 0 12rpx 30rpx rgba(110, 83, 94, 0.07);
+}
+
+.shared-result image {
+  width: 100%;
+  display: block;
+}
+
+.shared-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 16rpx;
+  padding: 18rpx 16rpx 16rpx;
+}
+
+.shared-actions button {
+  flex: 1;
+  height: 72rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 72rpx;
+}
+
+.shared-actions__save {
+  background: var(--mint-soft);
+  color: var(--green);
+}
+
+.shared-actions__create {
+  background: var(--coral);
+  color: #fff;
+}
+
+.share-note {
+  margin-top: 28rpx;
+  padding: 0 8rpx;
+  text-align: center;
+  color: var(--muted);
+  font-size: 20rpx;
+  line-height: 1.55;
+}
+
+@keyframes breathe {
+  from { transform: scale(0.92); opacity: 0.7; }
+  to { transform: scale(1); opacity: 1; }
+}

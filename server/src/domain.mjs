@@ -162,6 +162,22 @@ export function seedConfig(draft) {
       draft.settings.shareTitle = '来看看我用花漾相绘制作的作品'
       changed = true
     }
+    // 历史后台把「分享到好友积分」当成打开奖励；若打开积分仍为默认且好友积分被改过，则同步一次
+    if (draft.settings.shareOpenCreditsMigratedFromFriend !== true) {
+      const friendCredits = Number(draft.settings.shareFriendCredits)
+      const openCredits = Number(draft.settings.shareOpenCredits)
+      if (
+        Number.isFinite(friendCredits)
+        && friendCredits > 0
+        && (!Number.isFinite(openCredits) || openCredits === DEFAULT_SHARE_REWARD_SETTINGS.shareOpenCredits)
+        && friendCredits !== openCredits
+      ) {
+        draft.settings.shareOpenCredits = friendCredits
+        changed = true
+      }
+      draft.settings.shareOpenCreditsMigratedFromFriend = true
+      changed = true
+    }
   }
   if (!Array.isArray(draft.shareEvents)) {
     draft.shareEvents = []

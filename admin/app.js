@@ -368,10 +368,8 @@ function fillShareRewardForm(settings = {}) {
   const form = elements.shareRewardForm?.elements
   if (!form) return
   if (form.shareRewardEnabled) form.shareRewardEnabled.checked = settings.shareRewardEnabled !== false
-  if (form.shareFriendCredits) form.shareFriendCredits.value = Number(settings.shareFriendCredits ?? 2)
-  if (form.shareFriendDailyLimit) form.shareFriendDailyLimit.value = Number(settings.shareFriendDailyLimit ?? 3)
-  if (form.shareTimelineCredits) form.shareTimelineCredits.value = Number(settings.shareTimelineCredits ?? 1)
-  if (form.shareTimelineDailyLimit) form.shareTimelineDailyLimit.value = Number(settings.shareTimelineDailyLimit ?? 1)
+  if (form.shareOpenCredits) form.shareOpenCredits.value = Number(settings.shareOpenCredits ?? 2)
+  if (form.shareOpenDailyLimit) form.shareOpenDailyLimit.value = Number(settings.shareOpenDailyLimit ?? 5)
   if (form.inviteRewardEnabled) form.inviteRewardEnabled.checked = settings.inviteRewardEnabled !== false
   if (form.inviteLoginCredits) form.inviteLoginCredits.value = Number(settings.inviteLoginCredits ?? 5)
   if (form.inviteFirstJobCredits) form.inviteFirstJobCredits.value = Number(settings.inviteFirstJobCredits ?? 10)
@@ -413,7 +411,7 @@ async function loadShareGrowth() {
       <tr>
         <td>${escapeHtml(item.createdTime)}</td>
         <td><strong>${escapeHtml(item.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(item.userMaskedId)}</span></td>
-        <td><span class="channel-pill channel-pill--${escapeHtml(item.channel)}">${escapeHtml(item.channelLabel)}</span></td>
+        <td><span class="channel-pill channel-pill--${escapeHtml(item.channel)}">${escapeHtml(item.channelLabel || ({ friend: '微信好友', timeline: '朋友圈', open: '好友打开' }[item.channel] || item.channel))}</span></td>
         <td class="${item.reward > 0 ? 'amount-positive' : 'muted'}">${item.reward > 0 ? '+' : ''}${Number(item.reward)}</td>
         <td title="${escapeHtml(item.jobId)}">${escapeHtml(shortId(item.jobId, 10))}</td>
       </tr>
@@ -501,7 +499,7 @@ function mediaThumbs(items, emptyText) {
   return `<div class="job-media-row">${list.map((item, index) => {
     const full = item.url || item.thumbUrl
     const thumb = item.thumbUrl || item.url
-    return `<a class="job-media-thumb" href="${escapeHtml(full)}" target="_blank" rel="noreferrer" title="打开大图 ${index + 1}"><img src="${escapeHtml(thumb)}" alt=""></a>`
+    return `<div class="job-thumb-cell"><a class="job-media-thumb" href="${escapeHtml(full)}" target="_blank" rel="noreferrer" title="打开大图 ${index + 1}"><img src="${escapeHtml(thumb)}" alt=""></a></div>`
   }).join('')}</div>`
 }
 
@@ -805,21 +803,20 @@ async function loadJobs({ resetPage = false } = {}) {
     <tr>
       <td>
         <div class="job-media">
-          <div class="job-media-line">
-            <div class="job-media-group">
+          <div class="job-media-compare">
+            <div class="job-media-col">
               <span class="job-media-label">原图</span>
               ${mediaThumbs(job.originals, '无')}
             </div>
-            <span class="job-media-sep">→</span>
-            <div class="job-media-group">
+            <span class="job-media-sep" aria-hidden="true">→</span>
+            <div class="job-media-col">
               <span class="job-media-label">生成</span>
               ${resultThumbsWithSample(job)}
             </div>
           </div>
         </div>
         <div class="job-id-row">
-          <code class="job-id-code" title="点击复制完整任务 ID" data-copy="${escapeHtml(job.id)}">${escapeHtml(shortId(job.id, 12))}</code>
-          <button class="row-button" type="button" data-job-action="copy-id" data-id="${escapeHtml(job.id)}" title="复制任务 ID">复制 ID</button>
+          <code class="job-id-code" title="点击复制任务 ID" data-copy="${escapeHtml(job.id)}">${escapeHtml(job.id)}</code>
         </div>
       </td>
       <td><strong>${escapeHtml(job.userNickname)}</strong><span class="cell-subtitle">${escapeHtml(job.userMaskedId)}</span></td>
@@ -829,14 +826,17 @@ async function loadJobs({ resetPage = false } = {}) {
       <td>${escapeHtml(job.createdTime)}</td>
       <td>${escapeHtml(job.completedTime || '-')}</td>
       <td>${job.durationSeconds === null ? '-' : `${Number(job.durationSeconds)} 秒`}</td>
-      <td class="error-cell" title="${escapeHtml(job.error)}">
+      <td class="job-ops-cell">
+        ${job.status === 'succeeded'
+          ? ''
+          : `<div class="job-error-text">${escapeHtml(job.error || '-')}</div>`}
         <div class="row-actions">
           ${job.status === 'succeeded'
             ? `<button class="row-button" data-job-action="banner" data-id="${escapeHtml(job.id)}" type="button">设为 Banner</button>
               ${job.publicShareEnabled
                 ? `<span class="status-pill is-active" title="${job.publicShareShowOriginals ? '公开且显示原图' : '公开不显示原图'}">已公开${job.publicShareShowOriginals ? '·含原图' : ''}</span>`
                 : '<span class="status-pill">未公开</span>'}`
-            : `<span class="cell-subtitle">${escapeHtml(job.error || '-')}</span>`}
+            : ''}
           <button class="row-button row-button--danger" data-job-action="delete" data-id="${escapeHtml(job.id)}" type="button">删除</button>
         </div>
       </td>
@@ -1688,10 +1688,8 @@ elements.shareRewardForm?.addEventListener('submit', async event => {
       method: 'PATCH',
       json: {
         shareRewardEnabled: Boolean(form.shareRewardEnabled?.checked),
-        shareFriendCredits: Number(values.get('shareFriendCredits')),
-        shareFriendDailyLimit: Number(values.get('shareFriendDailyLimit')),
-        shareTimelineCredits: Number(values.get('shareTimelineCredits')),
-        shareTimelineDailyLimit: Number(values.get('shareTimelineDailyLimit')),
+        shareOpenCredits: Number(values.get('shareOpenCredits')),
+        shareOpenDailyLimit: Number(values.get('shareOpenDailyLimit')),
         inviteRewardEnabled: Boolean(form.inviteRewardEnabled?.checked),
         inviteLoginCredits: Number(values.get('inviteLoginCredits')),
         inviteFirstJobCredits: Number(values.get('inviteFirstJobCredits')),

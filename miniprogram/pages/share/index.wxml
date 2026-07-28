@@ -6,10 +6,10 @@
     <view>正在打开作品</view>
   </view>
 
-  <view wx:elif="{{share}}">
+  <view wx:elif="{{share}}" class="share-body">
     <view class="share-heading">
       <view class="share-kicker">XIANGHUI MOMENT</view>
-      <view class="share-title">一组值得收藏的照片</view>
+      <view class="share-title">{{shareTitle}}</view>
       <view class="share-meta">{{share.templateName}} · 来自花漾相绘</view>
     </view>
 
@@ -17,18 +17,12 @@
       <view wx:for="{{share.results}}" wx:key="id" class="shared-result">
         <image src="{{item.thumbUrl || item.url}}" mode="widthFix" data-url="{{item.url}}" lazy-load bindtap="preview"></image>
         <view class="shared-actions">
-          <button data-url="{{item.url}}" bindtap="saveImage">保存图片</button>
-          <button data-url="{{item.url}}" bindtap="shareImage">分享图片</button>
+          <button class="shared-actions__save" data-url="{{item.url}}" bindtap="saveImage" loading="{{saving}}">保存图片</button>
+          <button class="shared-actions__create" bindtap="goCreate">我也来试试</button>
         </view>
       </view>
     </view>
 
-    <view class="share-footer">
-      <view>
-        <view class="share-footer__title">也来制作你的专属作品</view>
-        <view class="share-footer__sub">登录创作可获得新用户礼遇；你的好友也可能因邀请获得积分</view>
-      </view>
-      <button class="share-create-button" bindtap="goCreate">去创作</button>
-    </view>
+    <view class="share-note">登录创作可获得新用户礼遇；好友邀请也可能获得积分</view>
   </view>
 </view>

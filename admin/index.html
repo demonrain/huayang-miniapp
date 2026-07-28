@@ -97,11 +97,10 @@
               <div class="shares-rule-block__title">分享给分</div>
               <div class="form-grid form-grid--dense">
                 <label class="toggle-field field-wide"><input name="shareRewardEnabled" type="checkbox"><span>开启分享给分</span></label>
-                <label>分享到好友积分<input name="shareFriendCredits" type="number" min="0" max="100000" required></label>
-                <label>好友每日上限<input name="shareFriendDailyLimit" type="number" min="0" max="100" required></label>
-                <label>分享到朋友圈积分<input name="shareTimelineCredits" type="number" min="0" max="100000" required></label>
-                <label>朋友圈每日上限<input name="shareTimelineDailyLimit" type="number" min="0" max="100" required></label>
+                <label>好友打开作品奖励积分<input name="shareOpenCredits" type="number" min="0" max="100000" required></label>
+                <label>打开奖励每日上限（次）<input name="shareOpenDailyLimit" type="number" min="0" max="100" required></label>
               </div>
+              <p class="field-hint" style="margin-top:8px">分享动作本身只记录、不直接发分；好友打开你的分享作品时，按上方积分奖励给你（受每日上限约束）。邀请登录/首作奖励见下方。</p>
             </div>
             <div class="shares-rule-block">
               <div class="shares-rule-block__title">邀请成功给分</div>
@@ -128,7 +127,7 @@
               <div class="panel-heading panel-heading--compact">
                 <div>
                   <h3>分享明细</h3>
-                  <p>用户分享作品到好友 / 朋友圈的发奖记录</p>
+                  <p>分享记录与好友打开发奖明细</p>
                 </div>
                 <form id="shareEventFilterForm" class="filter-bar">
                   <input name="query" placeholder="用户 / 任务 ID">
@@ -136,6 +135,7 @@
                     <option value="all">全部渠道</option>
                     <option value="friend">微信好友</option>
                     <option value="timeline">朋友圈</option>
+                    <option value="open">好友打开</option>
                   </select>
                   <button class="button button--quiet" type="submit">查询</button>
                 </form>
@@ -194,7 +194,7 @@
           <div><h3>充值与消费记录</h3><p>包含充值、作品消费、签到、赠送、退款和后台调整。</p></div>
           <form id="transactionFilterForm" class="filter-bar">
             <input name="query" placeholder="昵称、用户 ID 或摘要">
-            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="cdk_redeem">CDK 兑换</option><option value="share_friend">分享好友</option><option value="share_timeline">分享朋友圈</option><option value="invite_login">邀请登录</option><option value="invite_first_job">邀请首作</option><option value="gallery_publish">分享到花海</option><option value="gallery_like_give">送花</option><option value="gallery_like_receive">作品收花</option><option value="admin_adjust">后台调整</option></select>
+            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="cdk_redeem">CDK 兑换</option><option value="share_friend">分享好友</option><option value="share_timeline">分享朋友圈</option><option value="share_open">好友打开</option><option value="invite_login">邀请登录</option><option value="invite_first_job">邀请首作</option><option value="gallery_publish">分享到花海</option><option value="gallery_like_give">送花</option><option value="gallery_like_receive">作品收花</option><option value="admin_adjust">后台调整</option></select>
             <button class="button button--quiet" type="submit">查询</button>
           </form>
         </div>
