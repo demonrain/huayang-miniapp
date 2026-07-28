@@ -79,7 +79,11 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     const login = await api('/api/auth/wechat', { method: 'POST', json: { code: 'test-code' } })
     assert.equal(login.response.status, 200)
     assert.equal(login.body.user.credits, 20)
+    assert.ok(login.body.user.nickname)
+    assert.notEqual(login.body.user.nickname, '微信用户')
+    assert.match(login.body.user.nickname, /·[0-9A-F]{4}$/)
     const token = login.body.token
+    const loginNickname = login.body.user.nickname
 
     const form = new FormData()
     form.append('image', new Blob([tinyPng], { type: 'image/png' }), 'pixel.png')
@@ -177,7 +181,7 @@ test('complete login, generation, idempotency and recharge flow', async () => {
     })
     assert.match(cover.body.template.coverUrl, /\/media\/covers\//)
 
-    const users = await api('/api/admin/users?query=微信用户&status=enabled', { token: adminToken })
+    const users = await api(`/api/admin/users?query=${encodeURIComponent(loginNickname)}&status=enabled`, { token: adminToken })
     assert.equal(users.body.users.length, 1)
     assert.equal(users.body.users[0].completedJobs, 1)
 
@@ -201,7 +205,7 @@ test('complete login, generation, idempotency and recharge flow', async () => {
 
     const jobs = await api('/api/admin/jobs?status=succeeded', { token: adminToken })
     assert.equal(jobs.body.jobs.length, 1)
-    assert.equal(jobs.body.jobs[0].userNickname, '微信用户')
+    assert.equal(jobs.body.jobs[0].userNickname, loginNickname)
 
     const banner = await api('/api/admin/banners', {
       method: 'POST',

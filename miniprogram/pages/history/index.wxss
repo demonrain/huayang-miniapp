@@ -38,6 +38,66 @@
   font-size: 19rpx;
 }
 
+.filter-block {
+  margin: 0 0 22rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.status-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.status-scroll--category {
+  margin-top: 0;
+}
+
+.status-row {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12rpx;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+
+.status-chip {
+  flex: none;
+  min-height: 52rpx;
+  padding: 10rpx 24rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #fff;
+  border: 2rpx solid var(--line);
+  border-radius: 999rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.status-chip--hover {
+  opacity: 0.85;
+}
+
+.status-chip--soft {
+  background: #fffafb;
+}
+
+.status-chip--active {
+  background: var(--pink-soft);
+  border-color: #f2a4b1;
+  color: var(--coral);
+  font-weight: 650;
+}
+
 /* Two-column waterfall */
 .works-waterfall {
   display: flex;

@@ -5,9 +5,6 @@
 .gallery-heading {
   min-height: 120rpx;
   margin: 6rpx 0 16rpx;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
 }
 
 .gallery-kicker {
@@ -19,15 +16,6 @@
 
 .gallery-heading .section-title__sub {
   margin-top: 9rpx;
-}
-
-.album-count {
-  margin-bottom: 5rpx;
-  padding: 8rpx 13rpx;
-  background: var(--mint-soft);
-  border-radius: 8rpx;
-  color: var(--green);
-  font-size: 19rpx;
 }
 
 .gallery-tip {

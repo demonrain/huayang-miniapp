@@ -15,6 +15,9 @@ import {
   assetUrl,
   DEFAULT_TEMPLATE_CATEGORIES,
   findTemplate,
+  displayNickname,
+  generateStyledNickname,
+  isDefaultWechatNickname,
   listTemplateCategories,
   mediaUrl,
   publicBanners,
@@ -62,16 +65,19 @@ function userAvatarUrl(user, state) {
 }
 
 function publicUser(user, state) {
+  const rawNickname = String(user.nickname || '').trim()
+  const hasRealNickname = Boolean(rawNickname) && !isDefaultWechatNickname(rawNickname)
   return {
     id: user.id,
     maskedId: user.id.slice(0, 4).toUpperCase(),
-    nickname: user.nickname || '微信用户',
+    // 绝不对外返回「微信用户」等同名占位；兜底也带短码可区分
+    nickname: hasRealNickname ? rawNickname : displayNickname(user),
     bio: String(user.bio || '').trim(),
     // Prefer uploaded asset; fall back to WeChat CDN / external avatar URL
     avatarUrl: userAvatarUrl(user, state),
+    // 产品随机昵称已算有效昵称；资料完整仍需头像
     profileComplete: Boolean(
-      user.nickname &&
-      user.nickname !== '微信用户' &&
+      hasRealNickname &&
       (user.avatarAssetId || user.avatarUrl)
     ),
     credits: user.credits,
@@ -80,6 +86,18 @@ function publicUser(user, state) {
     enabled: user.enabled !== false,
     createdAt: user.createdAt
   }
+}
+
+/** 若仍是微信默认昵称，写入产品风格随机名（兼容老账号） */
+async function ensureStyledNickname(store, userId) {
+  return store.transaction(draft => {
+    const target = draft.users.find(item => item.id === userId)
+    if (!target) return null
+    if (!isDefaultWechatNickname(target.nickname)) return target
+    target.nickname = generateStyledNickname()
+    target.updatedAt = now()
+    return target
+  })
 }
 
 function categoryLabel(categoryId, state = null) {
@@ -412,7 +430,7 @@ function adminUser(user, state) {
   const unionid = String(user.unionid || '')
   return {
     id: user.id,
-    nickname: user.nickname || '微信用户',
+    nickname: user.nickname || '花漾用户',
     // 微信不提供可展示的「微信号」；后台用 openid/unionid 区分账号
     openid,
     unionid,
@@ -737,6 +755,18 @@ export async function createApplication() {
   if (store.read(state => !state.settings || state.settings.shareTitle === '来看看我用画漾制作的作品' || !state.templates.length || !state.banners.length || !state.packages.length || !state.templateCategories?.length || state.settings.bannerSwitchMode === undefined || state.templates.some(item => !Array.isArray(item.tags) || !Number.isFinite(Number(item.popularity))))) {
     await store.transaction(draft => seedConfig(draft))
   }
+  // 启动时批量把「微信用户」等占位昵称换成产品风格随机名，避免全员同名
+  const nickMigrated = await store.transaction(draft => {
+    let count = 0
+    for (const target of draft.users) {
+      if (!isDefaultWechatNickname(target.nickname)) continue
+      target.nickname = generateStyledNickname()
+      target.updatedAt = now()
+      count += 1
+    }
+    return count
+  })
+  if (nickMigrated > 0) console.log(`[nickname] migrated ${nickMigrated} placeholder nicknames`)
   console.log(
     `[image] provider=${config.image.provider}` +
     (config.image.provider === 'compatible'
@@ -988,7 +1018,7 @@ export async function createApplication() {
           job: {
             ...shared,
             authorId: job.userId,
-            authorNickname: owner?.nickname || '花漾用户',
+            authorNickname: displayNickname(owner),
             authorAvatarUrl: userAvatarUrl(owner, state),
             authorBio: String(owner?.bio || '').trim().slice(0, 80),
             isOwner: Boolean(viewerUserId && viewerUserId === job.userId)
@@ -1043,11 +1073,24 @@ export async function createApplication() {
             if (found.enabled === false) throw new HttpError(403, 'USER_DISABLED', '账号已被停用，请联系管理员')
             found.lastLoginAt = now()
             found.isNew = false
+            // 老账号若仍是「微信用户」等默认名，补发产品风格随机昵称
+            if (isDefaultWechatNickname(found.nickname)) {
+              found.nickname = generateStyledNickname()
+              found.updatedAt = now()
+            }
             return { user: found, invite: null }
           }
           found = {
-            id: randomUUID(), openid: identity.openid, unionid: identity.unionid, nickname: '微信用户', avatarAssetId: '',
-            credits: draft.settings.welcomeCredits, isNew: true, createdAt: now(), updatedAt: now(), lastLoginAt: now()
+            id: randomUUID(),
+            openid: identity.openid,
+            unionid: identity.unionid,
+            nickname: generateStyledNickname(),
+            avatarAssetId: '',
+            credits: draft.settings.welcomeCredits,
+            isNew: true,
+            createdAt: now(),
+            updatedAt: now(),
+            lastLoginAt: now()
           }
           draft.users.push(found)
           draft.transactions.push({
@@ -2252,7 +2295,8 @@ export async function createApplication() {
       const user = getAuthenticatedUser(request, store)
 
       if (request.method === 'GET' && pathname === '/api/me') {
-        json(response, 200, { user: publicUser(user, store.read()) })
+        const me = await ensureStyledNickname(store, user.id)
+        json(response, 200, { user: publicUser(me || user, store.read()) })
         return
       }
 
@@ -2260,9 +2304,15 @@ export async function createApplication() {
         const body = await readJson(request)
         const updated = await store.transaction(draft => {
           const target = draft.users.find(item => item.id === user.id)
+          if (!target) throw new HttpError(404, 'USER_NOT_FOUND', '用户不存在')
+          // 未主动改昵称时，顺带把微信占位名换成可区分的花漾昵称
+          if (!('nickname' in body) && isDefaultWechatNickname(target.nickname)) {
+            target.nickname = generateStyledNickname()
+          }
           if (typeof body.nickname === 'string') {
             const nickname = body.nickname.trim()
             if (!nickname || nickname.length > 20) throw new HttpError(400, 'INVALID_NICKNAME', '昵称需为 1–20 个字符')
+            if (isDefaultWechatNickname(nickname)) throw new HttpError(400, 'INVALID_NICKNAME', '请使用个性化昵称')
             target.nickname = nickname
           }
           if (typeof body.bio === 'string') {
@@ -2296,12 +2346,13 @@ export async function createApplication() {
       }
 
       if (request.method === 'GET' && pathname === '/api/profile') {
+        const me = await ensureStyledNickname(store, user.id)
         const state = store.read()
-        const me = state.users.find(item => item.id === user.id)
+        const profileUser = me || state.users.find(item => item.id === user.id)
         const succeeded = state.jobs.filter(item => item.userId === user.id && item.status === 'succeeded')
         const flowersReceived = countUserFlowersReceived(state, user.id)
         json(response, 200, {
-          user: publicUser(me, state),
+          user: publicUser(profileUser, state),
           stats: {
             completedJobs: succeeded.length,
             generatedImages: succeeded.reduce((sum, item) => sum + (item.results || []).length, 0),
@@ -2396,8 +2447,22 @@ export async function createApplication() {
 
       if (request.method === 'GET' && pathname === '/api/jobs') {
         const state = store.read()
+        // status: all | succeeded | failed | queued | processing | active(queued+processing)
+        const status = String(url.searchParams.get('status') || 'all').trim() || 'all'
+        // category: all | portrait | life | ...（按模板分类）
+        const category = String(url.searchParams.get('category') || 'all').trim() || 'all'
         const filtered = state.jobs
           .filter(item => item.userId === user.id)
+          .filter(item => {
+            if (status === 'all') return true
+            if (status === 'active') return item.status === 'queued' || item.status === 'processing'
+            return item.status === status
+          })
+          .filter(item => {
+            if (category === 'all') return true
+            const template = findTemplate(state, item.templateId, true)
+            return template ? templateHasCategory(template, category) : false
+          })
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         // Backward compatible: no page/pageSize → full list
         const hasPaging = url.searchParams.has('page') || url.searchParams.has('pageSize')
@@ -2533,7 +2598,7 @@ export async function createApplication() {
             resultCount: (pub.results || []).length,
             publicShareShowOriginals: pub.publicShareShowOriginals,
             publicShareAt: job.publicShareAt || job.completedAt || job.createdAt,
-            authorNickname: owner?.nickname || '花漾用户',
+            authorNickname: displayNickname(owner),
             authorAvatarUrl: userAvatarUrl(owner, state),
             authorId: job.userId,
             likeCount: jobLikes.length,
@@ -2980,7 +3045,9 @@ export async function createApplication() {
       }
 
       if (request.method === 'GET' && pathname === '/api/wallet') {
+        const me = await ensureStyledNickname(store, user.id)
         const state = store.read()
+        const profileUser = me || state.users.find(item => item.id === user.id)
         const limitRaw = Number(url.searchParams.get('limit') ?? 50)
         const offsetRaw = Number(url.searchParams.get('offset') ?? 0)
         const limit = Math.min(100, Math.max(1, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : 50))
@@ -2993,7 +3060,7 @@ export async function createApplication() {
           .slice(offset, offset + limit)
           .map(publicTransaction)
         json(response, 200, {
-          user: publicUser(state.users.find(item => item.id === user.id), state),
+          user: publicUser(profileUser, state),
           packages: publicPackages(state),
           transactions,
           transactionsTotal,

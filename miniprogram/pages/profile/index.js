@@ -97,6 +97,8 @@ Page({
 
   applyUser(user, stats) {
     const nickname = user.nickname || ''
+    const defaultNicks = { '微信用户': 1, 'WeChat User': 1, '微信网友': 1, '花漾用户': 1 }
+    const isWechatPlaceholder = !nickname || Boolean(defaultNicks[nickname])
     const nextStats = {
       ...emptyStats(),
       ...(stats || this.data.stats || {}),
@@ -110,9 +112,10 @@ Page({
       user,
       stats: nextStats,
       avatarUrl: user.avatarUrl || '',
-      nickname: nickname === '微信用户' ? '' : nickname,
+      // 产品随机昵称正常展示；仅微信同名占位留空，方便 type=nickname 再授权
+      nickname: isWechatPlaceholder ? '' : nickname,
       bio: user.bio || '',
-      avatarInitial: (nickname && nickname !== '微信用户' ? nickname : '画').slice(0, 1),
+      avatarInitial: (!isWechatPlaceholder ? nickname : '画').slice(0, 1),
       profileComplete: Boolean(user.profileComplete)
     })
   },
@@ -162,10 +165,15 @@ Page({
       let next = user
       if (profile) {
         next = (await app.applyWechatProfile(profile)) || user
+      } else {
+        next = (await app.refreshUserProfile()) || user
       }
       wx.hideLoading()
+      const nick = (next && next.nickname) || ''
       if (next && next.profileComplete) {
         wx.showToast({ title: '登录成功', icon: 'success' })
+      } else if (nick) {
+        wx.showToast({ title: `你好，${nick}`, icon: 'none', duration: 2200 })
       } else {
         wx.showToast({ title: '登录成功，请完善资料', icon: 'none', duration: 2200 })
       }
@@ -190,19 +198,37 @@ Page({
   },
 
   nicknameInput(event) {
+    const value = String(event.detail.value || '').trim()
+    // type=nickname 常会填入「微信用户」；不写入界面，避免盖住产品随机昵称
+    if (value === '微信用户' || value === 'WeChat User' || value === '微信网友') {
+      const keep = (this.data.user && this.data.user.nickname) || this.data.nickname || ''
+      if (keep && keep !== value) {
+        this.setData({ nickname: keep })
+        return
+      }
+    }
     this.setData({ nickname: event.detail.value })
   },
 
   nicknameReview(event) {
     if (event.detail && event.detail.pass === false) {
       wx.showToast({ title: '昵称未通过审核', icon: 'none' })
+      const keep = (this.data.user && this.data.user.nickname) || ''
+      if (keep) this.setData({ nickname: keep })
     }
   },
 
   async nicknameBlur() {
     if (!this.data.user) return
     const nickname = (this.data.nickname || '').trim()
-    if (!nickname) return
+    const defaults = { '': 1, '微信用户': 1, 'WeChat User': 1, '微信网友': 1, '花漾用户': 1 }
+    if (defaults[nickname]) {
+      // 微信未给出可区分昵称：恢复服务端产品昵称，不覆盖
+      const keep = String(this.data.user.nickname || '').trim()
+      if (keep && !defaults[keep]) this.setData({ nickname: keep })
+      else this.setData({ nickname: keep || '' })
+      return
+    }
     if (nickname === this.data.user.nickname) return
     await this.saveProfile({ nickname })
   },

@@ -644,7 +644,7 @@ async function loadUsers({ resetPage = false } = {}) {
       return `
     <tr>
       <td>
-        <strong>${escapeHtml(user.nickname || '微信用户')}</strong>
+        <strong>${escapeHtml(user.nickname || '花漾用户')}</strong>
         <code class="uuid-code" title="点击复制完整 UUID" data-copy="${escapeHtml(user.id || '')}">${escapeHtml(user.id || '—')}</code>
       </td>
       <td class="openid-cell">

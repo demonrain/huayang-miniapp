@@ -10,6 +10,33 @@
     <view class="album-count">{{total || jobs.length}} 组</view>
   </view>
 
+  <view wx:if="{{isLoggedIn}}" class="filter-block">
+    <scroll-view class="status-scroll" scroll-x enhanced show-scrollbar="false">
+      <view class="status-row">
+        <view
+          wx:for="{{statusFilters}}"
+          wx:key="id"
+          class="status-chip {{activeStatus === item.id ? 'status-chip--active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="selectStatus"
+          hover-class="status-chip--hover"
+        >{{item.name}}</view>
+      </view>
+    </scroll-view>
+    <scroll-view class="status-scroll status-scroll--category" scroll-x enhanced show-scrollbar="false">
+      <view class="status-row">
+        <view
+          wx:for="{{categories}}"
+          wx:key="id"
+          class="status-chip status-chip--soft {{activeCategory === item.id ? 'status-chip--active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="selectCategory"
+          hover-class="status-chip--hover"
+        >{{item.name}}</view>
+      </view>
+    </scroll-view>
+  </view>
+
   <view wx:if="{{!isLoggedIn && !loading}}" class="empty empty-work">
     <view class="empty-mark">
       <view class="empty-flower-dot"></view>
@@ -116,13 +143,13 @@
     <view wx:if="{{listFooter}}" class="list-footer">{{listFooter}}</view>
   </block>
 
-  <view wx:else class="empty empty-work">
+  <view wx:elif="{{isLoggedIn}}" class="empty empty-work">
     <view class="empty-mark">
       <view class="empty-flower-dot"></view>
       <text>画</text>
     </view>
-    <view class="empty-title">还没有作品</view>
-    <view class="empty-sub">选一个喜欢的风格，制作第一组照片</view>
-    <button class="primary-button" bindtap="goCreate">去创作</button>
+    <view class="empty-title">{{emptyTitle}}</view>
+    <view class="empty-sub">{{emptySub}}</view>
+    <button wx:if="{{emptyShowCreate}}" class="primary-button" bindtap="goCreate">去创作</button>
   </view>
 </view>

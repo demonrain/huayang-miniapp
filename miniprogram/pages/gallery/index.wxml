@@ -2,12 +2,9 @@
   <custom-nav credits="{{user ? user.credits : null}}"></custom-nav>
 
   <view class="gallery-heading">
-    <view>
-      <view class="gallery-kicker">FLOWER SEA</view>
-      <view class="section-title__main">花海</view>
-      <view class="section-title__sub">发现大家公开分享的作品</view>
-    </view>
-    <view class="album-count">{{total || items.length}} 件</view>
+    <view class="gallery-kicker">FLOWER SEA</view>
+    <view class="section-title__main">花海</view>
+    <view class="section-title__sub">发现大家公开分享的作品</view>
   </view>
 
   <view wx:if="{{galleryRewards}}" class="gallery-tip">

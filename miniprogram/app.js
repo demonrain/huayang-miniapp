@@ -99,7 +99,7 @@ App({
     if (!userInfo || !this.isLoggedIn()) return null
     const nickname = String(userInfo.nickName || userInfo.nickname || '').trim()
     const avatarUrl = String(userInfo.avatarUrl || '').trim()
-    const defaultNicks = new Set(['', '微信用户', 'WeChat User', '微信网友'])
+    const defaultNicks = new Set(['', '微信用户', 'WeChat User', '微信网友', '花漾用户'])
     const isDefaultNick = defaultNicks.has(nickname)
     // Known gray default avatar hashes used by WeChat when user has no custom avatar
     const isDefaultAvatar = !avatarUrl
@@ -107,12 +107,22 @@ App({
       || /\/POgEwh4mIHO4nibH0KlMECNjjGxQUq24ZEaGT4poC6icRiccVGKSyXwibcPq4BWmiaIGuG1icwxaQX6grC9VemZoJ8rg/i.test(avatarUrl)
 
     const payload = {}
+    // 仅在拿到真实微信昵称时写入；默认名由服务端随机花漾昵称兜底
     if (!isDefaultNick) payload.nickname = nickname.slice(0, 20)
     // Persist https WeChat CDN avatars (skip only known placeholders)
     if (avatarUrl && /^https:\/\//i.test(avatarUrl) && !isDefaultAvatar) {
       payload.avatarUrl = avatarUrl.slice(0, 500)
     }
-    if (!Object.keys(payload).length) return null
+    // 即便微信没给真实昵称，也主动拉一次 /api/me，触发服务端占位名迁移
+    if (!Object.keys(payload).length) {
+      try {
+        const { user } = await api.get('/api/me')
+        this.setUser(user)
+        return user
+      } catch (error) {
+        return null
+      }
+    }
     try {
       const { user } = await api.patch('/api/me', payload)
       this.setUser(user)
@@ -159,6 +169,21 @@ App({
       return await this.loginPromise
     } finally {
       this.loginPromise = null
+    }
+  },
+
+  /**
+   * After WeChat login/session restore, refresh user so placeholder nicknames
+   * are replaced by server-side styled names before UI renders.
+   */
+  async refreshUserProfile() {
+    if (!wx.getStorageSync('huayang_token')) return null
+    try {
+      const { user } = await api.get('/api/me')
+      this.setUser(user)
+      return user
+    } catch (error) {
+      return this.globalData.user || null
     }
   },
 
@@ -217,6 +242,8 @@ App({
       let next = user
       if (profile) {
         next = (await this.applyWechatProfile(profile)) || user
+      } else {
+        next = (await this.refreshUserProfile()) || user
       }
       wx.hideLoading()
       wx.showToast({ title: '登录成功', icon: 'success' })
@@ -239,8 +266,8 @@ App({
     wx.setStorageSync('huayang_profile_setup_prompted', '1')
     setTimeout(() => {
       wx.showModal({
-        title: '完善头像与昵称',
-        content: '登录成功！点「去设置」后点头像选用微信头像、点昵称栏使用微信昵称（微信规定需你主动授权，无法静默读取）。',
+        title: '完善头像',
+        content: '登录成功！已为你准备花漾风格昵称。点「去设置」后点头像可选用微信头像；想用微信昵称时可点昵称栏授权。',
         confirmText: '去设置',
         cancelText: '稍后',
         success: res => {

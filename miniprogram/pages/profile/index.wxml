@@ -3,7 +3,7 @@
 
   <view wx:if="{{!user}}" class="guest-panel">
     <view class="guest-title">欢迎来到花漾相绘</view>
-    <view class="guest-sub">点击登录将授权微信登录，并尽量自动填入头像与昵称（需你在弹窗中允许；若未能自动获取，登录后点头像/昵称可一键授权）。</view>
+    <view class="guest-sub">点击登录将授权微信登录。若微信未返回真实昵称，会自动分配花漾风格昵称；登录后也可点头像/昵称继续完善。</view>
     <button class="primary-button guest-login" bindtap="doLogin">微信快捷登录</button>
   </view>
 
@@ -28,7 +28,7 @@
           class="nickname-input"
           type="nickname"
           value="{{nickname}}"
-          placeholder="点击填写微信昵称"
+          placeholder="花漾昵称（可点此用微信昵称）"
           bindinput="nicknameInput"
           bindblur="nicknameBlur"
           bindnicknamereview="nicknameReview"
@@ -55,8 +55,8 @@
     </view>
 
     <view wx:if="{{!profileComplete}}" class="profile-setup">
-      <view class="profile-setup__title">完善微信资料</view>
-      <view class="profile-setup__text">微信规定头像/昵称需你主动授权：点上方头像选择微信头像，点昵称栏使用微信昵称。完成后资料会自动保存。</view>
+      <view class="profile-setup__title">完善头像资料</view>
+      <view class="profile-setup__text">已为你分配花漾风格昵称。点上方头像可选用微信头像；若想换成微信昵称，点昵称栏授权即可（微信未开放真实昵称时将继续使用花漾昵称）。</view>
     </view>
 
     <view class="stats-grid stats-grid--4">

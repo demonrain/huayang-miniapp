@@ -1,8 +1,36 @@
+import { randomBytes } from 'node:crypto'
 import { config } from './config.mjs'
 import { templates as defaultTemplates, creditPackages as defaultPackages } from './catalog.mjs'
 import { thumbStoragePath } from './thumbs.mjs'
 
 const statusLabels = { queued: '排队中', processing: '生成中', succeeded: '已完成', failed: '失败' }
+
+/** 微信隐私策略下无法静默拿到真实昵称时的占位名（含历史产品占位） */
+export const DEFAULT_WECHAT_NICKNAMES = new Set(['', '微信用户', 'WeChat User', '微信网友', '花漾用户'])
+
+export function isDefaultWechatNickname(nickname) {
+  return DEFAULT_WECHAT_NICKNAMES.has(String(nickname || '').trim())
+}
+
+/**
+ * 花漾相绘风格随机昵称，例如「温柔画手·A3F2」。
+ */
+export function generateStyledNickname() {
+  const adjectives = ['温柔', '清新', '暖光', '轻盈', '拾光', '心光', '花间', '微风', '晴空', '暮色']
+  const nouns = ['画手', '旅人', '相友', '造像', '花客', '相绘', '拾花', '小满', '画报', '心象']
+  const adj = adjectives[randomBytes(1)[0] % adjectives.length]
+  const noun = nouns[randomBytes(1)[0] % nouns.length]
+  const suffix = randomBytes(2).toString('hex').toUpperCase()
+  return `${adj}${noun}·${suffix}`
+}
+
+/** 对外展示昵称：真实名优先，占位名用账号短码区分，避免全员同名 */
+export function displayNickname(user) {
+  const raw = String(user?.nickname || '').trim()
+  if (raw && !isDefaultWechatNickname(raw)) return raw
+  const id = String(user?.id || '').replace(/-/g, '').slice(0, 4).toUpperCase()
+  return id ? `花漾旅人·${id}` : '花漾旅人'
+}
 
 export const DEFAULT_TEMPLATE_CATEGORIES = [
   { id: 'portrait', name: '人像', sortOrder: 10, enabled: true },
@@ -334,6 +362,7 @@ export function publicPackages(state, admin = false) {
 
 export function publicJob(job, state) {
   const template = findTemplate(state, job.templateId, true)
+  const templateCategories = normalizeTemplateCategories(template || {})
   const results = (job.results || []).map(result => {
     const full = mediaUrl(result.storagePath)
     const thumb = mediaThumbUrl(result.storagePath)
@@ -372,6 +401,8 @@ export function publicJob(job, state) {
     templateName: template?.name || '已下架模板',
     templateShortName: template?.shortName || '作品',
     templatePalette: template?.palette || '#f2c5cc',
+    templateCategory: templateCategories[0] || '',
+    templateCategories,
     statusLabel: statusLabels[job.status] || job.status,
     results,
     originals,
