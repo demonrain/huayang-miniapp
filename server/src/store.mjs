@@ -22,6 +22,8 @@ const initialState = {
   jobResultFeedbacks: [],
   templateFavorites: [],
   templateRecents: [],
+  userLevels: [],
+  campaigns: [],
   settings: null
 }
 
@@ -38,7 +40,7 @@ export class JsonStore {
     try {
       const saved = JSON.parse(await readFile(this.filename, 'utf8'))
       this.state = { ...structuredClone(initialState), ...saved, version: initialState.version }
-      for (const key of ['users', 'transactions', 'assets', 'jobs', 'orders', 'templates', 'templateCategories', 'banners', 'packages', 'shares', 'shareEvents', 'invites', 'cdks', 'announcements', 'feedbacks', 'jobLikes', 'jobResultFeedbacks', 'templateFavorites', 'templateRecents']) {
+      for (const key of ['users', 'transactions', 'assets', 'jobs', 'orders', 'templates', 'templateCategories', 'banners', 'packages', 'shares', 'shareEvents', 'invites', 'cdks', 'announcements', 'feedbacks', 'jobLikes', 'jobResultFeedbacks', 'templateFavorites', 'templateRecents', 'userLevels', 'campaigns']) {
         if (!Array.isArray(this.state[key])) this.state[key] = []
       }
       // Ensure sample refs array exists on templates

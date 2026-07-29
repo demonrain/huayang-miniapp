@@ -98,6 +98,44 @@
   margin-top: 20rpx;
 }
 
+.campaign-scroll {
+  width: 100%;
+  margin-top: 16rpx;
+  white-space: nowrap;
+}
+
+.campaign-strip {
+  display: inline-flex;
+  gap: 12rpx;
+  padding: 4rpx 2rpx;
+}
+
+.campaign-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10rpx;
+  max-width: 420rpx;
+  padding: 12rpx 18rpx;
+  background: linear-gradient(135deg, #fff6f0, #f3faf6);
+  border: 2rpx solid #eadfd8;
+  border-radius: 999rpx;
+}
+
+.campaign-chip__badge {
+  flex: none;
+  color: var(--coral);
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+.campaign-chip__name {
+  overflow: hidden;
+  color: #4a4044;
+  font-size: 22rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .announcement-swiper .announcement-entry {
   margin-top: 0;
   height: 100%;
@@ -585,6 +623,19 @@
   font-size: 17rpx;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.template-cost__old {
+  margin-right: 6rpx;
+  color: var(--muted);
+  text-decoration: line-through;
+  font-size: 15rpx;
+}
+
+.template-cost__promo {
+  margin-left: 6rpx;
+  color: var(--coral);
+  font-weight: 700;
 }
 
 .template-popularity {

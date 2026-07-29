@@ -2,7 +2,15 @@ const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
 
 function emptyStats() {
-  return { completedJobs: 0, generatedImages: 0, flowersReceived: 0, sharedJobs: 0 }
+  return {
+    completedJobs: 0,
+    generatedImages: 0,
+    flowersReceived: 0,
+    sharedJobs: 0,
+    checkinDays: 0,
+    shareCount: 0,
+    inviteCount: 0
+  }
 }
 
 function buildCheckinView(checkin) {
@@ -11,20 +19,34 @@ function buildCheckinView(checkin) {
       checkinInfo: null,
       checkinTitle: '每日花签',
       checkinSub: '登录后可领取今日积分',
+      checkinTip: '',
       checkinBtnText: '加载中',
       checkinDone: false,
-      checkinReady: false
+      checkinReady: false,
+      checkinStreak: 0,
+      streakBonuses: []
     }
   }
   const claimed = Boolean(checkin.claimedToday)
-  const reward = Number(checkin.reward) || 0
+  const total = Number(checkin.totalToday != null ? checkin.totalToday : checkin.reward) || 0
+  const base = Number(checkin.baseReward != null ? checkin.baseReward : total) || 0
+  const streakBonus = Number(checkin.streakBonus || 0)
+  const campaignBonus = Number(checkin.campaignBonus || 0)
+  const parts = [`基础 ${base}`]
+  if (streakBonus > 0) parts.push(`连签 +${streakBonus}`)
+  if (campaignBonus > 0) parts.push(`活动 +${campaignBonus}`)
   return {
     checkinInfo: checkin,
-    checkinTitle: claimed ? '今日花签已领取' : '每日花签',
-    checkinSub: claimed ? '明天再来收集新的灵感' : `今天可领取 ${reward} 积分`,
-    checkinBtnText: claimed ? '已签到' : `+${reward} 领取`,
+    checkinTitle: claimed ? `已连签 ${checkin.currentStreak || 0} 天` : '每日花签',
+    checkinSub: claimed
+      ? (checkin.tip || '明天再来收集新的灵感')
+      : `今日可领 ${total} 积分（${parts.join(' · ')}）`,
+    checkinTip: checkin.tip || '',
+    checkinBtnText: claimed ? '已签到' : `+${total} 领取`,
     checkinDone: claimed,
-    checkinReady: true
+    checkinReady: true,
+    checkinStreak: Number(checkin.currentStreak || 0),
+    streakBonuses: Array.isArray(checkin.streakBonuses) ? checkin.streakBonuses : []
   }
 }
 
@@ -41,9 +63,15 @@ Page({
     checkinInfo: null,
     checkinTitle: '每日花签',
     checkinSub: '今天可领取积分',
+    checkinTip: '',
     checkinBtnText: '加载中',
     checkinDone: false,
     checkinReady: false,
+    checkinStreak: 0,
+    streakBonuses: [],
+    levelTitle: '',
+    levelBadgeText: '',
+    levelBadgeTone: 'mint',
     navSpacer: 176
   },
 
@@ -69,17 +97,22 @@ Page({
         return
       }
 
-      // Load profile first (critical path); wallet only for check-in status
-      const { user, stats } = await api.get('/api/profile')
+      // Load profile first (critical path); wallet/checkin may come together
+      const profile = await api.get('/api/profile')
+      const { user, stats, checkin, levelProgress } = profile
       app.setUser(user)
-      this.applyUser(user, stats)
+      this.applyUser(user, stats, levelProgress)
 
-      try {
-        const wallet = await api.get('/api/wallet')
-        this.setData(buildCheckinView(wallet.checkin || null))
-      } catch (error) {
-        // Keep page usable even if wallet/check-in fails
-        this.setData(buildCheckinView({ reward: 3, claimedToday: false }))
+      if (checkin) {
+        this.setData(buildCheckinView(checkin))
+      } else {
+        try {
+          const wallet = await api.get('/api/wallet')
+          this.setData(buildCheckinView(wallet.checkin || null))
+        } catch (error) {
+          // Keep page usable even if wallet/check-in fails
+          this.setData(buildCheckinView({ reward: 3, claimedToday: false }))
+        }
       }
     } catch (error) {
       if (error.statusCode === 401) {
@@ -95,10 +128,11 @@ Page({
     }
   },
 
-  applyUser(user, stats) {
+  applyUser(user, stats, levelProgress) {
     const nickname = user.nickname || ''
     const defaultNicks = { '微信用户': 1, 'WeChat User': 1, '微信网友': 1, '花漾用户': 1 }
     const isWechatPlaceholder = !nickname || Boolean(defaultNicks[nickname])
+    const level = (levelProgress && levelProgress.current) || user.level || null
     const nextStats = {
       ...emptyStats(),
       ...(stats || this.data.stats || {}),
@@ -116,7 +150,10 @@ Page({
       nickname: isWechatPlaceholder ? '' : nickname,
       bio: user.bio || '',
       avatarInitial: (!isWechatPlaceholder ? nickname : '画').slice(0, 1),
-      profileComplete: Boolean(user.profileComplete)
+      profileComplete: Boolean(user.profileComplete),
+      levelTitle: level?.title || '',
+      levelBadgeText: level?.badgeText || '',
+      levelBadgeTone: level?.badgeTone || 'mint'
     })
   },
 
@@ -278,13 +315,25 @@ Page({
       const result = await api.post('/api/checkins', {})
       getApp().setUser(result.user)
       this.applyUser(result.user)
-      this.setData(buildCheckinView({
+      this.setData(buildCheckinView(result.checkin || {
         reward: result.reward,
-        claimedToday: true
+        totalToday: result.reward,
+        claimedToday: true,
+        currentStreak: result.streak || 0,
+        streakBonus: result.streakBonus || 0,
+        campaignBonus: result.campaignBonus || 0,
+        baseReward: result.baseReward || result.reward
       }))
+      const extras = []
+      if (result.streakBonus > 0) extras.push(`连签+${result.streakBonus}`)
+      if (result.campaignBonus > 0) extras.push(`活动+${result.campaignBonus}`)
+      if ((result.levelRewards || []).length) extras.push(`升级「${result.levelRewards[0].title}」`)
       wx.showToast({
-        title: result.claimed ? `签到成功 +${result.reward}` : '今天已经签到',
-        icon: 'success'
+        title: result.claimed
+          ? `签到成功 +${result.reward}${extras.length ? `（${extras.join(' · ')}）` : ''}`
+          : '今天已经签到',
+        icon: 'none',
+        duration: 2500
       })
     } catch (error) {
       wx.showToast({ title: error.message || '签到失败', icon: 'none' })

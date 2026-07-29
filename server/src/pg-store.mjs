@@ -47,7 +47,7 @@ export class PostgresStore {
       await this.flush(this.state)
     }
     // Ensure new collection keys exist after upgrades
-    for (const key of ['jobResultFeedbacks', 'templateFavorites', 'templateRecents']) {
+    for (const key of ['jobResultFeedbacks', 'templateFavorites', 'templateRecents', 'userLevels', 'campaigns']) {
       if (!Array.isArray(this.state[key])) this.state[key] = []
     }
   }

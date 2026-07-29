@@ -20,7 +20,11 @@
 
       <view class="detail-meta">
         <text>人气 {{popularityText}}</text>
-        <text>{{template.cost}} 积分/张</text>
+        <text>
+          <text wx:if="{{template.costDiscounted}}" style="text-decoration:line-through;opacity:.55;margin-right:8rpx">{{template.originalCost}}</text>
+          {{template.cost}} 积分/张
+          <text wx:if="{{template.costDiscounted}}" style="color:var(--coral);margin-left:8rpx">特惠</text>
+        </text>
       </view>
 
       <view class="tag-row" wx:if="{{displayTags.length}}">

@@ -45,6 +45,40 @@
   overflow: visible;
 }
 
+.avatar-level-badge {
+  position: absolute;
+  left: -4rpx;
+  top: -4rpx;
+  z-index: 3;
+  min-width: 40rpx;
+  height: 40rpx;
+  padding: 0 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  border: 3rpx solid #fff;
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 6rpx 14rpx rgba(80, 70, 75, 0.18);
+}
+
+.avatar-level-badge--mint { background: #5ea68f; }
+.avatar-level-badge--coral { background: #e07a6a; }
+.avatar-level-badge--gold { background: #c9a227; }
+.avatar-level-badge--rose { background: #d46a8c; }
+.avatar-level-badge--violet { background: #8a7ab8; }
+.avatar-level-badge--sky { background: #5b8eb8; }
+
+.profile-level-title {
+  margin-top: 8rpx;
+  color: var(--coral);
+  font-size: 22rpx;
+  font-weight: 650;
+}
+
 .avatar-button {
   position: absolute;
   left: 0;
@@ -297,6 +331,28 @@
   color: var(--muted);
   font-size: 20rpx;
   line-height: 1.4;
+}
+
+.checkin-tip {
+  margin-top: 8rpx;
+  color: var(--coral);
+  font-size: 20rpx;
+  line-height: 1.4;
+}
+
+.checkin-milestones {
+  margin-top: 10rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.checkin-milestone {
+  padding: 4rpx 12rpx;
+  background: var(--mint-soft);
+  color: var(--green);
+  border-radius: 999rpx;
+  font-size: 18rpx;
 }
 
 .checkin-button {

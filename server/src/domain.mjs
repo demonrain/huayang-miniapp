@@ -2,6 +2,12 @@ import { randomBytes } from 'node:crypto'
 import { config } from './config.mjs'
 import { templates as defaultTemplates, creditPackages as defaultPackages } from './catalog.mjs'
 import { thumbStoragePath } from './thumbs.mjs'
+import {
+  DEFAULT_CHECKIN_STREAK_BONUSES,
+  DEFAULT_USER_LEVELS,
+  ensureEngagementCollections,
+  resolveTemplateUnitCost
+} from './engagement.mjs'
 
 const statusLabels = {
   queued: '排队中',
@@ -137,7 +143,8 @@ export function seedConfig(draft) {
       bannerCircular: true,
       announcementSwitchIntervalMs: 4500,
       announcementCircular: true,
-      ...DEFAULT_SHARE_REWARD_SETTINGS
+      ...DEFAULT_SHARE_REWARD_SETTINGS,
+      checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item }))
     }
     changed = true
   } else {
@@ -150,7 +157,8 @@ export function seedConfig(draft) {
       bannerCircular: true,
       announcementSwitchIntervalMs: 4500,
       announcementCircular: true,
-      ...DEFAULT_SHARE_REWARD_SETTINGS
+      ...DEFAULT_SHARE_REWARD_SETTINGS,
+      checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item }))
     }
     for (const [key, value] of Object.entries(defaults)) {
       if (draft.settings[key] === undefined) {
@@ -248,6 +256,7 @@ export function seedConfig(draft) {
     }))
     changed = true
   }
+  if (ensureEngagementCollections(draft)) changed = true
   return changed
 }
 
@@ -296,6 +305,7 @@ export function publicTemplate(template, state, admin = false) {
     .filter(item => item.url)
   const categories = normalizeTemplateCategories(template)
   const categoryLabels = categories.map(id => categoryLabelFromState(state, id))
+  const pricing = resolveTemplateUnitCost(template, state)
   const value = {
     id: template.id,
     name: template.name,
@@ -306,7 +316,10 @@ export function publicTemplate(template, state, admin = false) {
     categoryLabel: categoryLabels[0] || '',
     categoryLabels,
     description: template.description,
-    cost: template.cost,
+    cost: pricing.cost,
+    originalCost: pricing.originalCost,
+    costDiscounted: pricing.discounted,
+    campaignName: pricing.campaignName || '',
     badge: template.badge || '',
     tags: Array.isArray(template.tags) ? template.tags : [],
     popularity: Number(template.popularity || 0),

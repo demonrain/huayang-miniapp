@@ -46,6 +46,8 @@
         <button class="nav-item" data-view="templates"><span class="nav-icon">▦</span>模板管理</button>
         <button class="nav-item" data-view="categories"><span class="nav-icon">分</span>模板分类</button>
         <button class="nav-item" data-view="packages"><span class="nav-icon">¥</span>充值套餐</button>
+        <button class="nav-item" data-view="levels"><span class="nav-icon">等</span>用户等级</button>
+        <button class="nav-item" data-view="campaigns"><span class="nav-icon">活</span>运营活动</button>
       </nav>
       <button id="logoutButton" class="logout-button">退出登录</button>
     </aside>
@@ -67,10 +69,17 @@
           </div>
           <div class="form-grid">
             <label>新用户赠送积分<input name="welcomeCredits" type="number" min="0" max="100000" required></label>
-            <label>每日签到积分<input name="checkinCredits" type="number" min="0" max="100000" required></label>
+            <label>每日签到基础积分<input name="checkinCredits" type="number" min="0" max="100000" required></label>
             <label class="field-wide">默认分享标题<input name="shareTitle" maxlength="60" required></label>
           </div>
-          <div class="form-actions"><button class="button button--primary" type="submit">保存规则</button></div>
+          <div class="panel-heading" style="margin-top:18px">
+            <div><h3>连签额外奖励</h3><p>达到对应连续天数时，当日额外发放一次（与基础签到积分叠加）。</p></div>
+          </div>
+          <div id="streakBonusRows" class="streak-bonus-list"></div>
+          <div class="form-actions" style="margin-top:10px">
+            <button class="button button--quiet" id="addStreakBonusButton" type="button">＋ 增加连签档</button>
+            <button class="button button--primary" type="submit">保存规则</button>
+          </div>
         </form>
       </section>
 
@@ -194,7 +203,7 @@
           <div><h3>充值与消费记录</h3><p>包含充值、作品消费、签到、赠送、退款和后台调整。</p></div>
           <form id="transactionFilterForm" class="filter-bar">
             <input name="query" placeholder="昵称、用户 ID 或摘要">
-            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="cdk_redeem">CDK 兑换</option><option value="share_friend">分享好友</option><option value="share_timeline">分享朋友圈</option><option value="share_open">好友打开</option><option value="invite_login">邀请登录</option><option value="invite_first_job">邀请首作</option><option value="gallery_publish">分享到花海</option><option value="gallery_like_give">送花</option><option value="gallery_like_receive">作品收花</option><option value="admin_adjust">后台调整</option></select>
+            <select name="type"><option value="all">全部类型</option><option value="recharge">充值到账</option><option value="job_charge">作品生成</option><option value="job_refund">失败退回</option><option value="welcome">新用户赠送</option><option value="checkin">每日签到</option><option value="cdk_redeem">CDK 兑换</option><option value="share_friend">分享好友</option><option value="share_timeline">分享朋友圈</option><option value="share_open">好友打开</option><option value="checkin_streak">连签奖励</option><option value="level_up">等级升级</option><option value="campaign_bonus">活动奖励</option><option value="invite_login">邀请登录</option><option value="invite_first_job">邀请首作</option><option value="gallery_publish">分享到花海</option><option value="gallery_like_give">送花</option><option value="gallery_like_receive">作品收花</option><option value="admin_adjust">后台调整</option></select>
             <button class="button button--quiet" type="submit">查询</button>
           </form>
         </div>
@@ -497,6 +506,43 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section id="levelsView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div>
+            <h3>用户等级</h3>
+            <p>按活跃维度评定等级；达标后展示头像角标与称号，并可配置一次性升级积分奖励。</p>
+          </div>
+          <div class="toolbar-actions">
+            <button id="addLevelButton" class="button button--quiet" type="button">＋ 新增等级</button>
+            <button id="saveLevelsButton" class="button button--primary" type="button">保存全部等级</button>
+          </div>
+        </div>
+        <div id="levelEditorList" class="level-editor-list"></div>
+      </section>
+
+      <section id="campaignsView" class="view-panel" hidden>
+        <div class="toolbar">
+          <div>
+            <h3>运营活动</h3>
+            <p>支持风格特惠、签到加赠、创作挑战、邀请狂欢、花海嘉年华等活动，用于拉动活跃。</p>
+          </div>
+          <button id="addCampaignButton" class="button button--primary" type="button"><span>＋</span>新建活动</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead>
+            <tr>
+              <th>活动</th>
+              <th>类型</th>
+              <th>时间</th>
+              <th>状态</th>
+              <th>规则摘要</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="campaignRows"></tbody>
+        </table></div>
       </section>
 
       <section id="messagesView" class="view-panel" hidden>
@@ -865,6 +911,46 @@
   <input id="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
   <input id="bannerImageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="campaignDialog" class="dialog">
+    <form id="campaignForm" method="dialog">
+      <div class="dialog-heading">
+        <div><h3 id="campaignDialogTitle">新建活动</h3><p>按活动类型填写对应规则；未开始或已结束不会生效。</p></div>
+        <button class="icon-button" type="button" data-close="campaignDialog" aria-label="关闭">×</button>
+      </div>
+      <div class="form-grid form-grid--dialog">
+        <label class="field-wide">活动名称<input name="name" maxlength="60" required></label>
+        <label>活动类型
+          <select name="type" id="campaignTypeSelect">
+            <option value="template_promo">风格特惠</option>
+            <option value="checkin_boost">签到加赠</option>
+            <option value="create_challenge">创作挑战</option>
+            <option value="invite_boost">邀请狂欢</option>
+            <option value="gallery_boost">花海嘉年华</option>
+          </select>
+        </label>
+        <label>角标文案<input name="badge" maxlength="20" placeholder="限时"></label>
+        <label>开始时间<input name="startAt" type="datetime-local" required></label>
+        <label>结束时间<input name="endAt" type="datetime-local" required></label>
+        <label class="field-wide">活动说明<textarea name="description" maxlength="500" rows="3" placeholder="给用户看的活动简介"></textarea></label>
+        <label class="campaign-field" data-campaign-fields="template_promo">参与模板 ID（逗号分隔，空=全部）
+          <input name="templateIds" placeholder="tpl_xxx,tpl_yyy">
+        </label>
+        <label class="campaign-field" data-campaign-fields="template_promo">特惠积分/张<input name="costOverride" type="number" min="0" max="100000" value="1"></label>
+        <label class="campaign-field" data-campaign-fields="checkin_boost">签到额外加赠积分<input name="checkinBonus" type="number" min="0" max="100000" value="2"></label>
+        <label class="campaign-field" data-campaign-fields="create_challenge">每完成一次创作奖励积分<input name="createJobBonus" type="number" min="0" max="100000" value="5"></label>
+        <label class="campaign-field" data-campaign-fields="invite_boost">邀请奖励倍数<input name="inviteBonusMultiplier" type="number" min="1" max="10" step="0.1" value="2"></label>
+        <label class="campaign-field" data-campaign-fields="gallery_boost">花海发布额外积分<input name="galleryPublishBonus" type="number" min="0" max="100000" value="3"></label>
+        <label class="campaign-field" data-campaign-fields="gallery_boost">送花额外积分（双方）<input name="galleryLikeBonus" type="number" min="0" max="100000" value="1"></label>
+        <label class="toggle-field field-wide"><input name="enabled" type="checkbox" checked><span>启用活动</span></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button button--quiet" type="button" data-close="campaignDialog">取消</button>
+        <button class="button button--primary" type="submit">保存活动</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="/admin/markdown.js"></script>
   <script src="/admin/app.js"></script>
 </body>

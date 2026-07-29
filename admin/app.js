@@ -37,7 +37,10 @@ const state = {
   editingCdkId: '',
   cdkListCache: [],
   editingAnnouncementId: '',
-  announcementListCache: []
+  announcementListCache: [],
+  levels: [],
+  campaigns: [],
+  editingCampaignId: ''
 }
 
 const elements = {
@@ -360,8 +363,29 @@ function renderOverview() {
   form.welcomeCredits.value = settings.welcomeCredits
   form.checkinCredits.value = settings.checkinCredits
   form.shareTitle.value = settings.shareTitle
+  renderStreakBonusRows(settings.checkinStreakBonuses || [])
   fillShareRewardForm(settings)
   fillBannerCarouselForm()
+}
+
+function renderStreakBonusRows(list = []) {
+  const host = document.querySelector('#streakBonusRows')
+  if (!host) return
+  const rows = (Array.isArray(list) && list.length ? list : [{ days: 3, bonus: 5 }, { days: 7, bonus: 15 }])
+  host.innerHTML = rows.map((item, index) => `
+    <div class="streak-bonus-row" data-index="${index}">
+      <label>连续天数 <input class="streak-days" type="number" min="1" max="365" value="${Number(item.days) || 1}"></label>
+      <label>额外积分 <input class="streak-bonus" type="number" min="0" max="100000" value="${Number(item.bonus) || 0}"></label>
+      <button class="row-button" type="button" data-streak-remove="${index}">删除</button>
+    </div>
+  `).join('')
+}
+
+function collectStreakBonuses() {
+  return [...document.querySelectorAll('#streakBonusRows .streak-bonus-row')].map(row => ({
+    days: Number(row.querySelector('.streak-days')?.value || 0),
+    bonus: Number(row.querySelector('.streak-bonus')?.value || 0)
+  })).filter(item => item.days > 0 && item.bonus > 0)
 }
 
 function fillShareRewardForm(settings = {}) {
@@ -948,7 +972,9 @@ async function switchView(name) {
     banners: '首页 Banner',
     templates: '模板管理',
     categories: '模板分类',
-    packages: '充值套餐'
+    packages: '充值套餐',
+    levels: '用户等级',
+    campaigns: '运营活动'
   }
   document.querySelectorAll('.view-panel').forEach(view => { view.hidden = view.id !== `${name}View` })
   document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('is-active', item.dataset.view === name))
@@ -964,6 +990,8 @@ async function switchView(name) {
     if (name === 'categories') renderCategories()
     if (name === 'banners') fillBannerCarouselForm()
     if (name === 'packages') await loadCdks()
+    if (name === 'levels') await loadUserLevels()
+    if (name === 'campaigns') await loadCampaigns()
   } catch (error) {
     showToast(error.message, true)
   }
@@ -1671,12 +1699,28 @@ elements.settingsForm.addEventListener('submit', async event => {
       json: {
         welcomeCredits: Number(values.get('welcomeCredits')),
         checkinCredits: Number(values.get('checkinCredits')),
-        shareTitle: String(values.get('shareTitle'))
+        shareTitle: String(values.get('shareTitle')),
+        checkinStreakBonuses: collectStreakBonuses()
       }
     })
     state.data.settings = result.settings
+    renderStreakBonusRows(result.settings?.checkinStreakBonuses || [])
     showToast('规则已保存')
   } catch (error) { showToast(error.message, true) }
+})
+
+document.querySelector('#addStreakBonusButton')?.addEventListener('click', () => {
+  const current = collectStreakBonuses()
+  current.push({ days: 14, bonus: 30 })
+  renderStreakBonusRows(current)
+})
+
+document.querySelector('#streakBonusRows')?.addEventListener('click', event => {
+  const btn = event.target.closest('[data-streak-remove]')
+  if (!btn) return
+  const current = collectStreakBonuses()
+  current.splice(Number(btn.dataset.streakRemove), 1)
+  renderStreakBonusRows(current.length ? current : [{ days: 3, bonus: 5 }])
 })
 
 elements.shareRewardForm?.addEventListener('submit', async event => {
@@ -2478,6 +2522,276 @@ elements.subscribeBroadcastForm?.addEventListener('submit', async event => {
 
 document.querySelectorAll('[data-close]').forEach(button => {
   button.addEventListener('click', () => document.querySelector(`#${button.dataset.close}`).close())
+})
+
+function toLocalDateTimeInput(iso) {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = value => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function fromLocalDateTimeInput(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString()
+}
+
+function campaignSummary(item) {
+  if (item.type === 'template_promo') {
+    const ids = (item.templateIds || []).length
+    return `特惠 ${Number(item.costOverride)} 积分/张${ids ? ` · ${ids} 个模板` : ' · 全部模板'}`
+  }
+  if (item.type === 'checkin_boost') return `签到额外 +${Number(item.checkinBonus || 0)}`
+  if (item.type === 'create_challenge') return `每完成创作 +${Number(item.createJobBonus || 0)}`
+  if (item.type === 'invite_boost') return `邀请奖励 ×${Number(item.inviteBonusMultiplier || 1)}`
+  if (item.type === 'gallery_boost') {
+    return `花海发布 +${Number(item.galleryPublishBonus || 0)} · 送花 +${Number(item.galleryLikeBonus || 0)}`
+  }
+  return item.description || '—'
+}
+
+function syncCampaignFieldVisibility(type) {
+  document.querySelectorAll('.campaign-field').forEach(field => {
+    const keys = String(field.dataset.campaignFields || '').split(',').map(item => item.trim())
+    field.hidden = !keys.includes(type)
+  })
+}
+
+async function loadUserLevels() {
+  const host = document.querySelector('#levelEditorList')
+  if (!host) return
+  const result = await api('/api/admin/user-levels')
+  state.levels = result.levels || []
+  renderLevelEditor()
+}
+
+function renderLevelEditor() {
+  const host = document.querySelector('#levelEditorList')
+  if (!host) return
+  const list = state.levels || []
+  host.innerHTML = list.map((level, index) => {
+    const c = level.conditions || {}
+    return `
+    <article class="level-card" data-level-index="${index}">
+      <div class="level-card__head">
+        <strong>${escapeHtml(level.name || `等级 ${index + 1}`)}</strong>
+        <label class="toggle-field"><input type="checkbox" class="level-enabled" ${level.enabled !== false ? 'checked' : ''}><span>启用</span></label>
+      </div>
+      <div class="form-grid form-grid--dense">
+        <label>等级 ID <input class="level-id" value="${escapeHtml(level.id || '')}" ${level.id ? 'readonly' : ''}></label>
+        <label>名称 <input class="level-name" value="${escapeHtml(level.name || '')}" maxlength="40"></label>
+        <label>称号 <input class="level-title" value="${escapeHtml(level.title || '')}" maxlength="40"></label>
+        <label>角标文字 <input class="level-badge-text" value="${escapeHtml(level.badgeText || '芽')}" maxlength="2"></label>
+        <label>角标色调
+          <select class="level-badge-tone">
+            ${['mint', 'coral', 'gold', 'rose', 'violet', 'sky'].map(tone =>
+              `<option value="${tone}" ${level.badgeTone === tone ? 'selected' : ''}>${tone}</option>`
+            ).join('')}
+          </select>
+        </label>
+        <label>排序 <input class="level-sort" type="number" value="${Number(level.sortOrder || (index + 1) * 10)}"></label>
+        <label>升级奖励积分 <input class="level-reward" type="number" min="0" value="${Number(level.rewardCredits || 0)}"></label>
+        <label>最少签到天数 <input class="level-min-checkin" type="number" min="0" value="${Number(c.minCheckinDays || 0)}"></label>
+        <label>最少完成创作 <input class="level-min-jobs" type="number" min="0" value="${Number(c.minCompletedJobs || 0)}"></label>
+        <label>最少生成张数 <input class="level-min-images" type="number" min="0" value="${Number(c.minGeneratedImages || 0)}"></label>
+        <label>最少分享次数 <input class="level-min-share" type="number" min="0" value="${Number(c.minShareCount || 0)}"></label>
+        <label>最少邀请人数 <input class="level-min-invite" type="number" min="0" value="${Number(c.minInviteCount || 0)}"></label>
+        <label>最少收到鲜花 <input class="level-min-flowers" type="number" min="0" value="${Number(c.minFlowersReceived || 0)}"></label>
+        <label>最少活跃天数 <input class="level-min-active" type="number" min="0" value="${Number(c.minActiveDays || 0)}"></label>
+      </div>
+      <div class="row-actions">
+        <button class="row-button row-button--danger" type="button" data-level-remove="${index}">删除此等级</button>
+      </div>
+    </article>`
+  }).join('') || '<p class="muted">暂无等级，请点击「新增等级」</p>'
+}
+
+function collectLevelsFromEditor() {
+  return [...document.querySelectorAll('#levelEditorList .level-card')].map((card, index) => ({
+    id: String(card.querySelector('.level-id')?.value || `level-${index + 1}`).trim(),
+    name: String(card.querySelector('.level-name')?.value || '').trim(),
+    title: String(card.querySelector('.level-title')?.value || '').trim(),
+    badgeText: String(card.querySelector('.level-badge-text')?.value || '芽').trim().slice(0, 2),
+    badgeTone: String(card.querySelector('.level-badge-tone')?.value || 'mint'),
+    sortOrder: Number(card.querySelector('.level-sort')?.value || (index + 1) * 10),
+    rewardCredits: Number(card.querySelector('.level-reward')?.value || 0),
+    enabled: Boolean(card.querySelector('.level-enabled')?.checked),
+    conditions: {
+      minCheckinDays: Number(card.querySelector('.level-min-checkin')?.value || 0),
+      minCompletedJobs: Number(card.querySelector('.level-min-jobs')?.value || 0),
+      minGeneratedImages: Number(card.querySelector('.level-min-images')?.value || 0),
+      minShareCount: Number(card.querySelector('.level-min-share')?.value || 0),
+      minInviteCount: Number(card.querySelector('.level-min-invite')?.value || 0),
+      minFlowersReceived: Number(card.querySelector('.level-min-flowers')?.value || 0),
+      minActiveDays: Number(card.querySelector('.level-min-active')?.value || 0)
+    }
+  }))
+}
+
+async function loadCampaigns() {
+  const result = await api('/api/admin/campaigns')
+  state.campaigns = result.campaigns || []
+  renderCampaignRows()
+}
+
+function renderCampaignRows() {
+  const host = document.querySelector('#campaignRows')
+  if (!host) return
+  host.innerHTML = (state.campaigns || []).map(item => `
+    <tr>
+      <td>
+        <strong>${escapeHtml(item.name)}</strong>
+        <span class="cell-subtitle">${escapeHtml(item.badge || '')}</span>
+      </td>
+      <td><span class="status-pill is-active">${escapeHtml(item.typeLabel || item.type)}</span></td>
+      <td>${escapeHtml(formatDate(item.startAt))} ~ ${escapeHtml(formatDate(item.endAt))}</td>
+      <td><span class="status-pill${item.active ? ' is-active' : ''}">${item.active ? '进行中' : (item.enabled === false ? '已停用' : '未开始/已结束')}</span></td>
+      <td>${escapeHtml(campaignSummary(item))}</td>
+      <td class="row-actions">
+        <button class="row-button" type="button" data-campaign-action="edit" data-id="${escapeHtml(item.id)}">编辑</button>
+        <button class="row-button row-button--danger" type="button" data-campaign-action="delete" data-id="${escapeHtml(item.id)}">删除</button>
+      </td>
+    </tr>
+  `).join('') || emptyRow(6, '暂无活动，点击右上角新建')
+}
+
+function openCampaignDialog(campaign = null) {
+  const dialog = document.querySelector('#campaignDialog')
+  const form = document.querySelector('#campaignForm')
+  if (!dialog || !form) return
+  state.editingCampaignId = campaign?.id || ''
+  document.querySelector('#campaignDialogTitle').textContent = campaign ? '编辑活动' : '新建活动'
+  form.reset()
+  form.elements.name.value = campaign?.name || ''
+  form.elements.type.value = campaign?.type || 'template_promo'
+  form.elements.badge.value = campaign?.badge || ''
+  form.elements.description.value = campaign?.description || ''
+  form.elements.startAt.value = toLocalDateTimeInput(campaign?.startAt)
+  form.elements.endAt.value = toLocalDateTimeInput(campaign?.endAt)
+  form.elements.templateIds.value = (campaign?.templateIds || []).join(',')
+  form.elements.costOverride.value = Number(campaign?.costOverride ?? 1)
+  form.elements.checkinBonus.value = Number(campaign?.checkinBonus ?? 2)
+  form.elements.createJobBonus.value = Number(campaign?.createJobBonus ?? 5)
+  form.elements.inviteBonusMultiplier.value = Number(campaign?.inviteBonusMultiplier ?? 2)
+  form.elements.galleryPublishBonus.value = Number(campaign?.galleryPublishBonus ?? 3)
+  form.elements.galleryLikeBonus.value = Number(campaign?.galleryLikeBonus ?? 1)
+  form.elements.enabled.checked = campaign ? campaign.enabled !== false : true
+  syncCampaignFieldVisibility(form.elements.type.value)
+  dialog.showModal()
+}
+
+document.querySelector('#addLevelButton')?.addEventListener('click', () => {
+  state.levels = collectLevelsFromEditor()
+  state.levels.push({
+    id: `level-${Date.now().toString(36)}`,
+    name: '新等级',
+    title: '新称号',
+    badgeText: '新',
+    badgeTone: 'mint',
+    sortOrder: (state.levels.length + 1) * 10,
+    rewardCredits: 0,
+    enabled: true,
+    conditions: {
+      minCheckinDays: 0,
+      minCompletedJobs: 0,
+      minGeneratedImages: 0,
+      minShareCount: 0,
+      minInviteCount: 0,
+      minFlowersReceived: 0,
+      minActiveDays: 0
+    }
+  })
+  renderLevelEditor()
+})
+
+document.querySelector('#saveLevelsButton')?.addEventListener('click', async () => {
+  try {
+    const levels = collectLevelsFromEditor()
+    const result = await api('/api/admin/user-levels', {
+      method: 'PUT',
+      json: { levels }
+    })
+    state.levels = result.levels || []
+    renderLevelEditor()
+    showToast(result.message || '用户等级已保存')
+  } catch (error) {
+    showToast(error.message, true)
+  }
+})
+
+document.querySelector('#levelEditorList')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-level-remove]')
+  if (!button) return
+  state.levels = collectLevelsFromEditor()
+  state.levels.splice(Number(button.dataset.levelRemove), 1)
+  renderLevelEditor()
+})
+
+document.querySelector('#addCampaignButton')?.addEventListener('click', () => openCampaignDialog())
+
+document.querySelector('#campaignTypeSelect')?.addEventListener('change', event => {
+  syncCampaignFieldVisibility(event.target.value)
+})
+
+document.querySelector('#campaignForm')?.addEventListener('submit', async event => {
+  event.preventDefault()
+  const form = event.currentTarget
+  const values = new FormData(form)
+  const payload = {
+    name: String(values.get('name') || '').trim(),
+    type: String(values.get('type') || 'template_promo'),
+    badge: String(values.get('badge') || '').trim(),
+    description: String(values.get('description') || '').trim(),
+    startAt: fromLocalDateTimeInput(values.get('startAt')),
+    endAt: fromLocalDateTimeInput(values.get('endAt')),
+    templateIds: String(values.get('templateIds') || '').split(',').map(item => item.trim()).filter(Boolean),
+    costOverride: Number(values.get('costOverride') || 0),
+    checkinBonus: Number(values.get('checkinBonus') || 0),
+    createJobBonus: Number(values.get('createJobBonus') || 0),
+    inviteBonusMultiplier: Number(values.get('inviteBonusMultiplier') || 1),
+    galleryPublishBonus: Number(values.get('galleryPublishBonus') || 0),
+    galleryLikeBonus: Number(values.get('galleryLikeBonus') || 0),
+    enabled: Boolean(form.elements.enabled?.checked)
+  }
+  try {
+    if (state.editingCampaignId) {
+      await api(`/api/admin/campaigns/${encodeURIComponent(state.editingCampaignId)}`, {
+        method: 'PATCH',
+        json: payload
+      })
+      showToast('活动已更新')
+    } else {
+      await api('/api/admin/campaigns', { method: 'POST', json: payload })
+      showToast('活动已创建')
+    }
+    document.querySelector('#campaignDialog')?.close()
+    await loadCampaigns()
+  } catch (error) {
+    showToast(error.message, true)
+  }
+})
+
+document.querySelector('#campaignRows')?.addEventListener('click', async event => {
+  const button = event.target.closest('[data-campaign-action]')
+  if (!button) return
+  const id = button.dataset.id
+  const campaign = (state.campaigns || []).find(item => item.id === id)
+  if (button.dataset.campaignAction === 'edit') {
+    openCampaignDialog(campaign)
+    return
+  }
+  if (button.dataset.campaignAction === 'delete') {
+    if (!window.confirm('确认删除该活动？')) return
+    try {
+      await api(`/api/admin/campaigns/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      showToast('活动已删除')
+      await loadCampaigns()
+    } catch (error) {
+      showToast(error.message, true)
+    }
+  }
 })
 
 if (state.token) {

@@ -36,6 +36,28 @@ import {
 import { ensureThumb, findOriginalForThumb, isThumbPath } from './thumbs.mjs'
 import { createMiniProgramCode, createMiniProgramUrlLink, buildShareFallbackText, isWechatShareConfigured } from './wechat-share.mjs'
 import {
+  buildCheckinSummary,
+  normalizeStreakBonuses,
+  streakBonusForDay,
+  activeCheckinCampaignBonus,
+  listUserCheckinDateKeys,
+  listUserLevels,
+  normalizeUserLevel,
+  computeUserLevelMetrics,
+  resolveUserLevel,
+  publicLevel,
+  levelMeetsConditions,
+  listActiveCampaigns,
+  publicCampaign,
+  normalizeCampaign,
+  CAMPAIGN_TYPE_LABELS,
+  DEFAULT_USER_LEVELS,
+  resolveTemplateUnitCost,
+  inviteRewardMultiplier,
+  createChallengeBonus,
+  galleryRewardBoost
+} from './engagement.mjs'
+import {
   isSubscribeNotifyConfigured,
   sendAdminSubscribeMessage,
   sendJobResultSubscribeMessage
@@ -68,6 +90,9 @@ function userAvatarUrl(user, state) {
 function publicUser(user, state) {
   const rawNickname = String(user.nickname || '').trim()
   const hasRealNickname = Boolean(rawNickname) && !isDefaultWechatNickname(rawNickname)
+  const flowersReceived = countUserFlowersReceived(state, user.id)
+  const metrics = computeUserLevelMetrics(state, user.id, { flowersReceived })
+  const { current: level } = resolveUserLevel(state, user.id, metrics)
   return {
     id: user.id,
     maskedId: user.id.slice(0, 4).toUpperCase(),
@@ -82,11 +107,28 @@ function publicUser(user, state) {
       (user.avatarAssetId || user.avatarUrl)
     ),
     credits: user.credits,
-    flowersReceived: countUserFlowersReceived(state, user.id),
+    flowersReceived,
+    level: publicLevel(level),
+    levelMetrics: metrics,
     isNew: Boolean(user.isNew),
     enabled: user.enabled !== false,
     createdAt: user.createdAt
   }
+}
+
+function applyLevelUpRewards(draft, userId, metrics) {
+  const target = draft.users.find(item => item.id === userId)
+  if (!target) return []
+  if (!Array.isArray(target.claimedLevelIds)) target.claimedLevelIds = []
+  const rewards = []
+  for (const level of listUserLevels(draft)) {
+    if (!level.rewardCredits || target.claimedLevelIds.includes(level.id)) continue
+    if (!levelMeetsConditions(level, metrics)) continue
+    target.claimedLevelIds.push(level.id)
+    creditUser(draft, userId, level.rewardCredits, 'level_up', `升级奖励 · ${level.title}`, level.id)
+    rewards.push({ levelId: level.id, title: level.title, reward: level.rewardCredits })
+  }
+  return rewards
 }
 
 /** 若仍是微信默认昵称，写入产品风格随机名（兼容老账号） */
@@ -457,6 +499,9 @@ const transactionLabels = {
   share_friend: '分享作品到好友',
   share_timeline: '分享作品到朋友圈',
   share_open: '好友打开作品奖励',
+  level_up: '用户等级升级',
+  checkin_streak: '连签额外奖励',
+  campaign_bonus: '活动奖励',
   invite_login: '邀请新用户登录',
   invite_first_job: '邀请新用户完成首作',
   cdk_redeem: 'CDK 兑换积分',
@@ -673,17 +718,18 @@ function applyInviteLoginReward(draft, invitee, inviteToken) {
 
   let loginReward = 0
   if (settings.inviteLoginCredits > 0) {
+    const amount = Math.round(settings.inviteLoginCredits * inviteRewardMultiplier(draft))
     creditUser(
       draft,
       inviter.id,
-      settings.inviteLoginCredits,
+      amount,
       'invite_login',
       '邀请新用户登录奖励',
       invitee.id
     )
     invite.loginRewarded = true
     invite.loginRewardedAt = now()
-    loginReward = settings.inviteLoginCredits
+    loginReward = amount
   }
   draft.invites.push(invite)
   return { invite, loginReward, inviterId: inviter.id }
@@ -706,17 +752,18 @@ function applyInviteFirstJobReward(draft, inviteeUserId) {
     item => item.userId === inviteeUserId && (item.status === 'succeeded' || item.status === 'partial') && (item.results || []).length
   ).length
   if (succeededCount !== 1) return null
+  const amount = Math.round(settings.inviteFirstJobCredits * inviteRewardMultiplier(draft))
   creditUser(
     draft,
     inviter.id,
-    settings.inviteFirstJobCredits,
+    amount,
     'invite_first_job',
     '邀请新用户完成首作奖励',
     inviteeUserId
   )
   invite.firstJobRewarded = true
   invite.firstJobRewardedAt = now()
-  return { invite, reward: settings.inviteFirstJobCredits, inviterId: inviter.id }
+  return { invite, reward: amount, inviterId: inviter.id }
 }
 
 function applyPackageFields(target, body, creating = false) {
@@ -866,6 +913,14 @@ export async function createApplication() {
           job.status = 'succeeded'
           job.error = ''
           applyInviteFirstJobReward(draft, job.userId)
+          const challengeBonus = createChallengeBonus(draft)
+          if (challengeBonus > 0 && !job.campaignCreateRewarded) {
+            creditUser(draft, job.userId, challengeBonus, 'campaign_bonus', '创作挑战活动奖励', job.id)
+            job.campaignCreateRewarded = true
+          }
+          const flowersReceived = countUserFlowersReceived(draft, job.userId)
+          const metrics = computeUserLevelMetrics(draft, job.userId, { flowersReceived })
+          applyLevelUpRewards(draft, job.userId, metrics)
         } else {
           job.status = 'failed'
           job.error = `全部生图失败：${(job.failures[0] && job.failures[0].error) || '未知错误'}（积分已退回）`
@@ -977,6 +1032,7 @@ export async function createApplication() {
         json(response, 200, {
           newUserCredits: state.settings.welcomeCredits,
           checkinCredits: state.settings.checkinCredits,
+          checkinStreakBonuses: normalizeStreakBonuses(state.settings.checkinStreakBonuses),
           maxUploadMb: config.maxUploadBytes / 1024 / 1024,
           imageProvider: config.image.provider,
           paymentMode: config.payment.mode,
@@ -987,6 +1043,23 @@ export async function createApplication() {
           bannerCarousel: publicBannerSettings(state.settings),
           announcementCarousel: publicAnnouncementCarouselSettings(state.settings),
           shareRewards: publicShareRewardSettings(state.settings)
+        })
+        return
+      }
+
+      if (request.method === 'GET' && pathname === '/api/campaigns/active') {
+        const state = store.read()
+        const nowMs = Date.now()
+        json(response, 200, {
+          campaigns: listActiveCampaigns(state, nowMs).map(item => publicCampaign(item, nowMs))
+        })
+        return
+      }
+
+      if (request.method === 'GET' && pathname === '/api/user-levels') {
+        const state = store.read()
+        json(response, 200, {
+          levels: listUserLevels(state).map(publicLevel)
         })
         return
       }
@@ -1258,6 +1331,9 @@ export async function createApplication() {
           const settings = await store.transaction(draft => {
             if ('welcomeCredits' in body) draft.settings.welcomeCredits = boundedInteger(body.welcomeCredits, '新用户积分', 0, 100000)
             if ('checkinCredits' in body) draft.settings.checkinCredits = boundedInteger(body.checkinCredits, '签到积分', 0, 100000)
+            if ('checkinStreakBonuses' in body) {
+              draft.settings.checkinStreakBonuses = normalizeStreakBonuses(body.checkinStreakBonuses)
+            }
             if ('shareTitle' in body) draft.settings.shareTitle = cleanText(body.shareTitle, '分享标题', 60, true)
             if ('bannerSwitchMode' in body) {
               const mode = String(body.bannerSwitchMode || '').trim()
@@ -1297,6 +1373,90 @@ export async function createApplication() {
             bannerCarousel: publicBannerSettings(settings),
             shareRewards: publicShareRewardSettings(settings)
           })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/user-levels') {
+          const state = store.read()
+          json(response, 200, {
+            levels: listUserLevels(state, { includeDisabled: true })
+          })
+          return
+        }
+
+        if (request.method === 'PUT' && pathname === '/api/admin/user-levels') {
+          const body = await readJson(request)
+          const levels = await store.transaction(draft => {
+            const incoming = Array.isArray(body.levels) ? body.levels : []
+            draft.userLevels = incoming.map((item, index) => normalizeUserLevel(item, index))
+            if (!draft.userLevels.length) {
+              draft.userLevels = DEFAULT_USER_LEVELS.map(item => ({ ...item, conditions: { ...item.conditions } }))
+            }
+            return listUserLevels(draft, { includeDisabled: true })
+          })
+          json(response, 200, { levels, message: '用户等级已保存' })
+          return
+        }
+
+        if (request.method === 'GET' && pathname === '/api/admin/campaigns') {
+          const state = store.read()
+          const nowMs = Date.now()
+          json(response, 200, {
+            campaigns: (state.campaigns || []).map(item => publicCampaign(item, nowMs)),
+            types: Object.entries(CAMPAIGN_TYPE_LABELS).map(([id, label]) => ({ id, label }))
+          })
+          return
+        }
+
+        if (request.method === 'POST' && pathname === '/api/admin/campaigns') {
+          const body = await readJson(request)
+          const created = await store.transaction(draft => {
+            if (!Array.isArray(draft.campaigns)) draft.campaigns = []
+            const item = normalizeCampaign({
+              ...body,
+              id: randomUUID(),
+              createdAt: now(),
+              updatedAt: now()
+            })
+            if (!item.name) throw new HttpError(400, 'INVALID_FIELD', '活动名称不能为空')
+            if (!item.startAt || !item.endAt) throw new HttpError(400, 'INVALID_FIELD', '请设置活动起止时间')
+            draft.campaigns.push(item)
+            return item
+          })
+          json(response, 201, { campaign: publicCampaign(created), message: '活动已创建' })
+          return
+        }
+
+        const adminCampaignMatch = pathname.match(/^\/api\/admin\/campaigns\/([^/]+)$/)
+        if (adminCampaignMatch && request.method === 'PATCH') {
+          const campaignId = adminCampaignMatch[1]
+          const body = await readJson(request)
+          const updated = await store.transaction(draft => {
+            if (!Array.isArray(draft.campaigns)) draft.campaigns = []
+            const index = draft.campaigns.findIndex(item => item.id === campaignId)
+            if (index === -1) throw new HttpError(404, 'CAMPAIGN_NOT_FOUND', '活动不存在')
+            const next = normalizeCampaign({
+              ...draft.campaigns[index],
+              ...body,
+              id: campaignId,
+              updatedAt: now()
+            })
+            draft.campaigns[index] = next
+            return next
+          })
+          json(response, 200, { campaign: publicCampaign(updated), message: '活动已更新' })
+          return
+        }
+
+        if (adminCampaignMatch && request.method === 'DELETE') {
+          const campaignId = adminCampaignMatch[1]
+          await store.transaction(draft => {
+            if (!Array.isArray(draft.campaigns)) draft.campaigns = []
+            const index = draft.campaigns.findIndex(item => item.id === campaignId)
+            if (index === -1) throw new HttpError(404, 'CAMPAIGN_NOT_FOUND', '活动不存在')
+            draft.campaigns.splice(index, 1)
+          })
+          json(response, 200, { ok: true, id: campaignId, message: '活动已删除' })
           return
         }
 
@@ -2469,8 +2629,19 @@ export async function createApplication() {
             completedJobs: succeeded.length,
             generatedImages: succeeded.reduce((sum, item) => sum + (item.results || []).length, 0),
             flowersReceived,
-            sharedJobs: succeeded.filter(item => item.publicShareEnabled).length
-          }
+            sharedJobs: succeeded.filter(item => item.publicShareEnabled).length,
+            checkinDays: listUserCheckinDateKeys(state, user.id).length,
+            shareCount: (state.shareEvents || []).filter(
+              item => item.userId === user.id && ['friend', 'timeline'].includes(item.channel)
+            ).length,
+            inviteCount: (state.invites || []).filter(item => item.inviterId === user.id).length
+          },
+          checkin: buildCheckinSummary(state, user.id, chinaDateKey()),
+          levelProgress: (() => {
+            const metrics = computeUserLevelMetrics(state, user.id, { flowersReceived })
+            const { current, next } = resolveUserLevel(state, user.id, metrics)
+            return { current: publicLevel(current), next: publicLevel(next), metrics }
+          })()
         })
         return
       }
@@ -2515,7 +2686,8 @@ export async function createApplication() {
           const ownerAssets = body.assetIds.map(id => draft.assets.find(item => item.id === id && item.userId === user.id))
           if (ownerAssets.some(item => !item)) throw new HttpError(400, 'INVALID_ASSET', '部分图片不存在，请重新上传')
           const target = draft.users.find(item => item.id === user.id)
-          const cost = currentTemplate.cost * body.assetIds.length
+          const unitCost = resolveTemplateUnitCost(currentTemplate, draft).cost
+          const cost = unitCost * body.assetIds.length
           if (target.credits < cost) throw new HttpError(409, 'INSUFFICIENT_CREDITS', '积分不足，请先充值')
           target.credits -= cost
           target.updatedAt = now()
@@ -2526,6 +2698,7 @@ export async function createApplication() {
             templateId: currentTemplate.id,
             assetIds: body.assetIds,
             cost,
+            unitCost,
             status: 'queued',
             results: [],
             failures: [],
@@ -2650,7 +2823,8 @@ export async function createApplication() {
             let publishReward = 0
             if (!wasPublic && !job.publicSharePublishRewarded) {
               const rewards = publicShareRewardSettings(draft.settings)
-              const amount = Number(rewards.galleryPublishCredits || 0)
+              const boost = galleryRewardBoost(draft)
+              const amount = Number(rewards.galleryPublishCredits || 0) + Number(boost.publishExtra || 0)
               if (amount > 0) {
                 creditUser(draft, user.id, amount, 'gallery_publish', '分享到花海奖励', job.id)
                 job.publicSharePublishRewarded = true
@@ -2769,8 +2943,9 @@ export async function createApplication() {
             throw new HttpError(409, 'ALREADY_LIKED', '你已经送过花了')
           }
           const rewards = publicShareRewardSettings(draft.settings)
-          const likerCredits = Number(rewards.galleryLikeLikerCredits || 0)
-          const authorCredits = Number(rewards.galleryLikeAuthorCredits || 0)
+          const boost = galleryRewardBoost(draft)
+          const likerCredits = Number(rewards.galleryLikeLikerCredits || 0) + Number(boost.likeExtra || 0)
+          const authorCredits = Number(rewards.galleryLikeAuthorCredits || 0) + Number(boost.likeExtra || 0)
           // Persist sender (userId) for future「谁送的花」展示；现阶段仅计数
           draft.jobLikes.push({
             id: randomUUID(),
@@ -2840,7 +3015,7 @@ export async function createApplication() {
           if (!failIds.length) throw new HttpError(409, 'NOTHING_TO_RETRY', '没有可重试的失败图片')
           const template = findTemplate(draft, job.templateId, true)
           if (!template) throw new HttpError(404, 'TEMPLATE_NOT_FOUND', '模板不存在或已下架')
-          const unitCost = template.cost
+          const unitCost = resolveTemplateUnitCost(template, draft).cost
           const charge = unitCost * failIds.length
           const target = draft.users.find(item => item.id === user.id)
           if (target.credits < charge) throw new HttpError(409, 'INSUFFICIENT_CREDITS', '积分不足，请先充值')
@@ -3352,20 +3527,101 @@ export async function createApplication() {
         const result = await store.transaction(draft => {
           const existing = draft.transactions.find(item => item.userId === user.id && item.type === 'checkin' && item.externalRef === dateKey)
           const target = draft.users.find(item => item.id === user.id)
-          if (existing) return { claimed: false, user: target }
-          const amount = draft.settings.checkinCredits
-          target.credits += amount
+          if (existing) {
+            return {
+              claimed: false,
+              user: target,
+              baseReward: 0,
+              streakBonus: 0,
+              campaignBonus: 0,
+              totalReward: 0,
+              streak: buildCheckinSummary(draft, user.id, dateKey).currentStreak
+            }
+          }
+          const summaryBefore = buildCheckinSummary(draft, user.id, dateKey)
+          const baseReward = Number(draft.settings.checkinCredits || 0)
+          const streakBonus = Number(summaryBefore.streakBonus || 0)
+          const campaignBonus = Number(summaryBefore.campaignBonus || 0)
+          const totalReward = baseReward + streakBonus + campaignBonus
+          let balance = target.credits
+          target.credits += totalReward
           target.updatedAt = now()
-          draft.transactions.push({
-            id: randomUUID(), userId: user.id, type: 'checkin', title: '每日签到', amount,
-            balanceAfter: target.credits, externalRef: dateKey, createdAt: now()
-          })
-          return { claimed: true, user: target }
+          if (baseReward > 0) {
+            balance += baseReward
+            draft.transactions.push({
+              id: randomUUID(),
+              userId: user.id,
+              type: 'checkin',
+              title: '每日签到',
+              amount: baseReward,
+              balanceAfter: balance,
+              externalRef: dateKey,
+              createdAt: now()
+            })
+          } else {
+            // 仍写入签到记录以累计连签天数
+            draft.transactions.push({
+              id: randomUUID(),
+              userId: user.id,
+              type: 'checkin',
+              title: '每日签到',
+              amount: 0,
+              balanceAfter: balance,
+              externalRef: dateKey,
+              createdAt: now()
+            })
+          }
+          if (streakBonus > 0) {
+            balance += streakBonus
+            draft.transactions.push({
+              id: randomUUID(),
+              userId: user.id,
+              type: 'checkin_streak',
+              title: `连签 ${summaryBefore.upcomingStreak} 天额外奖励`,
+              amount: streakBonus,
+              balanceAfter: balance,
+              externalRef: `${dateKey}:streak`,
+              createdAt: now()
+            })
+          }
+          if (campaignBonus > 0) {
+            balance += campaignBonus
+            draft.transactions.push({
+              id: randomUUID(),
+              userId: user.id,
+              type: 'campaign_bonus',
+              title: '活动签到加赠',
+              amount: campaignBonus,
+              balanceAfter: balance,
+              externalRef: `${dateKey}:campaign`,
+              createdAt: now()
+            })
+          }
+          const flowersReceived = countUserFlowersReceived(draft, user.id)
+          const metrics = computeUserLevelMetrics(draft, user.id, { flowersReceived })
+          const levelRewards = applyLevelUpRewards(draft, user.id, metrics)
+          return {
+            claimed: true,
+            user: target,
+            baseReward,
+            streakBonus,
+            campaignBonus,
+            totalReward,
+            streak: summaryBefore.upcomingStreak,
+            levelRewards
+          }
         })
         const state = store.read()
+        const checkin = buildCheckinSummary(state, user.id, dateKey)
         json(response, 200, {
           claimed: result.claimed,
-          reward: state.settings.checkinCredits,
+          reward: result.claimed ? result.totalReward : 0,
+          baseReward: result.baseReward,
+          streakBonus: result.streakBonus,
+          campaignBonus: result.campaignBonus,
+          streak: result.streak,
+          levelRewards: result.levelRewards || [],
+          checkin,
           user: publicUser(state.users.find(item => item.id === user.id), state)
         })
         return
@@ -3392,10 +3648,7 @@ export async function createApplication() {
           transactions,
           transactionsTotal,
           transactionsHasMore: offset + transactions.length < transactionsTotal,
-          checkin: {
-            reward: state.settings.checkinCredits,
-            claimedToday: state.transactions.some(item => item.userId === user.id && item.type === 'checkin' && item.externalRef === chinaDateKey())
-          }
+          checkin: buildCheckinSummary(state, user.id, chinaDateKey())
         })
         return
       }
