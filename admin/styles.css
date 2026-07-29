@@ -371,6 +371,15 @@ tr:last-child td { border-bottom: 0; }
 }
 .toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .campaign-field[hidden] { display: none !important; }
+.community-qr-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.community-qr-preview {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7f8f8;
+}
 .feedback-content {
   max-width: 280px;
   white-space: pre-wrap;

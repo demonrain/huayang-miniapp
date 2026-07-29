@@ -26,12 +26,15 @@
         <view>· 同一账号对同一兑换码仅可兑换一次</view>
         <view>· 过期或已兑完的兑换码无法使用</view>
       </view>
-      <button
-        class="primary-button redeem-btn"
-        loading="{{redeeming}}"
-        disabled="{{redeeming}}"
-        bindtap="doRedeem"
-      >立即兑换</button>
+      <view class="redeem-actions">
+        <button
+          class="primary-button redeem-btn"
+          loading="{{redeeming}}"
+          disabled="{{redeeming}}"
+          bindtap="doRedeem"
+        >立即兑换</button>
+        <button class="ghost-button redeem-more-btn" bindtap="openMoreCredits">获取更多</button>
+      </view>
     </view>
 
     <view class="redeem-balance soft-card" wx:if="{{credits != null}}">
@@ -44,6 +47,28 @@
       <view class="section-title__sub">
         {{isLoggedIn ? ('最近 ' + (transactions.length || 0) + (transactionsTotal ? '/' + transactionsTotal : '') + ' 条') : '登录后查看'}}
       </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showMoreModal}}" class="more-mask" catchtouchmove="noop">
+    <view class="more-sheet" catchtap="noop">
+      <view class="more-sheet__title">获取更多积分</view>
+      <view class="more-sheet__sub">扫码加入社群，或添加微信咨询活动与兑换码</view>
+      <image
+        wx:if="{{communityQrUrl}}"
+        class="more-sheet__qr"
+        src="{{communityQrUrl}}"
+        mode="aspectFit"
+        show-menu-by-longpress
+        bindtap="previewQr"
+      ></image>
+      <view wx:else class="more-sheet__qr-empty">暂未配置群二维码</view>
+      <view class="more-sheet__wechat">
+        <text class="more-sheet__wechat-label">微信号</text>
+        <text class="more-sheet__wechat-id">{{communityWechatId}}</text>
+        <button class="ghost-button more-sheet__copy" bindtap="copyWechat">复制</button>
+      </view>
+      <button class="primary-button more-sheet__close" bindtap="closeMoreCredits">我知道了</button>
     </view>
   </view>
 

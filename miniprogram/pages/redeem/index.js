@@ -15,12 +15,52 @@ Page({
     isLoggedIn: false,
     redeeming: false,
     navSpacer: 176,
-    ledgerFooter: ''
+    ledgerFooter: '',
+    showMoreModal: false,
+    communityWechatId: 'demonrain',
+    communityQrUrl: ''
   },
 
   onLoad() {
     this.setData(getNavMetrics())
+    this.loadCommunity()
   },
+
+  async loadCommunity() {
+    try {
+      const config = await api.get('/api/config')
+      this.setData({
+        communityWechatId: config.communityWechatId || 'demonrain',
+        communityQrUrl: config.communityQrUrl || ''
+      })
+    } catch (error) {}
+  },
+
+  openMoreCredits() {
+    this.setData({ showMoreModal: true })
+  },
+
+  closeMoreCredits() {
+    this.setData({ showMoreModal: false })
+  },
+
+  previewQr() {
+    if (!this.data.communityQrUrl) return
+    wx.previewImage({
+      current: this.data.communityQrUrl,
+      urls: [this.data.communityQrUrl]
+    })
+  },
+
+  copyWechat() {
+    const id = this.data.communityWechatId || 'demonrain'
+    wx.setClipboardData({
+      data: id,
+      success: () => wx.showToast({ title: '微信号已复制', icon: 'success' })
+    })
+  },
+
+  noop() {},
 
   onShow() {
     this.loadPage({ reset: true })

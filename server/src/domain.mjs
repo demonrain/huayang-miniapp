@@ -144,7 +144,9 @@ export function seedConfig(draft) {
       announcementSwitchIntervalMs: 4500,
       announcementCircular: true,
       ...DEFAULT_SHARE_REWARD_SETTINGS,
-      checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item }))
+      checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item })),
+      communityWechatId: 'demonrain',
+      communityQrAssetId: ''
     }
     changed = true
   } else {
@@ -158,7 +160,9 @@ export function seedConfig(draft) {
       announcementSwitchIntervalMs: 4500,
       announcementCircular: true,
       ...DEFAULT_SHARE_REWARD_SETTINGS,
-      checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item }))
+      checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item })),
+      communityWechatId: 'demonrain',
+      communityQrAssetId: ''
     }
     for (const [key, value] of Object.entries(defaults)) {
       if (draft.settings[key] === undefined) {

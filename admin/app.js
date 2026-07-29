@@ -364,8 +364,26 @@ function renderOverview() {
   form.checkinCredits.value = settings.checkinCredits
   form.shareTitle.value = settings.shareTitle
   renderStreakBonusRows(settings.checkinStreakBonuses || [])
+  fillCommunityForm(settings)
   fillShareRewardForm(settings)
   fillBannerCarouselForm()
+}
+
+function fillCommunityForm(settings = {}) {
+  const form = document.querySelector('#communityForm')?.elements
+  if (!form) return
+  if (form.communityWechatId) form.communityWechatId.value = settings.communityWechatId || 'demonrain'
+  const preview = document.querySelector('#communityQrPreview')
+  const qrUrl = settings.communityQrUrl || ''
+  if (preview) {
+    if (qrUrl) {
+      preview.src = qrUrl
+      preview.hidden = false
+    } else {
+      preview.removeAttribute('src')
+      preview.hidden = true
+    }
+  }
 }
 
 function renderStreakBonusRows(list = []) {
@@ -1721,6 +1739,57 @@ document.querySelector('#streakBonusRows')?.addEventListener('click', event => {
   const current = collectStreakBonuses()
   current.splice(Number(btn.dataset.streakRemove), 1)
   renderStreakBonusRows(current.length ? current : [{ days: 3, bonus: 5 }])
+})
+
+document.querySelector('#communityForm')?.addEventListener('submit', async event => {
+  event.preventDefault()
+  const values = new FormData(event.currentTarget)
+  try {
+    const result = await api('/api/admin/settings', {
+      method: 'PATCH',
+      json: {
+        communityWechatId: String(values.get('communityWechatId') || 'demonrain').trim()
+      }
+    })
+    if (state.data) {
+      state.data.settings = {
+        ...state.data.settings,
+        ...result.settings,
+        communityQrUrl: result.community?.qrUrl || state.data.settings.communityQrUrl || ''
+      }
+    }
+    fillCommunityForm(state.data?.settings || {})
+    showToast('社群引导已保存')
+  } catch (error) {
+    showToast(error.message, true)
+  }
+})
+
+document.querySelector('#communityQrUploadButton')?.addEventListener('click', () => {
+  document.querySelector('#communityQrInput')?.click()
+})
+
+document.querySelector('#communityQrInput')?.addEventListener('change', async event => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  const form = new FormData()
+  form.append('image', file)
+  try {
+    const result = await api('/api/admin/community-qr', { method: 'POST', body: form })
+    if (state.data) {
+      state.data.settings = {
+        ...state.data.settings,
+        ...result.settings,
+        communityQrUrl: result.community?.qrUrl || ''
+      }
+    }
+    fillCommunityForm(state.data?.settings || {})
+    showToast(result.message || '二维码已上传')
+  } catch (error) {
+    showToast(error.message, true)
+  } finally {
+    event.target.value = ''
+  }
 })
 
 elements.shareRewardForm?.addEventListener('submit', async event => {

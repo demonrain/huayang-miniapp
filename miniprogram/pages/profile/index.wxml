@@ -86,11 +86,7 @@
     <view class="checkin-row">
       <view class="checkin-copy">
         <view class="checkin-title">{{checkinTitle}}</view>
-        <view class="checkin-sub">{{checkinSub}}</view>
         <view wx:if="{{checkinTip}}" class="checkin-tip">{{checkinTip}}</view>
-        <view wx:if="{{streakBonuses.length}}" class="checkin-milestones">
-          <text wx:for="{{streakBonuses}}" wx:key="days" class="checkin-milestone">连签{{item.days}}天+{{item.bonus}}</text>
-        </view>
       </view>
       <button
         class="checkin-button {{checkinDone ? 'checkin-button--done' : ''}}"

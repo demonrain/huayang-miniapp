@@ -116,7 +116,8 @@ export const CAMPAIGN_TYPE_LABELS = {
 }
 
 export function normalizeStreakBonuses(raw) {
-  const list = Array.isArray(raw) ? raw : DEFAULT_CHECKIN_STREAK_BONUSES
+  // 仅使用后台已保存的配置；空数组表示未配置任何连签档，不要回落到默认 14/30 天
+  const list = Array.isArray(raw) ? raw : []
   return list
     .map(item => ({
       days: Math.max(1, Math.min(365, Math.floor(Number(item.days) || 0))),
@@ -248,7 +249,8 @@ export function normalizeUserLevel(item = {}, index = 0) {
 }
 
 export function listUserLevels(state, { includeDisabled = false } = {}) {
-  const raw = Array.isArray(state.userLevels) && state.userLevels.length
+  // 已初始化为空数组 = 未启用任何等级；仅未初始化时用默认档
+  const raw = Array.isArray(state.userLevels)
     ? state.userLevels
     : DEFAULT_USER_LEVELS
   return raw
@@ -296,7 +298,8 @@ export function levelMeetsConditions(level, metrics) {
 
 export function resolveUserLevel(state, userId, metrics) {
   const levels = listUserLevels(state)
-  let current = levels[0] || normalizeUserLevel(DEFAULT_USER_LEVELS[0])
+  if (!levels.length) return { current: null, next: null, levels: [] }
+  let current = levels[0]
   for (const level of levels) {
     if (levelMeetsConditions(level, metrics)) current = level
   }
@@ -424,7 +427,7 @@ export function publicCampaign(item, nowMs = Date.now()) {
 
 export function ensureEngagementCollections(draft) {
   let changed = false
-  if (!Array.isArray(draft.userLevels) || !draft.userLevels.length) {
+  if (!Array.isArray(draft.userLevels)) {
     draft.userLevels = DEFAULT_USER_LEVELS.map(item => ({ ...item, conditions: { ...item.conditions } }))
     changed = true
   }
