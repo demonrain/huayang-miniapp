@@ -50,17 +50,6 @@
   font-size: 20rpx;
 }
 
-.share-badge {
-  display: inline-flex;
-  margin-top: 14rpx;
-  padding: 6rpx 16rpx;
-  background: var(--mint-soft);
-  border-radius: 999rpx;
-  color: var(--green);
-  font-size: 20rpx;
-  font-weight: 650;
-}
-
 .shared-results {
   display: flex;
   flex-direction: column;
@@ -83,67 +72,74 @@
 .compare-list {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 28rpx;
 }
 
 .compare-card {
-  padding: 18rpx 16rpx 20rpx;
+  overflow: hidden;
   background: #fff;
   border: 2rpx solid var(--line);
-  border-radius: 18rpx;
-  box-shadow: 0 12rpx 30rpx rgba(110, 83, 94, 0.07);
+  border-radius: 20rpx;
+  box-shadow: 0 14rpx 32rpx rgba(110, 83, 94, 0.07);
 }
 
-.compare-card__index {
-  margin-bottom: 14rpx;
-  color: var(--muted);
-  font-size: 20rpx;
-  letter-spacing: 0.04em;
-}
-
-.compare-card__row {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-}
-
-.compare-pane {
-  flex: 1;
-  min-width: 0;
+.compare-hero {
   overflow: hidden;
-  border-radius: 14rpx;
   background: #f7f4f5;
 }
 
-.compare-pane--result {
-  box-shadow: 0 0 0 2rpx rgba(231, 109, 130, 0.18);
+.compare-hero__image {
+  display: block;
+  width: 100%;
 }
 
-.compare-pane__label {
-  padding: 10rpx 12rpx 0;
-  color: var(--muted);
-  font-size: 20rpx;
+.compare-origin {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 0;
+  padding: 16rpx 18rpx 18rpx;
+  background: linear-gradient(180deg, #fffaf8 0%, #fff 100%);
+  border-top: 2rpx solid #f0e6e8;
+}
+
+.compare-origin--hover {
+  background: #fff5f6;
+}
+
+.compare-origin__thumb {
+  flex: none;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 14rpx;
+  background: #efe8ea;
+  box-shadow: 0 0 0 2rpx rgba(110, 83, 94, 0.06);
+}
+
+.compare-origin__copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.compare-origin__label {
+  color: #5a4f53;
+  font-size: 24rpx;
   font-weight: 650;
 }
 
-.compare-pane__label--result {
-  color: var(--coral);
+.compare-origin__hint {
+  color: var(--muted);
+  font-size: 20rpx;
 }
 
-.compare-pane__image {
-  display: block;
-  width: 100%;
-  height: 280rpx;
-  margin-top: 8rpx;
-}
-
-.compare-arrow {
+.compare-origin__arrow {
   flex: none;
-  width: 36rpx;
-  text-align: center;
-  color: var(--coral);
-  font-size: 28rpx;
-  font-weight: 300;
+  color: #c4b4b8;
+  font-size: 36rpx;
+  line-height: 1;
 }
 
 .share-note {

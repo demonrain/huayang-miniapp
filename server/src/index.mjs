@@ -50,6 +50,7 @@ import {
   publicLevel,
   levelMeetsConditions,
   listActiveCampaigns,
+  isCampaignActive,
   publicCampaign,
   normalizeCampaign,
   CAMPAIGN_TYPE_LABELS,
@@ -271,7 +272,8 @@ function syncCampaignAnnouncement(draft, campaign) {
   if (!Array.isArray(draft.announcements)) draft.announcements = []
   const title = `活动｜${campaign.name}`.slice(0, 40)
   const content = campaignAnnouncementBody(campaign, draft.templates).slice(0, 3000)
-  const enabled = campaign.enabled !== false
+  // 仅在活动进行中展示；未开始 / 已过期 / 停用时一并停用公告
+  const enabled = isCampaignActive(campaign)
   let announcementId = String(campaign.announcementId || '')
   let item = announcementId
     ? draft.announcements.find(entry => entry.id === announcementId)
@@ -324,6 +326,18 @@ function disableCampaignAnnouncement(draft, campaign) {
   if (!item) return
   item.enabled = false
   item.updatedAt = now()
+}
+
+/** 小程序端是否展示该公告（活动同步公告需对应活动仍在有效期内） */
+function isPublicAnnouncementVisible(item, state, nowMs = Date.now()) {
+  if (!item || item.enabled === false) return false
+  if (item.source === 'campaign' || item.campaignId) {
+    const campaign = (Array.isArray(state.campaigns) ? state.campaigns : [])
+      .find(entry => entry.id === item.campaignId)
+    if (!campaign) return false
+    return isCampaignActive(campaign, nowMs)
+  }
+  return true
 }
 
 function publicTransaction(transaction) {
@@ -2759,8 +2773,9 @@ export async function createApplication() {
           resyncAllCampaignAnnouncements(draft)
         })
         const state = store.read()
+        const nowMs = Date.now()
         const announcements = (Array.isArray(state.announcements) ? state.announcements : [])
-          .filter(item => item.enabled !== false)
+          .filter(item => isPublicAnnouncementVisible(item, state, nowMs))
           .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
           .map(item => publicAnnouncement(item, state))
         json(response, 200, {

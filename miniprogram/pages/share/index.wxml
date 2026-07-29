@@ -11,35 +11,45 @@
       <view class="share-kicker">XIANGHUI MOMENT</view>
       <view class="share-title">{{shareTitle}}</view>
       <view class="share-meta">{{share.templateName}} · 来自花漾相绘</view>
-      <view wx:if="{{share.showOriginals}}" class="share-badge">含原图对照</view>
     </view>
 
-    <!-- 含原图：左右对照排版 -->
+    <!-- 含原图：作品大图为主，原图缩略参照 -->
     <block wx:if="{{share.showOriginals && comparePairs.length}}">
       <view class="compare-list">
         <view wx:for="{{comparePairs}}" wx:key="id" class="compare-card">
-          <view class="compare-card__index">第 {{item.index}} 组</view>
-          <view class="compare-card__row">
-            <view
-              class="compare-pane"
-              wx:if="{{item.original}}"
-              data-url="{{item.original.url}}"
-              data-kind="original"
-              bindtap="previewCompare"
-            >
-              <view class="compare-pane__label">原图</view>
-              <image class="compare-pane__image" src="{{item.original.thumbUrl || item.original.url}}" mode="aspectFill" lazy-load></image>
+          <view
+            class="compare-hero"
+            data-url="{{item.result.url}}"
+            data-kind="result"
+            bindtap="previewCompare"
+          >
+            <image
+              class="compare-hero__image"
+              src="{{item.result.thumbUrl || item.result.url}}"
+              mode="widthFix"
+              lazy-load
+            ></image>
+          </view>
+
+          <view
+            wx:if="{{item.original}}"
+            class="compare-origin"
+            data-url="{{item.original.url}}"
+            data-kind="original"
+            bindtap="previewCompare"
+            hover-class="compare-origin--hover"
+          >
+            <image
+              class="compare-origin__thumb"
+              src="{{item.original.thumbUrl || item.original.url}}"
+              mode="aspectFill"
+              lazy-load
+            ></image>
+            <view class="compare-origin__copy">
+              <text class="compare-origin__label">原图参照</text>
+              <text class="compare-origin__hint">点按查看大图</text>
             </view>
-            <view class="compare-arrow" aria-hidden="true">→</view>
-            <view
-              class="compare-pane compare-pane--result"
-              data-url="{{item.result.url}}"
-              data-kind="result"
-              bindtap="previewCompare"
-            >
-              <view class="compare-pane__label compare-pane__label--result">花漾效果</view>
-              <image class="compare-pane__image" src="{{item.result.thumbUrl || item.result.url}}" mode="aspectFill" lazy-load></image>
-            </view>
+            <text class="compare-origin__arrow">›</text>
           </view>
         </view>
       </view>
