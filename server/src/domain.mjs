@@ -131,6 +131,44 @@ export function publicShareRewardSettings(settings = {}) {
   }
 }
 
+function communityAssetUrl(state, assetId) {
+  const id = String(assetId || '').trim()
+  if (!id) return ''
+  const asset = (state.assets || []).find(item => item.id === id)
+  return asset ? assetUrl(asset) : ''
+}
+
+/** 管理端：微信 / QQ 社群二维码配置快照 */
+export function adminCommunitySettings(settings = {}, state = { assets: [] }) {
+  const wechatAssetId = String(settings.communityWechatQrAssetId || settings.communityQrAssetId || '')
+  const qqAssetId = String(settings.communityQqQrAssetId || '')
+  return {
+    wechat: {
+      enabled: settings.communityWechatQrEnabled !== false,
+      qrAssetId: wechatAssetId,
+      qrUrl: communityAssetUrl(state, wechatAssetId)
+    },
+    qq: {
+      enabled: settings.communityQqQrEnabled === true,
+      qrAssetId: qqAssetId,
+      qrUrl: communityAssetUrl(state, qqAssetId)
+    }
+  }
+}
+
+/** 小程序：仅返回已启用且已上传二维码的平台 */
+export function publicCommunityChannels(settings = {}, state = { assets: [] }) {
+  const admin = adminCommunitySettings(settings, state)
+  const channels = []
+  if (admin.wechat.enabled && admin.wechat.qrUrl) {
+    channels.push({ id: 'wechat', label: '微信群', qrUrl: admin.wechat.qrUrl })
+  }
+  if (admin.qq.enabled && admin.qq.qrUrl) {
+    channels.push({ id: 'qq', label: 'QQ群', qrUrl: admin.qq.qrUrl })
+  }
+  return channels
+}
+
 export function seedConfig(draft) {
   let changed = false
   if (!draft.settings) {
@@ -147,6 +185,10 @@ export function seedConfig(draft) {
       checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item })),
       communityWechatId: 'demonrain',
       communityQrAssetId: '',
+      communityWechatQrEnabled: true,
+      communityWechatQrAssetId: '',
+      communityQqQrEnabled: false,
+      communityQqQrAssetId: '',
       userLevelsEnabled: false
     }
     changed = true
@@ -164,6 +206,10 @@ export function seedConfig(draft) {
       checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item })),
       communityWechatId: 'demonrain',
       communityQrAssetId: '',
+      communityWechatQrEnabled: true,
+      communityWechatQrAssetId: '',
+      communityQqQrEnabled: false,
+      communityQqQrAssetId: '',
       userLevelsEnabled: false
     }
     for (const [key, value] of Object.entries(defaults)) {
@@ -190,6 +236,11 @@ export function seedConfig(draft) {
         changed = true
       }
       draft.settings.shareOpenCreditsMigratedFromFriend = true
+      changed = true
+    }
+    // 旧版单二维码迁移到微信群字段
+    if (!draft.settings.communityWechatQrAssetId && draft.settings.communityQrAssetId) {
+      draft.settings.communityWechatQrAssetId = draft.settings.communityQrAssetId
       changed = true
     }
   }

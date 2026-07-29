@@ -17,8 +17,7 @@ Page({
     navSpacer: 176,
     ledgerFooter: '',
     showMoreModal: false,
-    communityWechatId: 'demonrain',
-    communityQrUrl: ''
+    communityChannels: []
   },
 
   onLoad() {
@@ -29,10 +28,10 @@ Page({
   async loadCommunity() {
     try {
       const config = await api.get('/api/config')
-      this.setData({
-        communityWechatId: config.communityWechatId || 'demonrain',
-        communityQrUrl: config.communityQrUrl || ''
-      })
+      const channels = Array.isArray(config.communityChannels)
+        ? config.communityChannels.filter(item => item && item.qrUrl)
+        : (config.communityQrUrl ? [{ id: 'wechat', label: '微信群', qrUrl: config.communityQrUrl }] : [])
+      this.setData({ communityChannels: channels })
     } catch (error) {}
   },
 
@@ -44,20 +43,11 @@ Page({
     this.setData({ showMoreModal: false })
   },
 
-  previewQr() {
-    if (!this.data.communityQrUrl) return
-    wx.previewImage({
-      current: this.data.communityQrUrl,
-      urls: [this.data.communityQrUrl]
-    })
-  },
-
-  copyWechat() {
-    const id = this.data.communityWechatId || 'demonrain'
-    wx.setClipboardData({
-      data: id,
-      success: () => wx.showToast({ title: '微信号已复制', icon: 'success' })
-    })
+  previewQr(event) {
+    const current = event.currentTarget.dataset.url || ''
+    const urls = (this.data.communityChannels || []).map(item => item.qrUrl).filter(Boolean)
+    if (!current || !urls.length) return
+    wx.previewImage({ current, urls })
   },
 
   noop() {},

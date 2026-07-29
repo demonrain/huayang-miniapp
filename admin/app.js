@@ -374,17 +374,30 @@ function renderOverview() {
 function fillCommunityForm(settings = {}) {
   const form = document.querySelector('#communityForm')?.elements
   if (!form) return
-  if (form.communityWechatId) form.communityWechatId.value = settings.communityWechatId || 'demonrain'
-  const preview = document.querySelector('#communityQrPreview')
-  const qrUrl = settings.communityQrUrl || ''
-  if (preview) {
-    if (qrUrl) {
-      preview.src = qrUrl
-      preview.hidden = false
-    } else {
-      preview.removeAttribute('src')
-      preview.hidden = true
-    }
+  const community = settings.community || {}
+  const wechat = community.wechat || {
+    enabled: settings.communityWechatQrEnabled !== false,
+    qrUrl: settings.communityWechatQrUrl || settings.communityQrUrl || ''
+  }
+  const qq = community.qq || {
+    enabled: settings.communityQqQrEnabled === true,
+    qrUrl: settings.communityQqQrUrl || ''
+  }
+  if (form.communityWechatQrEnabled) form.communityWechatQrEnabled.checked = wechat.enabled !== false
+  if (form.communityQqQrEnabled) form.communityQqQrEnabled.checked = qq.enabled === true
+  setCommunityQrPreview('communityWechatQrPreview', wechat.qrUrl || '')
+  setCommunityQrPreview('communityQqQrPreview', qq.qrUrl || '')
+}
+
+function setCommunityQrPreview(id, qrUrl) {
+  const preview = document.querySelector(`#${id}`)
+  if (!preview) return
+  if (qrUrl) {
+    preview.src = qrUrl
+    preview.hidden = false
+  } else {
+    preview.removeAttribute('src')
+    preview.hidden = true
   }
 }
 
@@ -1752,19 +1765,20 @@ document.querySelector('#streakBonusRows')?.addEventListener('click', event => {
 
 document.querySelector('#communityForm')?.addEventListener('submit', async event => {
   event.preventDefault()
-  const values = new FormData(event.currentTarget)
+  const form = event.currentTarget.elements
   try {
     const result = await api('/api/admin/settings', {
       method: 'PATCH',
       json: {
-        communityWechatId: String(values.get('communityWechatId') || 'demonrain').trim()
+        communityWechatQrEnabled: Boolean(form.communityWechatQrEnabled?.checked),
+        communityQqQrEnabled: Boolean(form.communityQqQrEnabled?.checked)
       }
     })
     if (state.data) {
       state.data.settings = {
         ...state.data.settings,
         ...result.settings,
-        communityQrUrl: result.community?.qrUrl || state.data.settings.communityQrUrl || ''
+        community: result.community || state.data.settings.community
       }
     }
     fillCommunityForm(state.data?.settings || {})
@@ -1774,26 +1788,48 @@ document.querySelector('#communityForm')?.addEventListener('submit', async event
   }
 })
 
-document.querySelector('#communityQrUploadButton')?.addEventListener('click', () => {
-  document.querySelector('#communityQrInput')?.click()
-})
-
-document.querySelector('#communityQrInput')?.addEventListener('change', async event => {
-  const file = event.target.files?.[0]
-  if (!file) return
+async function uploadCommunityQr(file, platform) {
   const form = new FormData()
   form.append('image', file)
-  try {
-    const result = await api('/api/admin/community-qr', { method: 'POST', body: form })
-    if (state.data) {
-      state.data.settings = {
-        ...state.data.settings,
-        ...result.settings,
-        communityQrUrl: result.community?.qrUrl || ''
-      }
+  const result = await api(`/api/admin/community-qr?platform=${encodeURIComponent(platform)}`, {
+    method: 'POST',
+    body: form
+  })
+  if (state.data) {
+    state.data.settings = {
+      ...state.data.settings,
+      ...result.settings,
+      community: result.community || state.data.settings.community
     }
-    fillCommunityForm(state.data?.settings || {})
-    showToast(result.message || '二维码已上传')
+  }
+  fillCommunityForm(state.data?.settings || {})
+  showToast(result.message || '二维码已上传')
+}
+
+document.querySelector('#communityWechatQrUploadButton')?.addEventListener('click', () => {
+  document.querySelector('#communityWechatQrInput')?.click()
+})
+document.querySelector('#communityQqQrUploadButton')?.addEventListener('click', () => {
+  document.querySelector('#communityQqQrInput')?.click()
+})
+
+document.querySelector('#communityWechatQrInput')?.addEventListener('change', async event => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  try {
+    await uploadCommunityQr(file, 'wechat')
+  } catch (error) {
+    showToast(error.message, true)
+  } finally {
+    event.target.value = ''
+  }
+})
+
+document.querySelector('#communityQqQrInput')?.addEventListener('change', async event => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  try {
+    await uploadCommunityQr(file, 'qq')
   } catch (error) {
     showToast(error.message, true)
   } finally {

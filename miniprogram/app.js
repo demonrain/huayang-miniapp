@@ -12,6 +12,31 @@ App({
   onLaunch(options) {
     this.captureInviteFromQuery(options && options.query)
     this.restorePromise = this.tryRestoreSession()
+    this.checkForMiniProgramUpdate()
+  },
+
+  /** 有新版本时提示用户重启以完成更新 */
+  checkForMiniProgramUpdate() {
+    if (!wx.canIUse || !wx.canIUse('getUpdateManager')) return
+    const updateManager = wx.getUpdateManager()
+    updateManager.onUpdateReady(() => {
+      wx.showModal({
+        title: '发现新版本',
+        content: '新版本已准备好，重启后即可使用最新功能。',
+        confirmText: '立即更新',
+        cancelText: '稍后再说',
+        success: (res) => {
+          if (res.confirm) updateManager.applyUpdate()
+        }
+      })
+    })
+    updateManager.onUpdateFailed(() => {
+      wx.showModal({
+        title: '更新失败',
+        content: '新版本下载失败，请删除小程序后重新搜索打开。',
+        showCancel: false
+      })
+    })
   },
 
   /** Persist invite/share token for attribution after login */

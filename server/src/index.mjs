@@ -31,7 +31,9 @@ import {
   publicTemplates,
   normalizeTemplateCategories,
   templateHasCategory,
-  seedConfig
+  seedConfig,
+  adminCommunitySettings,
+  publicCommunityChannels
 } from './domain.mjs'
 import { ensureThumb, findOriginalForThumb, isThumbPath } from './thumbs.mjs'
 import { createMiniProgramCode, createMiniProgramUrlLink, buildShareFallbackText, isWechatShareConfigured } from './wechat-share.mjs'
@@ -1108,13 +1110,9 @@ export async function createApplication() {
           newUserCredits: state.settings.welcomeCredits,
           checkinCredits: state.settings.checkinCredits,
           checkinStreakBonuses: normalizeStreakBonuses(state.settings.checkinStreakBonuses),
-          communityWechatId: String(state.settings.communityWechatId || 'demonrain'),
-          communityQrUrl: (() => {
-            const assetId = String(state.settings.communityQrAssetId || '')
-            if (!assetId) return ''
-            const asset = state.assets.find(item => item.id === assetId)
-            return asset ? assetUrl(asset) : ''
-          })(),
+          communityChannels: publicCommunityChannels(state.settings, state),
+          // 兼容旧字段：取第一个已启用渠道
+          communityQrUrl: (publicCommunityChannels(state.settings, state)[0] || {}).qrUrl || '',
           maxUploadMb: config.maxUploadBytes / 1024 / 1024,
           imageProvider: config.image.provider,
           paymentMode: config.payment.mode,
@@ -1391,12 +1389,7 @@ export async function createApplication() {
           json(response, 200, {
             settings: {
               ...state.settings,
-              communityQrUrl: (() => {
-                const assetId = String(state.settings.communityQrAssetId || '')
-                if (!assetId) return ''
-                const asset = state.assets.find(item => item.id === assetId)
-                return asset ? assetUrl(asset) : ''
-              })()
+              community: adminCommunitySettings(state.settings, state)
             },
             banners: publicBanners(state, true),
             packages: publicPackages(state, true),
@@ -1424,11 +1417,24 @@ export async function createApplication() {
             if ('checkinStreakBonuses' in body) {
               draft.settings.checkinStreakBonuses = normalizeStreakBonuses(body.checkinStreakBonuses)
             }
-            if ('communityWechatId' in body) {
-              draft.settings.communityWechatId = cleanText(body.communityWechatId, '微信号', 64, false) || 'demonrain'
+            if ('communityWechatQrEnabled' in body) {
+              draft.settings.communityWechatQrEnabled = Boolean(body.communityWechatQrEnabled)
+            }
+            if ('communityQqQrEnabled' in body) {
+              draft.settings.communityQqQrEnabled = Boolean(body.communityQqQrEnabled)
+            }
+            if ('communityWechatQrAssetId' in body) {
+              draft.settings.communityWechatQrAssetId = String(body.communityWechatQrAssetId || '').trim()
+              draft.settings.communityQrAssetId = draft.settings.communityWechatQrAssetId
+            }
+            if ('communityQqQrAssetId' in body) {
+              draft.settings.communityQqQrAssetId = String(body.communityQqQrAssetId || '').trim()
             }
             if ('communityQrAssetId' in body) {
               draft.settings.communityQrAssetId = String(body.communityQrAssetId || '').trim()
+              if (!draft.settings.communityWechatQrAssetId) {
+                draft.settings.communityWechatQrAssetId = draft.settings.communityQrAssetId
+              }
             }
             if ('shareTitle' in body) draft.settings.shareTitle = cleanText(body.shareTitle, '分享标题', 60, true)
             if ('bannerSwitchMode' in body) {
@@ -1468,22 +1474,16 @@ export async function createApplication() {
             settings,
             bannerCarousel: publicBannerSettings(settings),
             shareRewards: publicShareRewardSettings(settings),
-            community: {
-              wechatId: String(settings.communityWechatId || 'demonrain'),
-              qrAssetId: String(settings.communityQrAssetId || ''),
-              qrUrl: (() => {
-                const assetId = String(settings.communityQrAssetId || '')
-                if (!assetId) return ''
-                const state = store.read()
-                const asset = state.assets.find(item => item.id === assetId)
-                return asset ? assetUrl(asset) : ''
-              })()
-            }
+            community: adminCommunitySettings(settings, store.read())
           })
           return
         }
 
         if (request.method === 'POST' && pathname === '/api/admin/community-qr') {
+          const platform = String(url.searchParams.get('platform') || 'wechat').trim().toLowerCase()
+          if (!['wechat', 'qq'].includes(platform)) {
+            throw new HttpError(400, 'INVALID_FIELD', '平台需为 wechat 或 qq')
+          }
           const upload = await readImageUpload(request, config.maxUploadBytes)
           const detected = detectImage(upload.data)
           if (!detected) throw new HttpError(415, 'UNSUPPORTED_IMAGE', '仅支持 JPG、PNG 或 WebP 图片')
@@ -1503,19 +1503,19 @@ export async function createApplication() {
               storagePath: relativePath,
               createdAt: now()
             })
-            draft.settings.communityQrAssetId = assetId
+            if (platform === 'qq') {
+              draft.settings.communityQqQrAssetId = assetId
+            } else {
+              draft.settings.communityWechatQrAssetId = assetId
+              draft.settings.communityQrAssetId = assetId
+            }
             return draft.settings
           })
           const state = store.read()
-          const asset = state.assets.find(item => item.id === assetId)
           json(response, 200, {
             settings,
-            community: {
-              wechatId: String(settings.communityWechatId || 'demonrain'),
-              qrAssetId: assetId,
-              qrUrl: asset ? assetUrl(asset) : ''
-            },
-            message: '社群二维码已更新'
+            community: adminCommunitySettings(settings, state),
+            message: platform === 'qq' ? 'QQ 群二维码已更新' : '微信群二维码已更新'
           })
           return
         }

@@ -86,18 +86,32 @@
           <div class="panel-heading">
             <div>
               <h3>获取更多积分 · 社群引导</h3>
-              <p>用于小程序「积分兑换」页的「获取更多」弹窗：展示加群二维码与微信号。</p>
+              <p>用于小程序「积分兑换」页的「获取更多」弹窗。仅展示已启用且已上传二维码的平台，用户可长按识别加群。</p>
             </div>
           </div>
-          <div class="form-grid">
-            <label>微信号<input name="communityWechatId" maxlength="64" placeholder="demonrain" required></label>
-            <label class="field-wide">加群二维码
-              <div class="community-qr-row">
-                <img id="communityQrPreview" class="community-qr-preview" alt="社群二维码" hidden>
-                <button class="button button--quiet" id="communityQrUploadButton" type="button">上传二维码</button>
-                <input id="communityQrInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+          <div class="community-channel-grid">
+            <article class="community-channel-card">
+              <div class="community-channel-card__head">
+                <strong>微信群</strong>
+                <label class="toggle-field"><input name="communityWechatQrEnabled" type="checkbox" checked><span>启用</span></label>
               </div>
-            </label>
+              <div class="community-qr-row">
+                <img id="communityWechatQrPreview" class="community-qr-preview" alt="微信群二维码" hidden>
+                <button class="button button--quiet" id="communityWechatQrUploadButton" type="button">上传二维码</button>
+                <input id="communityWechatQrInput" type="file" accept="image/jpeg,image/png,image/webp" hidden data-platform="wechat">
+              </div>
+            </article>
+            <article class="community-channel-card">
+              <div class="community-channel-card__head">
+                <strong>QQ 群</strong>
+                <label class="toggle-field"><input name="communityQqQrEnabled" type="checkbox"><span>启用</span></label>
+              </div>
+              <div class="community-qr-row">
+                <img id="communityQqQrPreview" class="community-qr-preview" alt="QQ群二维码" hidden>
+                <button class="button button--quiet" id="communityQqQrUploadButton" type="button">上传二维码</button>
+                <input id="communityQqQrInput" type="file" accept="image/jpeg,image/png,image/webp" hidden data-platform="qq">
+              </div>
+            </article>
           </div>
           <div class="form-actions"><button class="button button--primary" type="submit">保存社群引导</button></div>
         </form>

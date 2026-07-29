@@ -462,6 +462,24 @@ tr:last-child td { border-bottom: 0; }
 }
 .toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .campaign-field[hidden] { display: none !important; }
+.community-channel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.community-channel-card {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafbfb;
+}
+.community-channel-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
 .community-qr-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
 .community-qr-preview {
   width: 96px;
@@ -470,6 +488,9 @@ tr:last-child td { border-bottom: 0; }
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f7f8f8;
+}
+@media (max-width: 900px) {
+  .community-channel-grid { grid-template-columns: 1fr; }
 }
 .feedback-content {
   max-width: 280px;

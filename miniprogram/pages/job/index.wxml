@@ -221,12 +221,7 @@
             <text class="share-action__label">小程序码</text>
           </view>
         </view>
-        <view class="share-action-cell">
-          <view class="share-action" bindtap="copyUrlLink">
-            <image class="share-action__icon" src="/assets/icons/link.png" mode="aspectFit"></image>
-            <text class="share-action__label">复制链接</text>
-          </view>
-        </view>
+        <!-- 复制链接依赖微信「URL Link」权限；未开通时会报错，暂隐藏。开通后可恢复此按钮。 -->
       </view>
       <view wx:elif="{{demo}}" class="demo-banner" style="margin-top: 20rpx">演示结果使用风格封面示意。返回首页后可对真实模板正式生成。</view>
     </view>
