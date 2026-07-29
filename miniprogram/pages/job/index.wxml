@@ -143,11 +143,14 @@
 
       <!-- Make avatar: open crop preview -->
       <view wx:if="{{!demo && !showcase && (job.status === 'succeeded' || job.status === 'partial') && job.results.length}}" class="avatar-panel">
-        <view class="avatar-panel__title">一键制作头像</view>
-        <view class="avatar-panel__desc">进入预览界面，拖动/缩放作品，裁成方形或圆形后保存到相册</view>
-        <button class="primary-button avatar-make-btn" data-index="0" bindtap="openAvatarCrop">制作头像</button>
+        <view class="avatar-panel__row">
+          <view class="avatar-panel__text">
+            <text class="avatar-panel__title">一键制作头像</text>
+            <text class="avatar-panel__desc">裁剪后保存到相册</text>
+          </view>
+          <button class="primary-button avatar-make-btn" data-index="0" bindtap="openAvatarCrop">制作</button>
+        </view>
         <view wx:if="{{job.results.length > 1}}" class="avatar-multi">
-          <text class="avatar-multi__label">从第几张制作：</text>
           <view class="avatar-multi__list">
             <view
               wx:for="{{job.results}}"
@@ -193,17 +196,11 @@
         </view>
       </view>
 
-      <view wx:if="{{!demo && !showcase && shareRewardEnabled && (shareFriendTip || shareTimelineTip)}}" class="share-reward-panel">
-        <view class="share-reward-panel__title">邀请奖励</view>
-        <view wx:if="{{shareFriendTip}}" class="share-reward-panel__row">
-          <text class="share-reward-panel__channel">好友转化</text>
-          <text class="share-reward-panel__detail">{{shareFriendTip}}</text>
-        </view>
-        <view wx:if="{{shareTimelineTip}}" class="share-reward-panel__row">
-          <text class="share-reward-panel__channel">说明</text>
-          <text class="share-reward-panel__detail">{{shareTimelineTip}}</text>
-        </view>
-        <view class="share-reward-panel__note">单纯分享只记录行为不加分；好友打开、登录或完成首作后给你发积分</view>
+      <view wx:if="{{!demo && !showcase && shareRewardEnabled}}" class="share-reward-panel">
+        <view class="share-reward-panel__title">邀请好友，解锁三重奖励</view>
+        <view wx:if="{{shareOpenLine}}" class="share-reward-panel__item">{{shareOpenLine}}</view>
+        <view wx:if="{{shareLoginLine}}" class="share-reward-panel__item">{{shareLoginLine}}</view>
+        <view wx:if="{{shareFirstJobLine}}" class="share-reward-panel__item">{{shareFirstJobLine}}</view>
       </view>
       <view wx:if="{{!demo && !showcase}}" class="share-actions">
         <view class="share-action-cell">

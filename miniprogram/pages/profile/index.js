@@ -132,7 +132,10 @@ Page({
     const nickname = user.nickname || ''
     const defaultNicks = { '微信用户': 1, 'WeChat User': 1, '微信网友': 1, '花漾用户': 1 }
     const isWechatPlaceholder = !nickname || Boolean(defaultNicks[nickname])
-    const level = (levelProgress && levelProgress.current) || user.level || null
+    const level = levelProgress
+      ? (levelProgress.current || null)
+      : (user && user.level ? user.level : null)
+    const showLevel = Boolean(level && level.id && (level.badgeText || level.title))
     const nextStats = {
       ...emptyStats(),
       ...(stats || this.data.stats || {}),
@@ -151,9 +154,9 @@ Page({
       bio: user.bio || '',
       avatarInitial: (!isWechatPlaceholder ? nickname : '画').slice(0, 1),
       profileComplete: Boolean(user.profileComplete),
-      levelTitle: level?.title || '',
-      levelBadgeText: level?.badgeText || '',
-      levelBadgeTone: level?.badgeTone || 'mint'
+      levelTitle: showLevel ? (level.title || '') : '',
+      levelBadgeText: showLevel ? (level.badgeText || '') : '',
+      levelBadgeTone: showLevel ? (level.badgeTone || 'mint') : 'mint'
     })
   },
 

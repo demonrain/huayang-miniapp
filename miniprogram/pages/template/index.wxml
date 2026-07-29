@@ -20,11 +20,17 @@
 
       <view class="detail-meta">
         <text>人气 {{popularityText}}</text>
-        <text>
-          <text wx:if="{{template.costDiscounted}}" style="text-decoration:line-through;opacity:.55;margin-right:8rpx">{{template.originalCost}}</text>
-          {{template.cost}} 积分/张
-          <text wx:if="{{template.costDiscounted}}" style="color:var(--coral);margin-left:8rpx">特惠</text>
-        </text>
+        <text wx:if="{{!template.costDiscounted}}">{{template.cost}} 积分/张</text>
+        <text wx:else class="detail-meta__promo">限时特惠</text>
+      </view>
+
+      <view wx:if="{{template.costDiscounted}}" class="promo-price-card">
+        <view class="promo-price-card__badge">{{template.campaignBadge || '限时'}}</view>
+        <view class="promo-price-card__row">
+          <text class="promo-price-card__old">原积分 {{template.originalCost}}</text>
+          <text class="promo-price-card__now">{{template.cost}} 积分/张</text>
+        </view>
+        <view wx:if="{{promoEndText}}" class="promo-price-card__time">活动截止 {{promoEndText}}</view>
       </view>
 
       <view class="tag-row" wx:if="{{displayTags.length}}">
@@ -64,8 +70,11 @@
 
     <view class="detail-action">
       <view>
-        <view class="detail-action__label">每张消耗</view>
-        <view class="detail-action__cost">{{template.cost}} <text>积分</text></view>
+        <view class="detail-action__label">{{template.costDiscounted ? '限时积分' : '每张消耗'}}</view>
+        <view class="detail-action__cost-wrap">
+          <text wx:if="{{template.costDiscounted}}" class="detail-action__old">{{template.originalCost}}</text>
+          <view class="detail-action__cost">{{template.cost}} <text>积分</text></view>
+        </view>
       </view>
       <button class="detail-action__button" bindtap="useStyle">
         <image class="detail-action__icon" src="/assets/icons/sparkles.png" mode="aspectFit"></image>

@@ -129,6 +129,24 @@
   font-size: 17rpx;
 }
 
+.unit-cost--promo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2rpx;
+}
+
+.unit-cost__old {
+  color: var(--muted);
+  text-decoration: line-through;
+  font-size: 14rpx;
+}
+
+.unit-cost__now {
+  color: var(--coral);
+  font-weight: 700;
+}
+
 .photo-subtitle {
   margin-top: 8rpx;
   color: var(--muted);

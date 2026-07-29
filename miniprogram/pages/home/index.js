@@ -14,12 +14,23 @@ const LOADING_TIPS = [
 const PAGE_SIZE = 12
 
 function mapTemplate(item) {
+  const promoEndText = formatPromoEndText(item.promoEndAt)
   return {
     ...item,
     popularityText: item.popularity >= 10000
       ? `${(item.popularity / 10000).toFixed(1)}万`
-      : String(item.popularity || 0)
+      : String(item.popularity || 0),
+    promoEndText
   }
+}
+
+function formatPromoEndText(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = n => String(n).padStart(2, '0')
+  // 用本地时间展示限时截止
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function mapAnnouncement(item) {

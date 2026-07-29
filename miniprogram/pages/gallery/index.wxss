@@ -4,7 +4,7 @@
 
 .gallery-heading {
   min-height: 120rpx;
-  margin: 6rpx 0 16rpx;
+  margin: 6rpx 0 0;
 }
 
 .gallery-kicker {

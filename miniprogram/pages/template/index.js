@@ -9,6 +9,14 @@ const CATEGORY_LABELS = {
   art: '艺术'
 }
 
+function formatPromoEndText(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = n => String(n).padStart(2, '0')
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 Page({
   data: {
     templateId: '',
@@ -17,6 +25,7 @@ Page({
     categoryLabel: '',
     displayTags: [],
     popularityText: '',
+    promoEndText: '',
     credits: null,
     navSpacer: 176,
     demo: false,
@@ -66,6 +75,7 @@ Page({
         popularityText: template.popularity >= 10000
           ? `${(template.popularity / 10000).toFixed(1)}万`
           : String(template.popularity || 0),
+        promoEndText: formatPromoEndText(template.promoEndAt),
         credits: app.isLoggedIn() ? (user?.credits ?? null) : null
       })
     } catch (error) {

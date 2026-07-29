@@ -57,6 +57,9 @@ Page({
     shareRewards: null,
     shareFriendTip: '',
     shareTimelineTip: '',
+    shareOpenLine: '',
+    shareLoginLine: '',
+    shareFirstJobLine: '',
     shareFriendCredits: 0,
     shareTimelineCredits: 0,
     shareFriendRemaining: null,
@@ -168,7 +171,10 @@ Page({
         share: null,
         shareRewardEnabled: false,
         shareFriendTip: '',
-        shareTimelineTip: ''
+        shareTimelineTip: '',
+        shareOpenLine: '',
+        shareLoginLine: '',
+        shareFirstJobLine: ''
       })
       if (isWaiting) this.startTipRotation()
       else this.stopTipRotation()
@@ -524,23 +530,34 @@ Page({
   },
 
   applyShareRewardTips(shareRewards, friendRemaining, timelineRemaining) {
-    const enabled = Boolean(shareRewards && shareRewards.shareRewardEnabled)
-    const openCredits = enabled ? Number(shareRewards.shareOpenCredits || 0) : 0
-    const loginCredits = enabled ? Number(shareRewards.inviteLoginCredits || 0) : 0
-    const firstJobCredits = enabled ? Number(shareRewards.inviteFirstJobCredits || 0) : 0
-    const tips = []
-    if (openCredits > 0) tips.push(`好友打开 +${openCredits}`)
-    if (loginCredits > 0) tips.push(`新用户登录 +${loginCredits}`)
-    if (firstJobCredits > 0) tips.push(`完成首作 +${firstJobCredits}`)
+    const shareOn = Boolean(shareRewards && shareRewards.shareRewardEnabled)
+    const inviteOn = Boolean(shareRewards && shareRewards.inviteRewardEnabled !== false)
+    const openCredits = shareOn ? Number(shareRewards.shareOpenCredits || 0) : 0
+    const openDailyLimit = shareOn ? Number(shareRewards.shareOpenDailyLimit || 0) : 0
+    const loginCredits = inviteOn ? Number(shareRewards.inviteLoginCredits || 0) : 0
+    const firstJobCredits = inviteOn ? Number(shareRewards.inviteFirstJobCredits || 0) : 0
+    const shareOpenLine = openCredits > 0
+      ? `好友打开你的分享 → 奖励${openCredits}积分（每日${openDailyLimit}次）`
+      : ''
+    const shareLoginLine = loginCredits > 0
+      ? `新用户完成注册 → 再奖励${loginCredits}积分`
+      : ''
+    const shareFirstJobLine = firstJobCredits > 0
+      ? `新用户首次创作 → 再再奖励${firstJobCredits}积分`
+      : ''
+    const hasLines = Boolean(shareOpenLine || shareLoginLine || shareFirstJobLine)
     this.setData({
       shareRewards,
-      shareRewardEnabled: enabled && tips.length > 0,
+      shareRewardEnabled: hasLines,
       shareFriendCredits: 0,
       shareTimelineCredits: 0,
       shareFriendRemaining: friendRemaining == null ? null : Number(friendRemaining),
       shareTimelineRemaining: timelineRemaining == null ? null : Number(timelineRemaining),
-      shareFriendTip: tips.length ? tips.join(' · ') : '',
-      shareTimelineTip: tips.length ? '分享本身不计分，仅记录行为' : ''
+      shareOpenLine,
+      shareLoginLine,
+      shareFirstJobLine,
+      shareFriendTip: '',
+      shareTimelineTip: ''
     })
   },
 

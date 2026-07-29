@@ -146,7 +146,8 @@ export function seedConfig(draft) {
       ...DEFAULT_SHARE_REWARD_SETTINGS,
       checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item })),
       communityWechatId: 'demonrain',
-      communityQrAssetId: ''
+      communityQrAssetId: '',
+      userLevelsEnabled: false
     }
     changed = true
   } else {
@@ -162,7 +163,8 @@ export function seedConfig(draft) {
       ...DEFAULT_SHARE_REWARD_SETTINGS,
       checkinStreakBonuses: DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item })),
       communityWechatId: 'demonrain',
-      communityQrAssetId: ''
+      communityQrAssetId: '',
+      userLevelsEnabled: false
     }
     for (const [key, value] of Object.entries(defaults)) {
       if (draft.settings[key] === undefined) {
@@ -324,6 +326,9 @@ export function publicTemplate(template, state, admin = false) {
     originalCost: pricing.originalCost,
     costDiscounted: pricing.discounted,
     campaignName: pricing.campaignName || '',
+    campaignBadge: pricing.campaignBadge || '',
+    promoStartAt: pricing.promoStartAt || '',
+    promoEndAt: pricing.promoEndAt || '',
     badge: template.badge || '',
     tags: Array.isArray(template.tags) ? template.tags : [],
     popularity: Number(template.popularity || 0),

@@ -39,6 +39,8 @@ const state = {
   editingAnnouncementId: '',
   announcementListCache: [],
   levels: [],
+  userLevelsEnabled: false,
+  campaignTemplateOptions: [],
   campaigns: [],
   editingCampaignId: ''
 }
@@ -438,7 +440,7 @@ async function loadShareGrowth() {
     ['累计分享次数', s.shareEventsTotal],
     ['累计邀请关系', s.invitesTotal],
     ['邀请登录已奖', s.inviteLoginRewarded],
-    ['邀请首作已奖', s.inviteFirstJobRewarded],
+    ['邀请首次创作已奖', s.inviteFirstJobRewarded],
     ['邀请发奖积分', Number(s.inviteLoginCredits || 0) + Number(s.inviteFirstJobCredits || 0)]
   ]
   elements.shareStatsGrid.innerHTML = cards.map(([label, value], index) => `
@@ -446,7 +448,7 @@ async function loadShareGrowth() {
   `).join('')
   if (elements.shareStatsHint) {
     elements.shareStatsHint.textContent =
-      `分享发奖累计 ${Number(s.shareRewardCredits || 0)} 积分 · 邀请登录奖 ${Number(s.inviteLoginCredits || 0)} · 首作奖 ${Number(s.inviteFirstJobCredits || 0)}`
+      `分享发奖累计 ${Number(s.shareRewardCredits || 0)} 积分 · 邀请登录奖 ${Number(s.inviteLoginCredits || 0)} · 首次创作奖 ${Number(s.inviteFirstJobCredits || 0)}`
   }
   if (elements.shareEventRows) {
     elements.shareEventRows.innerHTML = (listResult.events || []).map(item => `
@@ -767,7 +769,9 @@ async function loadTransactions({ resetPage = false } = {}) {
       <td class="${item.amount >= 0 ? 'amount-positive' : 'amount-negative'}">${item.amount >= 0 ? '+' : ''}${Number(item.amount)}</td>
       <td>${Number(item.balanceAfter)}</td>
       <td>${item.orderAmountYuan ? `¥${escapeHtml(item.orderAmountYuan)}` : '-'}</td>
-      <td title="${escapeHtml(item.externalRef)}">${escapeHtml(shortId(item.externalRef, 12) || '-')}</td>
+      <td>${item.externalRef
+        ? `<code class="ref-copy-code" title="点击复制关联单号" data-copy="${escapeHtml(item.externalRef)}">${escapeHtml(shortId(item.externalRef, 12))}</code>`
+        : '-'}</td>
     </tr>
   `).join('') || emptyRow(8, '没有符合条件的流水')
   } catch (error) {
@@ -869,17 +873,19 @@ async function loadJobs({ resetPage = false } = {}) {
       <td>${escapeHtml(job.completedTime || '-')}</td>
       <td>${job.durationSeconds === null ? '-' : `${Number(job.durationSeconds)} 秒`}</td>
       <td class="job-ops-cell">
-        ${job.status === 'succeeded'
-          ? ''
-          : `<div class="job-error-text">${escapeHtml(job.error || '-')}</div>`}
-        <div class="row-actions">
+        <div class="job-ops-stack">
           ${job.status === 'succeeded'
-            ? `<button class="row-button" data-job-action="banner" data-id="${escapeHtml(job.id)}" type="button">设为 Banner</button>
-              ${job.publicShareEnabled
-                ? `<span class="status-pill is-active" title="${job.publicShareShowOriginals ? '公开且显示原图' : '公开不显示原图'}">已公开${job.publicShareShowOriginals ? '·含原图' : ''}</span>`
-                : '<span class="status-pill">未公开</span>'}`
-            : ''}
-          <button class="row-button row-button--danger" data-job-action="delete" data-id="${escapeHtml(job.id)}" type="button">删除</button>
+            ? ''
+            : `<div class="job-error-text">${escapeHtml(job.error || '-')}</div>`}
+          <div class="row-actions">
+            ${job.status === 'succeeded'
+              ? `<button class="row-button" data-job-action="banner" data-id="${escapeHtml(job.id)}" type="button">设为 Banner</button>
+                ${job.publicShareEnabled
+                  ? `<span class="status-pill job-share-pill is-active" title="${job.publicShareShowOriginals ? '公开且显示原图' : '公开不显示原图'}">已公开${job.publicShareShowOriginals ? '·含原图' : ''}</span>`
+                  : '<span class="status-pill job-share-pill is-private">未公开</span>'}`
+              : ''}
+            <button class="row-button row-button--danger" data-job-action="delete" data-id="${escapeHtml(job.id)}" type="button">删除</button>
+          </div>
         </div>
       </td>
     </tr>
@@ -1407,7 +1413,10 @@ async function loadAnnouncements() {
     return `
     <tr>
       <td class="col-time">${escapeHtml(item.createdTime)}</td>
-      <td class="col-title"><strong>${escapeHtml(item.title)}</strong></td>
+      <td class="col-title">
+        <strong>${escapeHtml(item.title)}</strong>
+        ${item.source === 'campaign' ? '<span class="cell-subtitle">活动同步</span>' : ''}
+      </td>
       <td class="col-content"><div class="messages-announce-content" title="${escapeHtml(plain)}">${escapeHtml(plain)}</div></td>
       <td class="col-status"><span class="status-pill${item.displayMode === 'silent' ? '' : ' is-active'}">${escapeHtml(item.displayModeLabel || (item.displayMode === 'silent' ? '静默' : '弹窗'))}</span></td>
       <td class="col-status"><span class="status-pill${item.enabled ? ' is-active' : ''}">${item.enabled ? '启用' : '停用'}</span></td>
@@ -1854,6 +1863,12 @@ elements.userFilterForm.addEventListener('submit', event => {
 elements.transactionFilterForm.addEventListener('submit', event => {
   event.preventDefault()
   loadTransactions({ resetPage: true }).catch(error => showToast(error.message, true))
+})
+
+elements.transactionRows?.addEventListener('click', async event => {
+  const copyEl = event.target.closest('[data-copy]')
+  if (!copyEl) return
+  await copyText(copyEl.dataset.copy, '关联单号已复制')
 })
 elements.jobFilterForm.addEventListener('submit', event => {
   event.preventDefault()
@@ -2626,6 +2641,110 @@ function syncCampaignFieldVisibility(type) {
     const keys = String(field.dataset.campaignFields || '').split(',').map(item => item.trim())
     field.hidden = !keys.includes(type)
   })
+  if (type === 'template_promo') renderCampaignTemplatePicker()
+}
+
+async function ensureCampaignTemplateOptions() {
+  if (Array.isArray(state.campaignTemplateOptions) && state.campaignTemplateOptions.length) {
+    return state.campaignTemplateOptions
+  }
+  const result = await api('/api/admin/templates?page=1&pageSize=200&status=all')
+  state.campaignTemplateOptions = (result.templates || []).map(item => ({
+    id: item.id,
+    name: item.name || item.id,
+    cost: Number(item.originalCost ?? item.cost ?? 0),
+    enabled: item.enabled !== false
+  }))
+  return state.campaignTemplateOptions
+}
+
+function getSelectedCampaignTemplateIds() {
+  return [...document.querySelectorAll('#campaignTemplateList input[type="checkbox"]:checked')]
+    .map(input => String(input.value || '').trim())
+    .filter(Boolean)
+}
+
+function syncCampaignTemplateIdsInput() {
+  const input = document.querySelector('#campaignTemplateIdsInput')
+  if (input) input.value = getSelectedCampaignTemplateIds().join(',')
+}
+
+function renderCampaignTemplatePicker(selectedIds = null) {
+  const host = document.querySelector('#campaignTemplateList')
+  if (!host) return
+  const selected = new Set(
+    selectedIds == null
+      ? getSelectedCampaignTemplateIds()
+      : (selectedIds || []).map(String)
+  )
+  const list = state.campaignTemplateOptions || []
+  host.innerHTML = list.map(item => `
+    <label class="campaign-template-option">
+      <input type="checkbox" value="${escapeHtml(item.id)}" ${selected.has(item.id) ? 'checked' : ''}>
+      <span>
+        <strong>${escapeHtml(item.name)}${item.enabled === false ? '（已停用）' : ''}</strong>
+        <span>${escapeHtml(item.id)} · ${Number(item.cost || 0)} 积分</span>
+      </span>
+    </label>
+  `).join('') || '<p class="muted">暂无模板，请先在「模板管理」创建</p>'
+  syncCampaignTemplateIdsInput()
+}
+
+async function loadCampaigns() {
+  const result = await api('/api/admin/campaigns')
+  state.campaigns = result.campaigns || []
+  renderCampaignRows()
+}
+
+function renderCampaignRows() {
+  const host = document.querySelector('#campaignRows')
+  if (!host) return
+  host.innerHTML = (state.campaigns || []).map(item => `
+    <tr>
+      <td>
+        <strong>${escapeHtml(item.name)}</strong>
+        <span class="cell-subtitle">${escapeHtml(item.badge || '')}</span>
+      </td>
+      <td><span class="status-pill is-active">${escapeHtml(item.typeLabel || item.type)}</span></td>
+      <td>${escapeHtml(formatDate(item.startAt))} ~ ${escapeHtml(formatDate(item.endAt))}</td>
+      <td><span class="status-pill${item.active ? ' is-active' : ''}">${item.active ? '进行中' : (item.enabled === false ? '已停用' : '未开始/已结束')}</span></td>
+      <td>${escapeHtml(campaignSummary(item))}</td>
+      <td class="row-actions">
+        <button class="row-button" type="button" data-campaign-action="edit" data-id="${escapeHtml(item.id)}">编辑</button>
+        <button class="row-button row-button--danger" type="button" data-campaign-action="delete" data-id="${escapeHtml(item.id)}">删除</button>
+      </td>
+    </tr>
+  `).join('') || emptyRow(6, '暂无活动，点击右上角新建')
+}
+
+async function openCampaignDialog(campaign = null) {
+  const dialog = document.querySelector('#campaignDialog')
+  const form = document.querySelector('#campaignForm')
+  if (!dialog || !form) return
+  state.editingCampaignId = campaign?.id || ''
+  document.querySelector('#campaignDialogTitle').textContent = campaign ? '编辑活动' : '新建活动'
+  form.reset()
+  form.elements.name.value = campaign?.name || ''
+  form.elements.type.value = campaign?.type || 'template_promo'
+  form.elements.badge.value = campaign?.badge || ''
+  form.elements.description.value = campaign?.description || ''
+  form.elements.startAt.value = toLocalDateTimeInput(campaign?.startAt)
+  form.elements.endAt.value = toLocalDateTimeInput(campaign?.endAt)
+  form.elements.costOverride.value = Number(campaign?.costOverride ?? 1)
+  form.elements.checkinBonus.value = Number(campaign?.checkinBonus ?? 2)
+  form.elements.createJobBonus.value = Number(campaign?.createJobBonus ?? 5)
+  form.elements.inviteBonusMultiplier.value = Number(campaign?.inviteBonusMultiplier ?? 2)
+  form.elements.galleryPublishBonus.value = Number(campaign?.galleryPublishBonus ?? 3)
+  form.elements.galleryLikeBonus.value = Number(campaign?.galleryLikeBonus ?? 1)
+  form.elements.enabled.checked = campaign ? campaign.enabled !== false : true
+  syncCampaignFieldVisibility(form.elements.type.value)
+  try {
+    await ensureCampaignTemplateOptions()
+    renderCampaignTemplatePicker(campaign?.templateIds || [])
+  } catch (error) {
+    showToast(error.message || '加载模板列表失败', true)
+  }
+  dialog.showModal()
 }
 
 async function loadUserLevels() {
@@ -2633,7 +2752,21 @@ async function loadUserLevels() {
   if (!host) return
   const result = await api('/api/admin/user-levels')
   state.levels = result.levels || []
+  state.userLevelsEnabled = Boolean(result.enabled)
+  const toggle = document.querySelector('#userLevelsEnabledToggle')
+  if (toggle) toggle.checked = state.userLevelsEnabled
+  syncUserLevelsEnabledHint()
   renderLevelEditor()
+}
+
+function syncUserLevelsEnabledHint() {
+  const hint = document.querySelector('#userLevelsEnabledHint')
+  const toggle = document.querySelector('#userLevelsEnabledToggle')
+  if (!hint) return
+  const on = Boolean(toggle?.checked ?? state.userLevelsEnabled)
+  hint.textContent = on
+    ? '当前：已启用 — 小程序会按已启用的等级展示角标与称号。'
+    : '当前：已停用 — 小程序不显示等级角标与称号。'
 }
 
 function renderLevelEditor() {
@@ -2699,58 +2832,6 @@ function collectLevelsFromEditor() {
   }))
 }
 
-async function loadCampaigns() {
-  const result = await api('/api/admin/campaigns')
-  state.campaigns = result.campaigns || []
-  renderCampaignRows()
-}
-
-function renderCampaignRows() {
-  const host = document.querySelector('#campaignRows')
-  if (!host) return
-  host.innerHTML = (state.campaigns || []).map(item => `
-    <tr>
-      <td>
-        <strong>${escapeHtml(item.name)}</strong>
-        <span class="cell-subtitle">${escapeHtml(item.badge || '')}</span>
-      </td>
-      <td><span class="status-pill is-active">${escapeHtml(item.typeLabel || item.type)}</span></td>
-      <td>${escapeHtml(formatDate(item.startAt))} ~ ${escapeHtml(formatDate(item.endAt))}</td>
-      <td><span class="status-pill${item.active ? ' is-active' : ''}">${item.active ? '进行中' : (item.enabled === false ? '已停用' : '未开始/已结束')}</span></td>
-      <td>${escapeHtml(campaignSummary(item))}</td>
-      <td class="row-actions">
-        <button class="row-button" type="button" data-campaign-action="edit" data-id="${escapeHtml(item.id)}">编辑</button>
-        <button class="row-button row-button--danger" type="button" data-campaign-action="delete" data-id="${escapeHtml(item.id)}">删除</button>
-      </td>
-    </tr>
-  `).join('') || emptyRow(6, '暂无活动，点击右上角新建')
-}
-
-function openCampaignDialog(campaign = null) {
-  const dialog = document.querySelector('#campaignDialog')
-  const form = document.querySelector('#campaignForm')
-  if (!dialog || !form) return
-  state.editingCampaignId = campaign?.id || ''
-  document.querySelector('#campaignDialogTitle').textContent = campaign ? '编辑活动' : '新建活动'
-  form.reset()
-  form.elements.name.value = campaign?.name || ''
-  form.elements.type.value = campaign?.type || 'template_promo'
-  form.elements.badge.value = campaign?.badge || ''
-  form.elements.description.value = campaign?.description || ''
-  form.elements.startAt.value = toLocalDateTimeInput(campaign?.startAt)
-  form.elements.endAt.value = toLocalDateTimeInput(campaign?.endAt)
-  form.elements.templateIds.value = (campaign?.templateIds || []).join(',')
-  form.elements.costOverride.value = Number(campaign?.costOverride ?? 1)
-  form.elements.checkinBonus.value = Number(campaign?.checkinBonus ?? 2)
-  form.elements.createJobBonus.value = Number(campaign?.createJobBonus ?? 5)
-  form.elements.inviteBonusMultiplier.value = Number(campaign?.inviteBonusMultiplier ?? 2)
-  form.elements.galleryPublishBonus.value = Number(campaign?.galleryPublishBonus ?? 3)
-  form.elements.galleryLikeBonus.value = Number(campaign?.galleryLikeBonus ?? 1)
-  form.elements.enabled.checked = campaign ? campaign.enabled !== false : true
-  syncCampaignFieldVisibility(form.elements.type.value)
-  dialog.showModal()
-}
-
 document.querySelector('#addLevelButton')?.addEventListener('click', () => {
   state.levels = collectLevelsFromEditor()
   state.levels.push({
@@ -2778,16 +2859,25 @@ document.querySelector('#addLevelButton')?.addEventListener('click', () => {
 document.querySelector('#saveLevelsButton')?.addEventListener('click', async () => {
   try {
     const levels = collectLevelsFromEditor()
+    const enabled = Boolean(document.querySelector('#userLevelsEnabledToggle')?.checked)
     const result = await api('/api/admin/user-levels', {
       method: 'PUT',
-      json: { levels }
+      json: { enabled, levels }
     })
     state.levels = result.levels || []
+    state.userLevelsEnabled = Boolean(result.enabled)
+    const toggle = document.querySelector('#userLevelsEnabledToggle')
+    if (toggle) toggle.checked = state.userLevelsEnabled
+    syncUserLevelsEnabledHint()
     renderLevelEditor()
     showToast(result.message || '用户等级已保存')
   } catch (error) {
     showToast(error.message, true)
   }
+})
+
+document.querySelector('#userLevelsEnabledToggle')?.addEventListener('change', () => {
+  syncUserLevelsEnabledHint()
 })
 
 document.querySelector('#levelEditorList')?.addEventListener('click', event => {
@@ -2804,10 +2894,19 @@ document.querySelector('#campaignTypeSelect')?.addEventListener('change', event 
   syncCampaignFieldVisibility(event.target.value)
 })
 
+document.querySelector('#campaignTemplateList')?.addEventListener('change', () => {
+  syncCampaignTemplateIdsInput()
+})
+
+document.querySelector('#campaignTemplateClear')?.addEventListener('click', () => {
+  renderCampaignTemplatePicker([])
+})
+
 document.querySelector('#campaignForm')?.addEventListener('submit', async event => {
   event.preventDefault()
   const form = event.currentTarget
   const values = new FormData(form)
+  syncCampaignTemplateIdsInput()
   const payload = {
     name: String(values.get('name') || '').trim(),
     type: String(values.get('type') || 'template_promo'),
@@ -2815,7 +2914,7 @@ document.querySelector('#campaignForm')?.addEventListener('submit', async event 
     description: String(values.get('description') || '').trim(),
     startAt: fromLocalDateTimeInput(values.get('startAt')),
     endAt: fromLocalDateTimeInput(values.get('endAt')),
-    templateIds: String(values.get('templateIds') || '').split(',').map(item => item.trim()).filter(Boolean),
+    templateIds: getSelectedCampaignTemplateIds(),
     costOverride: Number(values.get('costOverride') || 0),
     checkinBonus: Number(values.get('checkinBonus') || 0),
     createJobBonus: Number(values.get('createJobBonus') || 0),
@@ -2837,6 +2936,10 @@ document.querySelector('#campaignForm')?.addEventListener('submit', async event 
     }
     document.querySelector('#campaignDialog')?.close()
     await loadCampaigns()
+    // 活动同步公告会出现在消息推送列表
+    if (typeof loadAnnouncements === 'function') {
+      try { await loadAnnouncements() } catch (e) {}
+    }
   } catch (error) {
     showToast(error.message, true)
   }
@@ -2852,11 +2955,14 @@ document.querySelector('#campaignRows')?.addEventListener('click', async event =
     return
   }
   if (button.dataset.campaignAction === 'delete') {
-    if (!window.confirm('确认删除该活动？')) return
+    if (!window.confirm('确认删除该活动？关联的活动公告也会停用。')) return
     try {
       await api(`/api/admin/campaigns/${encodeURIComponent(id)}`, { method: 'DELETE' })
       showToast('活动已删除')
       await loadCampaigns()
+      if (typeof loadAnnouncements === 'function') {
+        try { await loadAnnouncements() } catch (e) {}
+      }
     } catch (error) {
       showToast(error.message, true)
     }

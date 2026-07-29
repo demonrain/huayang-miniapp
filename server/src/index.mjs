@@ -183,6 +183,8 @@ function publicAnnouncement(item) {
     content: item.content,
     displayMode: normalizeAnnouncementDisplayMode(item.displayMode),
     enabled: item.enabled !== false,
+    source: item.source || '',
+    campaignId: item.campaignId || '',
     createdAt: item.createdAt,
     updatedAt: item.updatedAt || item.createdAt
   }
@@ -206,6 +208,79 @@ function displayTime(value) {
   return new Intl.DateTimeFormat('zh-CN', {
     timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
   }).format(new Date(value)).replaceAll('/', '-')
+}
+
+function campaignAnnouncementBody(campaign) {
+  const lines = []
+  if (campaign.description) lines.push(String(campaign.description).trim())
+  lines.push(`活动类型：${campaign.typeLabel || campaign.type}`)
+  if (campaign.startAt && campaign.endAt) {
+    lines.push(`活动时间：${displayTime(campaign.startAt)} ~ ${displayTime(campaign.endAt)}`)
+  }
+  if (campaign.type === 'template_promo') {
+    const ids = Array.isArray(campaign.templateIds) ? campaign.templateIds : []
+    lines.push(`特惠价格：${Number(campaign.costOverride || 0)} 积分/张`)
+    lines.push(ids.length ? `参与模板：${ids.length} 个指定风格` : '参与模板：全部风格')
+  } else if (campaign.type === 'checkin_boost') {
+    lines.push(`签到额外加赠：+${Number(campaign.checkinBonus || 0)} 积分`)
+  } else if (campaign.type === 'create_challenge') {
+    lines.push(`完成创作奖励：+${Number(campaign.createJobBonus || 0)} 积分`)
+  } else if (campaign.type === 'invite_boost') {
+    lines.push(`邀请奖励倍数：×${Number(campaign.inviteBonusMultiplier || 1)}`)
+  } else if (campaign.type === 'gallery_boost') {
+    lines.push(`花海发布额外 +${Number(campaign.galleryPublishBonus || 0)} · 送花额外 +${Number(campaign.galleryLikeBonus || 0)}`)
+  }
+  if (campaign.badge) lines.push(`角标：${campaign.badge}`)
+  return lines.filter(Boolean).join('\n\n')
+}
+
+function syncCampaignAnnouncement(draft, campaign) {
+  if (!Array.isArray(draft.announcements)) draft.announcements = []
+  const title = `活动｜${campaign.name}`.slice(0, 40)
+  const content = campaignAnnouncementBody(campaign).slice(0, 3000)
+  const enabled = campaign.enabled !== false
+  let announcementId = String(campaign.announcementId || '')
+  let item = announcementId
+    ? draft.announcements.find(entry => entry.id === announcementId)
+    : null
+  if (!item) {
+    item = draft.announcements.find(entry => entry.campaignId === campaign.id)
+  }
+  if (item) {
+    item.title = title
+    item.content = content
+    item.enabled = enabled
+    item.displayMode = item.displayMode || 'silent'
+    item.source = 'campaign'
+    item.campaignId = campaign.id
+    item.updatedAt = now()
+    announcementId = item.id
+  } else {
+    announcementId = randomUUID()
+    draft.announcements.push({
+      id: announcementId,
+      title,
+      content,
+      displayMode: 'silent',
+      enabled,
+      source: 'campaign',
+      campaignId: campaign.id,
+      createdAt: now(),
+      updatedAt: now()
+    })
+  }
+  campaign.announcementId = announcementId
+  return announcementId
+}
+
+function disableCampaignAnnouncement(draft, campaign) {
+  if (!Array.isArray(draft.announcements) || !campaign) return
+  const id = String(campaign.announcementId || '')
+  const item = (id && draft.announcements.find(entry => entry.id === id))
+    || draft.announcements.find(entry => entry.campaignId === campaign.id)
+  if (!item) return
+  item.enabled = false
+  item.updatedAt = now()
 }
 
 function publicTransaction(transaction) {
@@ -503,7 +578,7 @@ const transactionLabels = {
   checkin_streak: '连签额外奖励',
   campaign_bonus: '活动奖励',
   invite_login: '邀请新用户登录',
-  invite_first_job: '邀请新用户完成首作',
+  invite_first_job: '邀请新用户完成首次创作',
   cdk_redeem: 'CDK 兑换积分',
   gallery_publish: '分享到花海',
   gallery_like_give: '送花给花海作品',
@@ -758,7 +833,7 @@ function applyInviteFirstJobReward(draft, inviteeUserId) {
     inviter.id,
     amount,
     'invite_first_job',
-    '邀请新用户完成首作奖励',
+    '邀请新用户完成首次创作奖励',
     inviteeUserId
   )
   invite.firstJobRewarded = true
@@ -1383,7 +1458,7 @@ export async function createApplication() {
             if ('shareOpenDailyLimit' in body) draft.settings.shareOpenDailyLimit = boundedInteger(body.shareOpenDailyLimit, '好友打开每日上限', 0, 100)
             if ('inviteRewardEnabled' in body) draft.settings.inviteRewardEnabled = Boolean(body.inviteRewardEnabled)
             if ('inviteLoginCredits' in body) draft.settings.inviteLoginCredits = boundedInteger(body.inviteLoginCredits, '邀请登录积分', 0, 100000)
-            if ('inviteFirstJobCredits' in body) draft.settings.inviteFirstJobCredits = boundedInteger(body.inviteFirstJobCredits, '邀请首作积分', 0, 100000)
+            if ('inviteFirstJobCredits' in body) draft.settings.inviteFirstJobCredits = boundedInteger(body.inviteFirstJobCredits, '邀请首次创作积分', 0, 100000)
             if ('galleryPublishCredits' in body) draft.settings.galleryPublishCredits = boundedInteger(body.galleryPublishCredits, '公开共享积分', 0, 100000)
             if ('galleryLikeLikerCredits' in body) draft.settings.galleryLikeLikerCredits = boundedInteger(body.galleryLikeLikerCredits, '点赞者积分', 0, 100000)
             if ('galleryLikeAuthorCredits' in body) draft.settings.galleryLikeAuthorCredits = boundedInteger(body.galleryLikeAuthorCredits, '被点赞作者积分', 0, 100000)
@@ -1448,6 +1523,7 @@ export async function createApplication() {
         if (request.method === 'GET' && pathname === '/api/admin/user-levels') {
           const state = store.read()
           json(response, 200, {
+            enabled: Boolean(state.settings?.userLevelsEnabled),
             levels: listUserLevels(state, { includeDisabled: true })
           })
           return
@@ -1455,12 +1531,18 @@ export async function createApplication() {
 
         if (request.method === 'PUT' && pathname === '/api/admin/user-levels') {
           const body = await readJson(request)
-          const levels = await store.transaction(draft => {
-            const incoming = Array.isArray(body.levels) ? body.levels : []
-            draft.userLevels = incoming.map((item, index) => normalizeUserLevel(item, index))
-            return listUserLevels(draft, { includeDisabled: true })
+          const result = await store.transaction(draft => {
+            if ('enabled' in body) draft.settings.userLevelsEnabled = Boolean(body.enabled)
+            const incoming = Array.isArray(body.levels) ? body.levels : null
+            if (incoming) {
+              draft.userLevels = incoming.map((item, index) => normalizeUserLevel(item, index))
+            }
+            return {
+              enabled: Boolean(draft.settings.userLevelsEnabled),
+              levels: listUserLevels(draft, { includeDisabled: true })
+            }
           })
-          json(response, 200, { levels, message: '用户等级已保存' })
+          json(response, 200, { ...result, message: '用户等级已保存' })
           return
         }
 
@@ -1486,6 +1568,7 @@ export async function createApplication() {
             })
             if (!item.name) throw new HttpError(400, 'INVALID_FIELD', '活动名称不能为空')
             if (!item.startAt || !item.endAt) throw new HttpError(400, 'INVALID_FIELD', '请设置活动起止时间')
+            syncCampaignAnnouncement(draft, item)
             draft.campaigns.push(item)
             return item
           })
@@ -1505,8 +1588,10 @@ export async function createApplication() {
               ...draft.campaigns[index],
               ...body,
               id: campaignId,
+              announcementId: draft.campaigns[index].announcementId || body.announcementId || '',
               updatedAt: now()
             })
+            syncCampaignAnnouncement(draft, next)
             draft.campaigns[index] = next
             return next
           })
@@ -1520,6 +1605,8 @@ export async function createApplication() {
             if (!Array.isArray(draft.campaigns)) draft.campaigns = []
             const index = draft.campaigns.findIndex(item => item.id === campaignId)
             if (index === -1) throw new HttpError(404, 'CAMPAIGN_NOT_FOUND', '活动不存在')
+            const removed = draft.campaigns[index]
+            disableCampaignAnnouncement(draft, removed)
             draft.campaigns.splice(index, 1)
           })
           json(response, 200, { ok: true, id: campaignId, message: '活动已删除' })
@@ -3427,7 +3514,7 @@ export async function createApplication() {
             rewarded: false,
             reward: 0,
             reason: 'recorded',
-            message: '分享已记录，好友打开/登录/完成首作后你可获得邀请奖励',
+            message: '分享已记录，好友打开/登录/完成首次创作后你可获得邀请奖励',
             event,
             user: draft.users.find(item => item.id === user.id),
             remainingToday: 0

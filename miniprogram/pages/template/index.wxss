@@ -118,6 +118,54 @@
   font-size: 22rpx;
 }
 
+.detail-meta__promo {
+  color: var(--coral);
+  font-weight: 650;
+}
+
+.promo-price-card {
+  margin-top: 20rpx;
+  padding: 20rpx 22rpx;
+  background: linear-gradient(135deg, #fff5f2 0%, #fff9f0 100%);
+  border: 2rpx solid #f3d7cf;
+  border-radius: 16rpx;
+}
+
+.promo-price-card__badge {
+  display: inline-flex;
+  padding: 4rpx 12rpx;
+  background: var(--coral);
+  border-radius: 8rpx;
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 650;
+}
+
+.promo-price-card__row {
+  margin-top: 12rpx;
+  display: flex;
+  align-items: baseline;
+  gap: 14rpx;
+}
+
+.promo-price-card__old {
+  color: var(--muted);
+  text-decoration: line-through;
+  font-size: 24rpx;
+}
+
+.promo-price-card__now {
+  color: var(--coral);
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.promo-price-card__time {
+  margin-top: 8rpx;
+  color: #c45b3a;
+  font-size: 22rpx;
+}
+
 .tag-row {
   margin-top: 22rpx;
   display: flex;
@@ -222,6 +270,18 @@
 .detail-action__label {
   color: var(--muted);
   font-size: 20rpx;
+}
+
+.detail-action__cost-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+}
+
+.detail-action__old {
+  color: var(--muted);
+  text-decoration: line-through;
+  font-size: 24rpx;
 }
 
 .detail-action__cost {

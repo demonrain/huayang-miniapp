@@ -625,17 +625,36 @@
   white-space: nowrap;
 }
 
+.template-cost--promo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2rpx;
+}
+
 .template-cost__old {
-  margin-right: 6rpx;
   color: var(--muted);
   text-decoration: line-through;
   font-size: 15rpx;
+}
+
+.template-cost__now {
+  color: var(--coral);
+  font-weight: 700;
+  font-size: 18rpx;
 }
 
 .template-cost__promo {
   margin-left: 6rpx;
   color: var(--coral);
   font-weight: 700;
+}
+
+.template-promo-time {
+  color: #c45b3a;
+  font-size: 14rpx;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .template-popularity {

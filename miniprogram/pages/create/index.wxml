@@ -23,7 +23,13 @@
         <view class="style-name">{{template.name}}</view>
         <view class="style-desc">{{template.description}}</view>
       </view>
-      <view class="unit-cost">{{template.cost}} 积分/张</view>
+      <view class="unit-cost {{template.costDiscounted ? 'unit-cost--promo' : ''}}">
+        <block wx:if="{{template.costDiscounted}}">
+          <text class="unit-cost__old">{{template.originalCost}}</text>
+          <text class="unit-cost__now">{{template.cost}} 积分/张</text>
+        </block>
+        <block wx:else>{{template.cost}} 积分/张</block>
+      </view>
     </view>
 
     <view class="section-title">

@@ -193,11 +193,14 @@
           <view class="template-desc">{{item.description}}</view>
         </view>
         <view class="template-side">
-          <view class="template-cost">
-            <text wx:if="{{item.costDiscounted}}" class="template-cost__old">{{item.originalCost}}</text>
-            {{item.cost}} 积分
-            <text wx:if="{{item.costDiscounted}}" class="template-cost__promo">特惠</text>
+          <view class="template-cost {{item.costDiscounted ? 'template-cost--promo' : ''}}">
+            <block wx:if="{{item.costDiscounted}}">
+              <text class="template-cost__old">{{item.originalCost}} 积分</text>
+              <text class="template-cost__now">{{item.cost}} 积分</text>
+            </block>
+            <block wx:else>{{item.cost}} 积分</block>
           </view>
+          <view wx:if="{{item.costDiscounted && item.promoEndText}}" class="template-promo-time">限时至 {{item.promoEndText}}</view>
           <view class="template-popularity">人气 {{item.popularityText}}</view>
         </view>
       </view>

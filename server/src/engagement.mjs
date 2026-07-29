@@ -18,7 +18,7 @@ export const DEFAULT_USER_LEVELS = [
     badgeTone: 'mint',
     sortOrder: 10,
     rewardCredits: 0,
-    enabled: true,
+    enabled: false,
     conditions: {
       minCheckinDays: 0,
       minCompletedJobs: 0,
@@ -37,7 +37,7 @@ export const DEFAULT_USER_LEVELS = [
     badgeTone: 'coral',
     sortOrder: 20,
     rewardCredits: 8,
-    enabled: true,
+    enabled: false,
     conditions: {
       minCheckinDays: 3,
       minCompletedJobs: 1,
@@ -56,7 +56,7 @@ export const DEFAULT_USER_LEVELS = [
     badgeTone: 'gold',
     sortOrder: 30,
     rewardCredits: 20,
-    enabled: true,
+    enabled: false,
     conditions: {
       minCheckinDays: 7,
       minCompletedJobs: 5,
@@ -75,7 +75,7 @@ export const DEFAULT_USER_LEVELS = [
     badgeTone: 'rose',
     sortOrder: 40,
     rewardCredits: 50,
-    enabled: true,
+    enabled: false,
     conditions: {
       minCheckinDays: 14,
       minCompletedJobs: 15,
@@ -94,7 +94,7 @@ export const DEFAULT_USER_LEVELS = [
     badgeTone: 'violet',
     sortOrder: 50,
     rewardCredits: 120,
-    enabled: true,
+    enabled: false,
     conditions: {
       minCheckinDays: 30,
       minCompletedJobs: 40,
@@ -248,8 +248,14 @@ export function normalizeUserLevel(item = {}, index = 0) {
   }
 }
 
+export function isUserLevelsFeatureEnabled(state) {
+  return Boolean(state?.settings?.userLevelsEnabled)
+}
+
 export function listUserLevels(state, { includeDisabled = false } = {}) {
-  // 已初始化为空数组 = 未启用任何等级；仅未初始化时用默认档
+  // 总开关关闭时，对小程序/发奖侧视为无等级（管理端用 includeDisabled 仍可编辑）
+  if (!includeDisabled && !isUserLevelsFeatureEnabled(state)) return []
+  // 已初始化为空数组 = 未配置等级；仅未初始化时用默认档
   const raw = Array.isArray(state.userLevels)
     ? state.userLevels
     : DEFAULT_USER_LEVELS
@@ -359,7 +365,10 @@ export function resolveTemplateUnitCost(template, state) {
     originalCost: base,
     discounted: best < base,
     campaignId: applied?.id || '',
-    campaignName: applied?.name || ''
+    campaignName: applied?.name || '',
+    campaignBadge: applied?.badge || '',
+    promoStartAt: applied?.startAt || '',
+    promoEndAt: applied?.endAt || ''
   }
 }
 
@@ -412,6 +421,7 @@ export function normalizeCampaign(item = {}, index = 0) {
     inviteBonusMultiplier: Math.max(1, Math.min(10, Number(item.inviteBonusMultiplier) || 1)),
     galleryPublishBonus: Math.max(0, Math.floor(Number(item.galleryPublishBonus) || 0)),
     galleryLikeBonus: Math.max(0, Math.floor(Number(item.galleryLikeBonus) || 0)),
+    announcementId: String(item.announcementId || ''),
     createdAt: item.createdAt || '',
     updatedAt: item.updatedAt || item.createdAt || ''
   }
@@ -438,6 +448,19 @@ export function ensureEngagementCollections(draft) {
   if (draft.settings) {
     if (!Array.isArray(draft.settings.checkinStreakBonuses)) {
       draft.settings.checkinStreakBonuses = DEFAULT_CHECKIN_STREAK_BONUSES.map(item => ({ ...item }))
+      changed = true
+    }
+    if (draft.settings.userLevelsEnabled === undefined) {
+      draft.settings.userLevelsEnabled = false
+      changed = true
+    }
+    // 等级为可选功能：一次性将默认档改为停用，避免「未启用」时仍展示角标
+    if (draft.settings.userLevelOptInApplied !== true && Array.isArray(draft.userLevels)) {
+      const defaultIds = new Set(DEFAULT_USER_LEVELS.map(item => item.id))
+      for (const level of draft.userLevels) {
+        if (defaultIds.has(level.id)) level.enabled = false
+      }
+      draft.settings.userLevelOptInApplied = true
       changed = true
     }
   }
