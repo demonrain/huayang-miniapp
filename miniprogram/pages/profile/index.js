@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
+const pageShare = require('../../behaviors/page-share')
 
 function emptyStats() {
   return {
@@ -51,6 +52,7 @@ function buildCheckinView(checkin) {
 }
 
 Page({
+  behaviors: [pageShare],
   data: {
     user: null,
     stats: emptyStats(),
@@ -72,7 +74,8 @@ Page({
     levelTitle: '',
     levelBadgeText: '',
     levelBadgeTone: 'mint',
-    navSpacer: 176
+    navSpacer: 176,
+    pageReady: false
   },
 
   onLoad() {
@@ -84,6 +87,9 @@ Page({
   },
 
   async loadProfile() {
+    // 首次/未登录态用遮罩挡住欢迎页闪现；已有用户则静默刷新，避免反复盖住「我的」
+    const softRefresh = Boolean(this.data.user)
+    if (!softRefresh) this.setData({ pageReady: false })
     try {
       const app = getApp()
       await app.ensureSession()
@@ -125,6 +131,8 @@ Page({
         return
       }
       wx.showToast({ title: error.message || '加载失败', icon: 'none' })
+    } finally {
+      this.setData({ pageReady: true })
     }
   },
 

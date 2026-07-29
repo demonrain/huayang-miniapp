@@ -202,6 +202,15 @@
         <view wx:if="{{shareLoginLine}}" class="share-reward-panel__item">{{shareLoginLine}}</view>
         <view wx:if="{{shareFirstJobLine}}" class="share-reward-panel__item">{{shareFirstJobLine}}</view>
       </view>
+      <view wx:if="{{!demo && !showcase && (job.status === 'succeeded' || job.status === 'partial') && job.originals.length}}" class="friend-share-options">
+        <view class="friend-share-options__row">
+          <view class="friend-share-options__text">
+            <text class="friend-share-options__title">分享时展示原图</text>
+            <text class="friend-share-options__desc">开启后，好友打开分享页可看到原图与效果对照</text>
+          </view>
+          <switch checked="{{shareShowOriginals}}" color="#E76D82" disabled="{{shareOriginalsSaving}}" bindchange="onShareOriginalsToggle" />
+        </view>
+      </view>
       <view wx:if="{{!demo && !showcase}}" class="share-actions">
         <view class="share-action-cell">
           <button class="share-action" open-type="share" disabled="{{!share}}">

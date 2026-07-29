@@ -1,7 +1,9 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
+const pageShare = require('../../behaviors/page-share')
 
 Page({
+  behaviors: [pageShare],
   data: {
     user: null,
     isLoggedIn: false,

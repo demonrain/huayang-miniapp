@@ -1,6 +1,7 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
 const { mdToHtml, mdToPlain } = require('../../utils/markdown')
+const pageShare = require('../../behaviors/page-share')
 
 const LOADING_TIPS = [
   '小花瓣在排队挑风格，马上就好…',
@@ -44,6 +45,7 @@ function mapAnnouncement(item) {
 }
 
 Page({
+  behaviors: [pageShare],
   data: {
     loading: true,
     loadingTip: LOADING_TIPS[0],
@@ -78,8 +80,7 @@ Page({
     announcementInterval: 4500,
     announcementCircular: true,
     recommendedTemplates: [],
-    recentTemplates: [],
-    activeCampaigns: []
+    recentTemplates: []
   },
 
   onLoad() {
@@ -136,7 +137,7 @@ Page({
     try {
       const app = getApp()
       const user = await app.ensureSession()
-      const [{ banners }, config, announcementResult, firstPage, campaignResult] = await Promise.all([
+      const [{ banners }, config, announcementResult, firstPage] = await Promise.all([
         api.get('/api/banners'),
         api.get('/api/config'),
         api.get('/api/announcements').catch(error => {
@@ -146,8 +147,7 @@ Page({
         this.fetchTemplatesPage({
           page: 1,
           category: this.data.activeCategory || 'all'
-        }),
-        api.get('/api/campaigns/active').catch(() => ({ campaigns: [] }))
+        })
       ])
       const categories = Array.isArray(config.templateCategories) && config.templateCategories.length
         ? [{ id: 'all', name: '全部' }, ...config.templateCategories.map(item => ({ id: item.id, name: item.name }))]
@@ -208,8 +208,7 @@ Page({
         announcements,
         latestAnnouncement: announcements[0] || null,
         announcementInterval,
-        announcementCircular,
-        activeCampaigns: Array.isArray(campaignResult.campaigns) ? campaignResult.campaigns : []
+        announcementCircular
       })
       if (app.isLoggedIn()) this.loadPersonalShelves()
       if (!showOnboarding) this.maybeShowAnnouncement()

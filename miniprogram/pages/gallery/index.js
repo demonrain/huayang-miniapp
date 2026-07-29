@@ -1,6 +1,7 @@
 const api = require('../../utils/api')
 const { relativeTime } = require('../../utils/format')
 const { getNavMetrics } = require('../../utils/nav')
+const pageShare = require('../../behaviors/page-share')
 
 const PAGE_SIZE = 12
 
@@ -23,6 +24,7 @@ function splitWaterfall(items) {
 }
 
 Page({
+  behaviors: [pageShare],
   data: {
     items: [],
     leftItems: [],

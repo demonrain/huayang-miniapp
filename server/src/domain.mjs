@@ -567,6 +567,42 @@ export function publicShare(share, state) {
   const job = state.jobs.find(item => item.id === share.jobId)
   if (!job || !['succeeded', 'partial'].includes(job.status) || !(job.results || []).length) return null
   const template = findTemplate(state, job.templateId, true)
+  const showOriginals = Boolean(share.showOriginals)
+  const results = (job.results || []).map(result => {
+    const full = mediaUrl(result.storagePath)
+    return {
+      id: result.id,
+      assetId: result.assetId || '',
+      url: full,
+      thumbUrl: mediaThumbUrl(result.storagePath) || full
+    }
+  })
+  const originalIds = (Array.isArray(job.assetIds) && job.assetIds.length)
+    ? job.assetIds
+    : [...new Set(results.map(item => item.assetId).filter(Boolean))]
+  const originals = showOriginals
+    ? originalIds.map((assetId, index) => {
+      const asset = state.assets.find(item => item.id === assetId)
+      if (!asset) return null
+      const full = assetUrl(asset)
+      return {
+        id: asset.id,
+        url: full,
+        thumbUrl: assetThumbUrl(asset) || full,
+        index: index + 1
+      }
+    }).filter(Boolean)
+    : []
+  const comparePairs = results.map((result, index) => {
+    const matched = originals.find(item => item.id === result.assetId)
+    const fallback = originals[Math.min(index, Math.max(originals.length - 1, 0))] || null
+    return {
+      id: result.id,
+      result,
+      original: matched || fallback,
+      index: index + 1
+    }
+  })
   return {
     token: share.token,
     title: share.title || state.settings.shareTitle,
@@ -577,13 +613,9 @@ export function publicShare(share, state) {
     qrcodeUrl: mediaUrl(share.qrcodeStoragePath),
     templateName: template?.name || '花漾相绘作品',
     templatePalette: template?.palette || '#f2c5cc',
-    results: (job.results || []).map(result => {
-      const full = mediaUrl(result.storagePath)
-      return {
-        id: result.id,
-        url: full,
-        thumbUrl: mediaThumbUrl(result.storagePath) || full
-      }
-    })
+    showOriginals,
+    results,
+    originals,
+    comparePairs
   }
 }

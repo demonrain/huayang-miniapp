@@ -1,11 +1,27 @@
 <view class="page profile-page page-enter" style="padding-top: {{navSpacer}}rpx">
   <custom-nav credits="{{user ? user.credits : null}}"></custom-nav>
 
-  <view wx:if="{{!user}}" class="guest-panel">
-    <view class="guest-title">欢迎来到花漾相绘</view>
-    <view class="guest-sub">点击登录将授权微信登录。若微信未返回真实昵称，会自动分配花漾风格昵称；登录后也可点头像/昵称继续完善。</view>
-    <button class="primary-button guest-login" bindtap="doLogin">微信快捷登录</button>
+  <view wx:if="{{!pageReady}}" class="profile-boot-mask" catchtouchmove="noop">
+    <view class="profile-boot-card">
+      <view class="profile-boot-flower">
+        <view class="profile-boot-petal profile-boot-petal--1"></view>
+        <view class="profile-boot-petal profile-boot-petal--2"></view>
+        <view class="profile-boot-petal profile-boot-petal--3"></view>
+        <view class="profile-boot-petal profile-boot-petal--4"></view>
+        <view class="profile-boot-dot"></view>
+      </view>
+      <view class="profile-boot-title">花漾正在准备</view>
+      <view class="profile-boot-sub">正在打开你的花园…</view>
+    </view>
   </view>
+
+  <block wx:elif="{{!user}}">
+    <view class="guest-panel">
+      <view class="guest-title">欢迎来到花漾相绘</view>
+      <view class="guest-sub">点击登录将授权微信登录。若微信未返回真实昵称，会自动分配花漾风格昵称；登录后也可点头像/昵称继续完善。</view>
+      <button class="primary-button guest-login" bindtap="doLogin">微信快捷登录</button>
+    </view>
+  </block>
 
   <block wx:else>
     <view class="profile-head">

@@ -2,10 +2,12 @@ const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
 const { isDemoQuery, buildDemoJob, saveDemoJob, delay } = require('../../utils/demo')
 const { formatEtaRange, estimateRange } = require('../../utils/eta')
+const pageShare = require('../../behaviors/page-share')
 
 const DEMO_SAMPLE = { path: '/assets/demo/demo-photo.jpg', size: 0, demoSample: true }
 
 Page({
+  behaviors: [pageShare],
   data: {
     templateId: '',
     template: null,

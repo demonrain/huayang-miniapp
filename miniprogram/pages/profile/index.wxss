@@ -1,3 +1,78 @@
+/* —— Boot loading mask —— */
+.profile-boot-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx 48rpx;
+  background: rgba(48, 40, 44, 0.42);
+  box-sizing: border-box;
+}
+
+.profile-boot-card {
+  width: 100%;
+  max-width: 520rpx;
+  padding: 48rpx 36rpx 40rpx;
+  text-align: center;
+  background: #fff9f8;
+  border: 2rpx solid rgba(255, 255, 255, 0.7);
+  border-radius: 24rpx;
+  box-shadow: 0 20rpx 56rpx rgba(80, 60, 70, 0.18);
+}
+
+.profile-boot-flower {
+  position: relative;
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 auto 22rpx;
+  animation: profile-boot-spin 3.6s linear infinite;
+}
+
+.profile-boot-petal {
+  position: absolute;
+  width: 34rpx;
+  height: 48rpx;
+  background: linear-gradient(180deg, #f7b7c2 0%, #e76d82 100%);
+  border-radius: 50% 50% 46% 46%;
+  opacity: 0.92;
+}
+
+.profile-boot-petal--1 { top: 0; left: 27rpx; }
+.profile-boot-petal--2 { top: 20rpx; right: 0; transform: rotate(90deg); }
+.profile-boot-petal--3 { bottom: 0; left: 27rpx; transform: rotate(180deg); }
+.profile-boot-petal--4 { top: 20rpx; left: 0; transform: rotate(270deg); }
+
+.profile-boot-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18rpx;
+  height: 18rpx;
+  margin: -9rpx 0 0 -9rpx;
+  background: #f0c35a;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6rpx rgba(240, 195, 90, 0.22);
+}
+
+.profile-boot-title {
+  color: var(--ink);
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.profile-boot-sub {
+  margin-top: 10rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+}
+
+@keyframes profile-boot-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* —— Guest —— */
 .guest-panel {
   margin-top: 24rpx;

@@ -45,15 +45,6 @@
     </view>
   </view>
 
-  <scroll-view wx:if="{{activeCampaigns.length}}" class="campaign-scroll" scroll-x enhanced show-scrollbar="{{false}}">
-    <view class="campaign-strip">
-      <view wx:for="{{activeCampaigns}}" wx:key="id" class="campaign-chip">
-        <text class="campaign-chip__badge">{{item.badge || item.typeLabel}}</text>
-        <text class="campaign-chip__name">{{item.name}}</text>
-      </view>
-    </view>
-  </scroll-view>
-
   <swiper
     wx:if="{{announcements.length}}"
     class="announcement-swiper"

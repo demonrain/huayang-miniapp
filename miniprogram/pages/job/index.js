@@ -11,6 +11,7 @@ const {
 const { etaStatusText, etaNoteText, waitingTipsForCount } = require('../../utils/eta')
 const { recordJobFailure, isServiceUnstable } = require('../../utils/fail-guard')
 const { ensureAlbumPermission, saveImageToAlbum, hideLoadingQuiet } = require('../../utils/album')
+const pageShare = require('../../behaviors/page-share')
 
 const STATUS_TEXT = {
   queued: '正在排队',
@@ -35,6 +36,7 @@ const FAIL_MESSAGES = [
 ]
 
 Page({
+  behaviors: [pageShare],
   data: {
     id: '',
     job: null,
@@ -65,6 +67,8 @@ Page({
     shareFriendRemaining: null,
     shareTimelineRemaining: null,
     shareRewardEnabled: false,
+    shareShowOriginals: false,
+    shareOriginalsSaving: false,
     navSpacer: 176,
     demo: false,
     showcase: false,
@@ -611,17 +615,60 @@ Page({
     }
   },
 
-  async ensureShare() {
-    if (this.data.share) return this.data.share
-    if (!this.sharePromise) {
-      this.sharePromise = api.post(`/api/jobs/${this.data.id}/share`, {})
-        .then(({ share }) => {
-          this.setData({ share })
-          return share
-        })
-        .finally(() => { this.sharePromise = null })
+  async ensureShare(options = {}) {
+    const hasOverride = Object.prototype.hasOwnProperty.call(options, 'showOriginals')
+    if (this.data.share && !hasOverride) return this.data.share
+
+    // 带 showOriginals 的请求必须单独发出，不能复用进行中的空 payload 请求
+    if (!hasOverride && this.sharePromise) return this.sharePromise
+
+    const seq = (this._shareSeq = (this._shareSeq || 0) + 1)
+    const showOriginals = hasOverride ? Boolean(options.showOriginals) : undefined
+    const payload = hasOverride ? { showOriginals } : {}
+    const promise = api.post(`/api/jobs/${this.data.id}/share`, payload)
+      .then((result) => {
+        const share = result && result.share
+        if (seq !== this._shareSeq) return share
+        if (hasOverride && Boolean(share && share.showOriginals) !== showOriginals) {
+          throw new Error('原图分享设置未保存成功，请重试')
+        }
+        const patch = { share }
+        if (hasOverride) {
+          patch.shareShowOriginals = showOriginals
+        } else if (!this.data.shareOriginalsSaving) {
+          patch.shareShowOriginals = Boolean(share && share.showOriginals)
+        }
+        this.setData(patch)
+        return share
+      })
+      .finally(() => {
+        if (this.sharePromise === promise) this.sharePromise = null
+      })
+
+    this.sharePromise = promise
+    return promise
+  },
+
+  async onShareOriginalsToggle(event) {
+    const showOriginals = Boolean(event.detail.value)
+    const prev = Boolean(this.data.shareShowOriginals)
+    this.setData({ shareShowOriginals: showOriginals, shareOriginalsSaving: true })
+    try {
+      // 作废进行中的分享请求，避免旧响应用 false 盖掉开关
+      this._shareSeq = (this._shareSeq || 0) + 1
+      this.sharePromise = null
+      await this.ensureShare({ showOriginals })
+      this.setData({ shareShowOriginals: showOriginals })
+      wx.showToast({
+        title: showOriginals ? '好友将看到原图对照' : '好友仅看生成效果',
+        icon: 'none'
+      })
+    } catch (error) {
+      this.setData({ shareShowOriginals: prev })
+      wx.showToast({ title: error.message || '设置失败', icon: 'none' })
+    } finally {
+      this.setData({ shareOriginalsSaving: false })
     }
-    return this.sharePromise
   },
 
   openAvatarCrop(event) {
@@ -737,9 +784,18 @@ Page({
     this.setData({ sharing: true })
     wx.showLoading({ title: '生成小程序码', mask: true })
     try {
-      const { share } = await api.post(`/api/jobs/${this.data.id}/share/qrcode`, {})
+      // 生成码时再次同步「展示原图」，避免开关只改了本地、码对应的分享记录仍是关闭
+      const showOriginals = Boolean(this.data.shareShowOriginals)
+      const { share } = await api.post(`/api/jobs/${this.data.id}/share/qrcode`, { showOriginals })
       wx.hideLoading()
-      this.setData({ share, showQr: true })
+      this.setData({
+        share,
+        shareShowOriginals: Boolean(share && share.showOriginals),
+        showQr: true
+      })
+      if (showOriginals && !(share && share.showOriginals)) {
+        wx.showToast({ title: '原图分享未生效，请重试开关', icon: 'none' })
+      }
     } catch (error) {
       wx.hideLoading()
       wx.showModal({ title: '暂时无法生成', content: error.message, showCancel: false })

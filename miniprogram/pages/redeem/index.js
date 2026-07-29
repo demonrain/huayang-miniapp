@@ -1,9 +1,11 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
+const pageShare = require('../../behaviors/page-share')
 
 const PAGE_SIZE = 20
 
 Page({
+  behaviors: [pageShare],
   data: {
     code: '',
     credits: null,

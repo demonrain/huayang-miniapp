@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
+const pageShare = require('../../behaviors/page-share')
 
 const TYPES = [
   { id: 'problem', name: '问题反馈', desc: '功能异常、卡顿、展示错误等' },
@@ -8,6 +9,7 @@ const TYPES = [
 ]
 
 Page({
+  behaviors: [pageShare],
   data: {
     navSpacer: 176,
     credits: null,

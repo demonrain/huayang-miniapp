@@ -11,18 +11,54 @@
       <view class="share-kicker">XIANGHUI MOMENT</view>
       <view class="share-title">{{shareTitle}}</view>
       <view class="share-meta">{{share.templateName}} · 来自花漾相绘</view>
+      <view wx:if="{{share.showOriginals}}" class="share-badge">含原图对照</view>
     </view>
 
-    <view class="shared-results">
-      <view wx:for="{{share.results}}" wx:key="id" class="shared-result">
-        <image src="{{item.thumbUrl || item.url}}" mode="widthFix" data-url="{{item.url}}" lazy-load bindtap="preview"></image>
-        <view class="shared-actions">
-          <button class="shared-actions__save" data-url="{{item.url}}" bindtap="saveImage" loading="{{saving}}">保存图片</button>
-          <button class="shared-actions__create" bindtap="goCreate">我也来试试</button>
+    <!-- 含原图：左右对照排版 -->
+    <block wx:if="{{share.showOriginals && comparePairs.length}}">
+      <view class="compare-list">
+        <view wx:for="{{comparePairs}}" wx:key="id" class="compare-card">
+          <view class="compare-card__index">第 {{item.index}} 组</view>
+          <view class="compare-card__row">
+            <view
+              class="compare-pane"
+              wx:if="{{item.original}}"
+              data-url="{{item.original.url}}"
+              data-kind="original"
+              bindtap="previewCompare"
+            >
+              <view class="compare-pane__label">原图</view>
+              <image class="compare-pane__image" src="{{item.original.thumbUrl || item.original.url}}" mode="aspectFill" lazy-load></image>
+            </view>
+            <view class="compare-arrow" aria-hidden="true">→</view>
+            <view
+              class="compare-pane compare-pane--result"
+              data-url="{{item.result.url}}"
+              data-kind="result"
+              bindtap="previewCompare"
+            >
+              <view class="compare-pane__label compare-pane__label--result">花漾效果</view>
+              <image class="compare-pane__image" src="{{item.result.thumbUrl || item.result.url}}" mode="aspectFill" lazy-load></image>
+            </view>
+          </view>
         </view>
       </view>
-    </view>
+    </block>
+
+    <!-- 仅效果图 -->
+    <block wx:else>
+      <view class="shared-results">
+        <view wx:for="{{share.results}}" wx:key="id" class="shared-result">
+          <image src="{{item.thumbUrl || item.url}}" mode="widthFix" data-url="{{item.url}}" lazy-load bindtap="preview"></image>
+        </view>
+      </view>
+    </block>
 
     <view class="share-note">登录创作可获得新用户礼遇；好友邀请也可能获得积分</view>
+  </view>
+
+  <view wx:if="{{share && !loading}}" class="share-dock">
+    <button class="share-dock__save" loading="{{saving}}" disabled="{{saving}}" bindtap="saveAll">保存全部</button>
+    <button class="share-dock__create" bindtap="goCreate">我也来试试</button>
   </view>
 </view>

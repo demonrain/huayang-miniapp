@@ -178,11 +178,23 @@ function normalizeAnnouncementDisplayMode(raw) {
   return 'popup'
 }
 
-function publicAnnouncement(item) {
+function publicAnnouncement(item, state) {
+  let title = item.title
+  let content = item.content
+  // 活动同步公告按当前活动实时生成，避免旧快照仍显示「N个指定风格 / 角标」
+  if (state && (item.source === 'campaign' || item.campaignId)) {
+    const campaign = (Array.isArray(state.campaigns) ? state.campaigns : [])
+      .find(entry => entry.id === item.campaignId)
+    if (campaign) {
+      const normalized = normalizeCampaign(campaign)
+      title = `活动｜${normalized.name}`.slice(0, 40)
+      content = campaignAnnouncementBody(normalized, state.templates || []).slice(0, 3000)
+    }
+  }
   return {
     id: item.id,
-    title: item.title,
-    content: item.content,
+    title,
+    content,
     displayMode: normalizeAnnouncementDisplayMode(item.displayMode),
     enabled: item.enabled !== false,
     source: item.source || '',
@@ -212,7 +224,18 @@ function displayTime(value) {
   }).format(new Date(value)).replaceAll('/', '-')
 }
 
-function campaignAnnouncementBody(campaign) {
+function campaignTemplateNames(campaign, templates = []) {
+  const ids = Array.isArray(campaign.templateIds) ? campaign.templateIds.filter(Boolean) : []
+  if (!ids.length) return []
+  const byId = new Map((Array.isArray(templates) ? templates : []).map(item => [item.id, item]))
+  return ids.map(id => {
+    const template = byId.get(id)
+    const name = template && (template.name || template.shortName)
+    return name ? String(name).trim() : ''
+  }).filter(Boolean)
+}
+
+function campaignAnnouncementBody(campaign, templates = []) {
   const lines = []
   if (campaign.description) lines.push(String(campaign.description).trim())
   lines.push(`活动类型：${campaign.typeLabel || campaign.type}`)
@@ -220,9 +243,18 @@ function campaignAnnouncementBody(campaign) {
     lines.push(`活动时间：${displayTime(campaign.startAt)} ~ ${displayTime(campaign.endAt)}`)
   }
   if (campaign.type === 'template_promo') {
-    const ids = Array.isArray(campaign.templateIds) ? campaign.templateIds : []
+    const ids = Array.isArray(campaign.templateIds) ? campaign.templateIds.filter(Boolean) : []
     lines.push(`特惠价格：${Number(campaign.costOverride || 0)} 积分/张`)
-    lines.push(ids.length ? `参与模板：${ids.length} 个指定风格` : '参与模板：全部风格')
+    if (!ids.length) {
+      lines.push('参与模板：全部风格')
+    } else {
+      const names = campaignTemplateNames(campaign, templates)
+      if (names.length) {
+        lines.push(`参与模板：\n${names.map(name => `- ${name}`).join('\n')}`)
+      } else {
+        lines.push(`参与模板：已指定 ${ids.length} 个风格`)
+      }
+    }
   } else if (campaign.type === 'checkin_boost') {
     lines.push(`签到额外加赠：+${Number(campaign.checkinBonus || 0)} 积分`)
   } else if (campaign.type === 'create_challenge') {
@@ -232,14 +264,13 @@ function campaignAnnouncementBody(campaign) {
   } else if (campaign.type === 'gallery_boost') {
     lines.push(`花海发布额外 +${Number(campaign.galleryPublishBonus || 0)} · 送花额外 +${Number(campaign.galleryLikeBonus || 0)}`)
   }
-  if (campaign.badge) lines.push(`角标：${campaign.badge}`)
   return lines.filter(Boolean).join('\n\n')
 }
 
 function syncCampaignAnnouncement(draft, campaign) {
   if (!Array.isArray(draft.announcements)) draft.announcements = []
   const title = `活动｜${campaign.name}`.slice(0, 40)
-  const content = campaignAnnouncementBody(campaign).slice(0, 3000)
+  const content = campaignAnnouncementBody(campaign, draft.templates).slice(0, 3000)
   const enabled = campaign.enabled !== false
   let announcementId = String(campaign.announcementId || '')
   let item = announcementId
@@ -273,6 +304,16 @@ function syncCampaignAnnouncement(draft, campaign) {
   }
   campaign.announcementId = announcementId
   return announcementId
+}
+
+/** 把已有活动同步公告重写成最新文案（模板名称、去掉角标等） */
+function resyncAllCampaignAnnouncements(draft) {
+  if (!Array.isArray(draft.campaigns)) return
+  for (const raw of draft.campaigns) {
+    const campaign = normalizeCampaign(raw)
+    syncCampaignAnnouncement(draft, campaign)
+    raw.announcementId = campaign.announcementId
+  }
 }
 
 function disableCampaignAnnouncement(draft, campaign) {
@@ -1238,7 +1279,13 @@ export async function createApplication() {
       }
 
       if (request.method === 'GET' && pathname.startsWith('/api/shares/')) {
-        const token = pathname.slice('/api/shares/'.length)
+        const rawToken = pathname.slice('/api/shares/'.length)
+        let token = ''
+        try {
+          token = decodeURIComponent(rawToken)
+        } catch (error) {
+          token = rawToken
+        }
         if (!token || token.includes('/')) throw new HttpError(404, 'SHARE_NOT_FOUND', '分享不存在')
         const state = store.read()
         const share = state.shares.find(item => item.token === token)
@@ -2550,12 +2597,15 @@ export async function createApplication() {
 
         // —— In-app announcements ——
         if (request.method === 'GET' && pathname === '/api/admin/announcements') {
+          await store.transaction(draft => {
+            resyncAllCampaignAnnouncements(draft)
+          })
           const state = store.read()
           const list = (Array.isArray(state.announcements) ? state.announcements : [])
             .slice()
             .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
             .map(item => ({
-              ...publicAnnouncement(item),
+              ...publicAnnouncement(item, state),
               displayModeLabel: normalizeAnnouncementDisplayMode(item.displayMode) === 'silent' ? '静默' : '弹窗',
               createdTime: displayTime(item.createdAt),
               updatedTime: displayTime(item.updatedAt || item.createdAt)
@@ -2588,7 +2638,7 @@ export async function createApplication() {
           const item = store.read(state => (state.announcements || []).find(entry => entry.id === id))
           json(response, 201, {
             announcement: {
-              ...publicAnnouncement(item),
+              ...publicAnnouncement(item, store.read()),
               createdTime: displayTime(item.createdAt)
             }
           })
@@ -2612,7 +2662,7 @@ export async function createApplication() {
           const item = store.read(state => (state.announcements || []).find(entry => entry.id === id))
           json(response, 200, {
             announcement: {
-              ...publicAnnouncement(item),
+              ...publicAnnouncement(item, store.read()),
               createdTime: displayTime(item.createdAt)
             }
           })
@@ -2705,11 +2755,14 @@ export async function createApplication() {
 
       // Public: active in-app announcements (no auth)
       if (request.method === 'GET' && pathname === '/api/announcements') {
+        await store.transaction(draft => {
+          resyncAllCampaignAnnouncements(draft)
+        })
         const state = store.read()
         const announcements = (Array.isArray(state.announcements) ? state.announcements : [])
           .filter(item => item.enabled !== false)
           .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-          .map(item => publicAnnouncement(item))
+          .map(item => publicAnnouncement(item, state))
         json(response, 200, {
           announcements,
           carousel: publicAnnouncementCarouselSettings(state.settings)
@@ -3397,6 +3450,7 @@ export async function createApplication() {
       if (request.method === 'POST' && shareJobMatch) {
         const jobId = shareJobMatch[1]
         const action = shareJobMatch[2] || 'create'
+        const body = await readJson(request).catch(() => ({}))
         const share = await store.transaction(draft => {
           const job = draft.jobs.find(item => item.id === jobId && item.userId === user.id)
           if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', '创作任务不存在')
@@ -3413,11 +3467,18 @@ export async function createApplication() {
               title: draft.settings.shareTitle,
               qrcodeStoragePath: '',
               urlLink: '',
+              showOriginals: false,
               createdAt: now(),
               updatedAt: now()
             }
             draft.shares.push(item)
           }
+          // create / qrcode / url-link 均可更新是否展示原图
+          if (body && Object.prototype.hasOwnProperty.call(body, 'showOriginals')) {
+            item.showOriginals = Boolean(body.showOriginals)
+            item.updatedAt = now()
+          }
+          if (item.showOriginals == null) item.showOriginals = false
           return item
         })
 

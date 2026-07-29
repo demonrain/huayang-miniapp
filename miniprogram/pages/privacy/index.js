@@ -1,4 +1,5 @@
 const { getNavMetrics } = require('../../utils/nav')
+const pageShare = require('../../behaviors/page-share')
 
 const PRIVACY_SECTIONS = [
   {
@@ -91,6 +92,7 @@ const AGREEMENT_SECTIONS = [
 ]
 
 Page({
+  behaviors: [pageShare],
   data: {
     type: 'privacy',
     title: '用户隐私说明',

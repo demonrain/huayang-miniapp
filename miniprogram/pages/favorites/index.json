@@ -2,5 +2,7 @@
   "usingComponents": {
     "custom-nav": "/components/custom-nav/index"
   },
-  "navigationStyle": "custom"
+  "navigationStyle": "custom",
+  "enableShareAppMessage": true,
+  "enableShareTimeline": true
 }

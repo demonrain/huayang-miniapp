@@ -1,6 +1,7 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
 const { isDemoQuery } = require('../../utils/demo')
+const pageShare = require('../../behaviors/page-share')
 
 const CATEGORY_LABELS = {
   portrait: '人像',
@@ -18,6 +19,7 @@ function formatPromoEndText(value) {
 }
 
 Page({
+  behaviors: [pageShare],
   data: {
     templateId: '',
     template: null,
@@ -46,6 +48,17 @@ Page({
   onShow() {
     const user = getApp().globalData.user
     if (user) this.setData({ credits: user.credits })
+  },
+
+  getPageShareConfig() {
+    const template = this.data.template
+    if (!template || !template.id) return null
+    return {
+      title: `花漾相绘 · ${template.name || '风格分享'}`,
+      path: `/pages/template/index?id=${encodeURIComponent(template.id)}`,
+      query: `id=${encodeURIComponent(template.id)}`,
+      imageUrl: template.coverFullUrl || template.coverUrl || ''
+    }
   },
 
   async loadTemplate() {

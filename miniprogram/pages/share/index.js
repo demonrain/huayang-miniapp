@@ -1,5 +1,6 @@
 const api = require('../../utils/api')
 const { getNavMetrics } = require('../../utils/nav')
+const pageShare = require('../../behaviors/page-share')
 
 /** 花漾相绘风格随机话术，进入分享页时挑一句展示 */
 const SHARE_TITLES = [
@@ -22,9 +23,11 @@ function pickShareTitle() {
 }
 
 Page({
+  behaviors: [pageShare],
   data: {
     token: '',
     share: null,
+    comparePairs: [],
     shareTitle: SHARE_TITLES[0],
     loading: true,
     saving: false,
@@ -32,9 +35,27 @@ Page({
   },
 
   onLoad(query) {
-    const token = query.token || decodeURIComponent(query.scene || '')
+    let token = String(query.token || '').trim()
+    if (!token && query.scene) {
+      // 扫小程序码进入：scene 即为分享 token
+      try {
+        token = decodeURIComponent(String(query.scene))
+      } catch (error) {
+        token = String(query.scene)
+      }
+    }
+    // 兼容 scene 写成 token=xxx 的旧格式
+    if (token && token.includes('token=')) {
+      const match = /(?:^|[?&])token=([^&]+)/.exec(token)
+      if (match) {
+        try {
+          token = decodeURIComponent(match[1])
+        } catch (error) {
+          token = match[1]
+        }
+      }
+    }
     this.setData({ ...getNavMetrics(), token, shareTitle: pickShareTitle() })
-    // Attribute invite when visitor later logs in
     if (token) getApp().setInviteToken(token)
     getApp().captureInviteFromQuery(query)
     wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
@@ -44,7 +65,8 @@ Page({
   async loadShare() {
     try {
       const { share } = await api.get(`/api/shares/${encodeURIComponent(this.data.token)}`)
-      this.setData({ share, loading: false })
+      const comparePairs = Array.isArray(share.comparePairs) ? share.comparePairs : []
+      this.setData({ share, comparePairs, loading: false })
       if (share && share.token) getApp().setInviteToken(share.token)
     } catch (error) {
       this.setData({ loading: false })
@@ -75,18 +97,47 @@ Page({
     wx.previewImage({ current, urls: this.data.share.results.map(item => item.url) })
   },
 
-  async saveImage(event) {
+  previewCompare(event) {
+    const current = event.currentTarget.dataset.url
+    const kind = event.currentTarget.dataset.kind
+    const pairs = this.data.comparePairs || []
+    const urls = kind === 'original'
+      ? pairs.map(item => item.original && item.original.url).filter(Boolean)
+      : pairs.map(item => item.result && item.result.url).filter(Boolean)
+    if (!current || !urls.length) return
+    wx.previewImage({ current, urls })
+  },
+
+  async saveAll() {
     if (this.data.saving) return
+    const share = this.data.share || {}
+    const resultUrls = (share.results || []).map(item => item.url).filter(Boolean)
+    const originalUrls = share.showOriginals
+      ? (share.originals || []).map(item => item.url).filter(Boolean)
+      : []
+    // 先效果后原图，避免重复
+    const urls = [...resultUrls]
+    for (const url of originalUrls) {
+      if (!urls.includes(url)) urls.push(url)
+    }
+    if (!urls.length) {
+      wx.showToast({ title: '暂无可保存图片', icon: 'none' })
+      return
+    }
     this.setData({ saving: true })
     try {
       const { ensureAlbumPermission, saveImageToAlbum, hideLoadingQuiet } = require('../../utils/album')
-      // Permission first, without loading mask covering the system dialog
       await ensureAlbumPermission()
-      wx.showLoading({ title: '正在保存', mask: true })
-      const filePath = await this.download(event.currentTarget.dataset.url)
-      await saveImageToAlbum(filePath)
+      wx.showLoading({ title: `保存中 0/${urls.length}`, mask: true })
+      let done = 0
+      for (const url of urls) {
+        const filePath = await this.download(url)
+        await saveImageToAlbum(filePath)
+        done += 1
+        wx.showLoading({ title: `保存中 ${done}/${urls.length}`, mask: true })
+      }
       hideLoadingQuiet()
-      wx.showToast({ title: '已保存到相册', icon: 'success' })
+      wx.showToast({ title: `已保存 ${done} 张`, icon: 'success' })
     } catch (error) {
       try { wx.hideLoading({ fail: () => {} }) } catch (e) {}
       wx.showModal({
@@ -107,7 +158,6 @@ Page({
 
   async goCreate() {
     if (this.data.token) getApp().setInviteToken(this.data.token)
-    // Prompt guest to login so invite can be attributed
     try {
       const app = getApp()
       if (!app.isLoggedIn()) {
