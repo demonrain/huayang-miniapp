@@ -29,8 +29,10 @@ Page({
     share: null,
     comparePairs: [],
     shareTitle: SHARE_TITLES[0],
+    welcomeCredits: 0,
     loading: true,
     saving: false,
+    creating: false,
     navSpacer: 176
   },
 
@@ -58,15 +60,26 @@ Page({
     this.setData({ ...getNavMetrics(), token, shareTitle: pickShareTitle() })
     if (token) getApp().setInviteToken(token)
     getApp().captureInviteFromQuery(query)
-    wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
+    wx.showShareMenu({
+      withShareTicket: false,
+      menus: ['shareAppMessage', 'shareTimeline']
+    })
     this.loadShare()
   },
 
   async loadShare() {
     try {
-      const { share } = await api.get(`/api/shares/${encodeURIComponent(this.data.token)}`)
+      const [{ share }, config] = await Promise.all([
+        api.get(`/api/shares/${encodeURIComponent(this.data.token)}`),
+        api.get('/api/config').catch(() => ({}))
+      ])
       const comparePairs = Array.isArray(share.comparePairs) ? share.comparePairs : []
-      this.setData({ share, comparePairs, loading: false })
+      this.setData({
+        share,
+        comparePairs,
+        welcomeCredits: Number(config.newUserCredits || 0),
+        loading: false
+      })
       if (share && share.token) getApp().setInviteToken(share.token)
     } catch (error) {
       this.setData({ loading: false })
@@ -157,13 +170,32 @@ Page({
   },
 
   async goCreate() {
+    if (this.data.creating) return
     if (this.data.token) getApp().setInviteToken(this.data.token)
+    this.setData({ creating: true })
     try {
       const app = getApp()
       if (!app.isLoggedIn()) {
-        await app.requireLogin('登录后即可开始创作，并记录邀请关系')
+        const gift = Number(this.data.welcomeCredits || 0)
+        await app.requireLogin(
+          gift > 0
+            ? `登录后领取 ${gift} 积分，用同款风格创作`
+            : '登录后即可开始创作，并记录邀请关系'
+        )
       }
-    } catch (error) {}
-    wx.switchTab({ url: '/pages/home/index' })
+      const templateId = this.data.share && this.data.share.templateId
+      if (templateId) {
+        wx.navigateTo({
+          url: `/pages/template/index?id=${encodeURIComponent(templateId)}`,
+          fail: () => wx.switchTab({ url: '/pages/home/index' })
+        })
+      } else {
+        wx.switchTab({ url: '/pages/home/index' })
+      }
+    } catch (error) {
+      // 用户取消登录则停在分享页
+    } finally {
+      this.setData({ creating: false })
+    }
   }
 })

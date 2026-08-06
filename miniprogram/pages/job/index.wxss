@@ -7,6 +7,10 @@
   padding-bottom: calc(env(safe-area-inset-bottom) + 140rpx);
 }
 
+.job-page--owner-dock {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 160rpx);
+}
+
 .job-meta {
   margin-top: 8rpx;
   display: grid;
@@ -625,6 +629,113 @@
   background: #fff;
   border: 2rpx solid var(--line);
   border-radius: 14rpx;
+}
+
+.friend-share-options--compact {
+  margin: 0 0 16rpx;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.convert-share {
+  margin: 24rpx 0 8rpx;
+  padding: 24rpx 20rpx 20rpx;
+  background: linear-gradient(160deg, #fff4f0 0%, #f3faf6 100%);
+  border: 2rpx solid #eadfd8;
+  border-radius: 18rpx;
+  box-shadow: 0 12rpx 28rpx rgba(110, 83, 94, 0.06);
+}
+
+.convert-share__head {
+  margin-bottom: 14rpx;
+}
+
+.convert-share__title {
+  color: #3d3438;
+  font-size: 30rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.convert-share__sub {
+  margin-top: 8rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.convert-share__rewards {
+  margin-bottom: 14rpx;
+  padding: 14rpx 16rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 12rpx;
+}
+
+.convert-share__reward {
+  margin-top: 8rpx;
+  color: #3d6b5f;
+  font-size: 22rpx;
+  line-height: 1.45;
+}
+
+.convert-share__reward:first-child {
+  margin-top: 0;
+}
+
+.share-action--primary {
+  background: linear-gradient(135deg, #ffe8ec, #fff) !important;
+  border-color: rgba(231, 109, 130, 0.35) !important;
+  box-shadow: 0 8rpx 20rpx rgba(231, 109, 130, 0.12) !important;
+}
+
+.owner-share-dock {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  padding: 18rpx 28rpx calc(env(safe-area-inset-bottom) + 18rpx);
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  background: rgba(255, 249, 248, 0.96);
+  border-top: 2rpx solid var(--line);
+  box-shadow: 0 -10rpx 28rpx rgba(108, 80, 91, 0.06);
+  box-sizing: border-box;
+}
+
+.owner-share-dock button {
+  flex: 1;
+  height: 88rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 650;
+  line-height: 88rpx;
+}
+
+.owner-share-dock__share {
+  background: var(--coral);
+  color: #fff;
+  box-shadow: 0 10rpx 24rpx rgba(231, 109, 130, 0.22);
+}
+
+.owner-share-dock__share::after {
+  border: 0;
+}
+
+.owner-share-dock__share[disabled] {
+  opacity: 0.45;
+}
+
+.owner-share-dock__again {
+  background: #fff;
+  border: 2rpx solid var(--line);
+  color: var(--ink);
+}
+
+.owner-share-dock__again::after {
+  border: 0;
 }
 
 .friend-share-options__row {

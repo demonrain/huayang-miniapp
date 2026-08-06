@@ -151,6 +151,28 @@
   line-height: 1.55;
 }
 
+.share-convert {
+  margin-top: 28rpx;
+  padding: 22rpx 20rpx;
+  text-align: center;
+  background: linear-gradient(160deg, #fff4f0 0%, #f3faf6 100%);
+  border: 2rpx solid #eadfd8;
+  border-radius: 16rpx;
+}
+
+.share-convert__title {
+  color: #3d3438;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.share-convert__desc {
+  margin-top: 10rpx;
+  color: var(--muted);
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
 .share-dock {
   position: fixed;
   right: 0;

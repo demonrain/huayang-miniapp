@@ -1,4 +1,4 @@
-<view class="page job-page page-enter {{showcase && !demo ? 'job-page--showcase' : ''}}" style="padding-top: {{navSpacer}}rpx">
+<view class="page job-page page-enter {{showcase && !demo ? 'job-page--showcase' : ''}} {{!demo && !showcase && job && (job.status === 'succeeded' || job.status === 'partial') ? 'job-page--owner-dock' : ''}}" style="padding-top: {{navSpacer}}rpx">
   <custom-nav show-back credits="{{credits}}"></custom-nav>
 
   <block wx:if="{{job}}">
@@ -122,6 +122,48 @@
         </scroll-view>
       </view>
 
+      <!-- 转化优先：出图后先引导分享 -->
+      <view wx:if="{{!demo && !showcase}}" id="shareConvert" class="convert-share">
+        <view class="convert-share__head">
+          <view class="convert-share__title">分享作品，邀请好友来看</view>
+          <view class="convert-share__sub">对方打开 / 登录 / 首次创作，都可能给你积分</view>
+        </view>
+        <view wx:if="{{shareRewardEnabled}}" class="convert-share__rewards">
+          <view wx:if="{{shareOpenLine}}" class="convert-share__reward">{{shareOpenLine}}</view>
+          <view wx:if="{{shareLoginLine}}" class="convert-share__reward">{{shareLoginLine}}</view>
+          <view wx:if="{{shareFirstJobLine}}" class="convert-share__reward">{{shareFirstJobLine}}</view>
+        </view>
+        <view wx:if="{{job.originals.length}}" class="friend-share-options friend-share-options--compact">
+          <view class="friend-share-options__row">
+            <view class="friend-share-options__text">
+              <text class="friend-share-options__title">分享时展示原图</text>
+              <text class="friend-share-options__desc">好友打开可看到原图与效果对照</text>
+            </view>
+            <switch checked="{{shareShowOriginals}}" color="#E76D82" disabled="{{shareOriginalsSaving}}" bindchange="onShareOriginalsToggle" />
+          </view>
+        </view>
+        <view class="share-actions">
+          <view class="share-action-cell">
+            <button class="share-action share-action--primary" open-type="share" disabled="{{!share}}">
+              <image class="share-action__icon" src="/assets/icons/share.png" mode="aspectFit"></image>
+              <text class="share-action__label">微信好友</text>
+            </button>
+          </view>
+          <view class="share-action-cell">
+            <view class="share-action" data-url="{{job.results[0].url}}" bindtap="shareImage">
+              <image class="share-action__icon" src="/assets/icons/moments.png" mode="aspectFit"></image>
+              <text class="share-action__label">朋友圈</text>
+            </view>
+          </view>
+          <view class="share-action-cell">
+            <view class="share-action" bindtap="showQrCode">
+              <image class="share-action__icon" src="/assets/icons/qr-code.png" mode="aspectFit"></image>
+              <text class="share-action__label">小程序码</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- Owner: share to 花海 — switch auto-saves -->
       <view wx:if="{{!demo && !showcase && isOwner && (job.status === 'succeeded' || job.status === 'partial')}}" class="public-share-panel">
         <view class="public-share-panel__title">分享到花海</view>
@@ -195,43 +237,6 @@
           <button class="{{!demo && job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">{{demo ? '再练一次' : '继续创作'}}</button>
         </view>
       </view>
-
-      <view wx:if="{{!demo && !showcase && shareRewardEnabled}}" class="share-reward-panel">
-        <view class="share-reward-panel__title">邀请好友，解锁三重奖励</view>
-        <view wx:if="{{shareOpenLine}}" class="share-reward-panel__item">{{shareOpenLine}}</view>
-        <view wx:if="{{shareLoginLine}}" class="share-reward-panel__item">{{shareLoginLine}}</view>
-        <view wx:if="{{shareFirstJobLine}}" class="share-reward-panel__item">{{shareFirstJobLine}}</view>
-      </view>
-      <view wx:if="{{!demo && !showcase && (job.status === 'succeeded' || job.status === 'partial') && job.originals.length}}" class="friend-share-options">
-        <view class="friend-share-options__row">
-          <view class="friend-share-options__text">
-            <text class="friend-share-options__title">分享时展示原图</text>
-            <text class="friend-share-options__desc">开启后，好友打开分享页可看到原图与效果对照</text>
-          </view>
-          <switch checked="{{shareShowOriginals}}" color="#E76D82" disabled="{{shareOriginalsSaving}}" bindchange="onShareOriginalsToggle" />
-        </view>
-      </view>
-      <view wx:if="{{!demo && !showcase}}" class="share-actions">
-        <view class="share-action-cell">
-          <button class="share-action" open-type="share" disabled="{{!share}}">
-            <image class="share-action__icon" src="/assets/icons/share.png" mode="aspectFit"></image>
-            <text class="share-action__label">微信好友</text>
-          </button>
-        </view>
-        <view class="share-action-cell">
-          <view class="share-action" data-url="{{job.results[0].url}}" bindtap="shareImage">
-            <image class="share-action__icon" src="/assets/icons/moments.png" mode="aspectFit"></image>
-            <text class="share-action__label">朋友圈</text>
-          </view>
-        </view>
-        <view class="share-action-cell">
-          <view class="share-action" bindtap="showQrCode">
-            <image class="share-action__icon" src="/assets/icons/qr-code.png" mode="aspectFit"></image>
-            <text class="share-action__label">小程序码</text>
-          </view>
-        </view>
-        <!-- 复制链接依赖微信「URL Link」权限；未开通时会报错，暂隐藏。开通后可恢复此按钮。 -->
-      </view>
       <view wx:elif="{{demo}}" class="demo-banner" style="margin-top: 20rpx">演示结果使用风格封面示意。返回首页后可对真实模板正式生成。</view>
     </view>
 
@@ -275,6 +280,10 @@
           <text class="showcase-dock__label">{{likedByMe ? '已送花' : '送花'}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? ' +' : ''}}{{(!likedByMe && galleryLikeLikerCredits > 0) ? galleryLikeLikerCredits : ''}}</text>
         </view>
       </view>
+    </view>
+    <view wx:elif="{{!demo && !showcase && (job.status === 'succeeded' || job.status === 'partial')}}" class="owner-share-dock">
+      <button class="owner-share-dock__share" open-type="share" disabled="{{!share}}">发给好友</button>
+      <button class="owner-share-dock__again" bindtap="createAgain">继续创作</button>
     </view>
     <view wx:elif="{{job.status === 'succeeded' || job.status === 'partial'}}" class="job-footer-actions job-row-actions job-row-actions--single">
       <view class="job-row-actions__cell">

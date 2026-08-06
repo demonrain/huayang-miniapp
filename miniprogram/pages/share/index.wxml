@@ -64,11 +64,19 @@
       </view>
     </block>
 
-    <view class="share-note">登录创作可获得新用户礼遇；好友邀请也可能获得积分</view>
+    <view class="share-convert">
+      <view class="share-convert__title">喜欢这个风格？</view>
+      <view class="share-convert__desc">
+        <text wx:if="{{welcomeCredits > 0}}">登录可领 {{welcomeCredits}} 积分新用户礼遇，</text>
+        <text>用同款风格立刻开画</text>
+      </view>
+    </view>
   </view>
 
   <view wx:if="{{share && !loading}}" class="share-dock">
     <button class="share-dock__save" loading="{{saving}}" disabled="{{saving}}" bindtap="saveAll">保存全部</button>
-    <button class="share-dock__create" bindtap="goCreate">我也来试试</button>
+    <button class="share-dock__create" loading="{{creating}}" disabled="{{creating}}" bindtap="goCreate">
+      {{welcomeCredits > 0 ? '领积分去创作' : '我也来试试'}}
+    </button>
   </view>
 </view>

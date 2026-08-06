@@ -613,6 +613,7 @@ export function publicShare(share, state) {
     qrcodeUrl: mediaUrl(share.qrcodeStoragePath),
     templateName: template?.name || '花漾相绘作品',
     templatePalette: template?.palette || '#f2c5cc',
+    templateId: template?.id || job.templateId || '',
     showOriginals,
     results,
     originals,

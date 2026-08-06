@@ -110,7 +110,10 @@ Page({
       this.loadShowcaseJob()
       return
     }
-    wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
+    wx.showShareMenu({
+      withShareTicket: false,
+      menus: ['shareAppMessage', 'shareTimeline']
+    })
     this.loadJob()
     this.loadShareRewardConfig()
     this.loadGalleryRewardTips()
@@ -416,7 +419,9 @@ Page({
           clearTimeout(this.pollTimer)
           this.pollTimer = null
         }
-        if (job.status === 'succeeded' || job.status === 'partial') this.ensureShare()
+        if (job.status === 'succeeded' || job.status === 'partial') {
+          this.ensureShare().then(() => this.maybePromptShare(job.id))
+        }
       }
     } catch (error) {
       wx.showToast({ title: error.message, icon: 'none' })
@@ -918,6 +923,29 @@ Page({
     if (!id) return
     const demoQ = this.data.demo ? '&demo=1' : ''
     wx.redirectTo({ url: `/pages/template/index?id=${encodeURIComponent(id)}${demoQ}` })
+  },
+
+  /** 出图成功后轻提示一次，推动分享转化 */
+  maybePromptShare(jobId) {
+    if (this.data.demo || this.data.showcase || !jobId) return
+    const key = `huayang_share_nudge_${jobId}`
+    try {
+      if (wx.getStorageSync(key)) return
+      wx.setStorageSync(key, '1')
+    } catch (error) {
+      return
+    }
+    setTimeout(() => {
+      if (this.data.demo || this.data.showcase) return
+      wx.showModal({
+        title: '作品已完成',
+        content: this.data.shareRewardEnabled
+          ? '发给好友看看吧。对方打开、登录或首次创作，你都可能获得积分。'
+          : '发给好友看看这组花漾效果吧。',
+        confirmText: '知道了',
+        showCancel: false
+      })
+    }, 600)
   },
 
   async submitResultFeedback(event) {

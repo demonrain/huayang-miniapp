@@ -20,10 +20,14 @@ module.exports = Behavior({
   pageLifetimes: {
     show() {
       if (typeof wx.showShareMenu !== 'function') return
+      // withShareTicket:true 会导致分享卡片在微信会话里无法长按二次转发
       wx.showShareMenu({
-        withShareTicket: true,
+        withShareTicket: false,
         menus: ['shareAppMessage', 'shareTimeline']
       })
+      if (typeof wx.updateShareMenu === 'function') {
+        wx.updateShareMenu({ withShareTicket: false })
+      }
     }
   },
   methods: {
