@@ -69,6 +69,7 @@ Page({
     shareRewardEnabled: false,
     shareShowOriginals: false,
     shareOriginalsSaving: false,
+    sharingTimeline: false,
     navSpacer: 176,
     demo: false,
     showcase: false,
@@ -211,23 +212,36 @@ Page({
     const n = Math.max(1, Number(count) || 1)
     const tips = waitingTipsForCount(n)
     this.waitingTips = tips
-    this.tipIndex = 0
-    this.setData({
+    const patch = {
       etaStatus: etaStatusText(n),
       etaNote: etaNoteText(n),
-      waitingTips: tips,
-      waitingTip: tips[0]
-    })
+      waitingTips: tips
+    }
+    // 生成中会轮询 loadJob；若每次重置文案，轮播会永远卡在前一两句
+    if (!this.tipTimer) {
+      this.tipIndex = 0
+      patch.waitingTip = tips[0] || ''
+    } else if (tips.length) {
+      this.tipIndex = (Number(this.tipIndex) || 0) % tips.length
+    }
+    this.setData(patch)
   },
 
   startTipRotation() {
     if (this.tipTimer) return
+    if (!this.waitingTips || !this.waitingTips.length) {
+      this.waitingTips = this.data.waitingTips || waitingTipsForCount(1)
+    }
+    if (!this.data.waitingTip && this.waitingTips.length) {
+      this.tipIndex = 0
+      this.setData({ waitingTip: this.waitingTips[0] })
+    }
     this.tipTimer = setInterval(() => {
       const tips = this.waitingTips || this.data.waitingTips || []
       if (!tips.length) return
-      this.tipIndex = (this.tipIndex + 1) % tips.length
+      this.tipIndex = ((Number(this.tipIndex) || 0) + 1) % tips.length
       this.setData({ waitingTip: tips[this.tipIndex] })
-    }, 5000)
+    }, 4200)
   },
 
   stopTipRotation() {
@@ -583,11 +597,107 @@ Page({
   onShareTimeline() {
     this.claimShareReward('timeline')
     const share = this.data.share
+    const token = share && share.token
     return {
       title: (share && share.title) || '来看看我用花漾相绘制作的作品',
-      query: share ? `token=${encodeURIComponent(share.token)}` : '',
+      query: token ? `token=${encodeURIComponent(token)}` : '',
       imageUrl: (this.data.job && this.data.job.results && this.data.job.results[0] && this.data.job.results[0].url) || ''
     }
+  },
+
+  /** 引导：真正的「小程序卡片进朋友圈」只能走右上角菜单 */
+  guideShareTimeline() {
+    const withOriginals = Boolean(this.data.shareShowOriginals)
+    wx.showModal({
+      title: '分享到朋友圈',
+      content: withOriginals
+        ? '请点击右上角「···」→「分享到朋友圈」。好友点开小程序后，可看到作品与原图对照。'
+        : '请点击右上角「···」→「分享到朋友圈」，将以小程序形式分享给好友。',
+      confirmText: '我知道了',
+      showCancel: false
+    })
+  },
+
+  loadImageForCanvas(canvas, src) {
+    return new Promise((resolve, reject) => {
+      const img = canvas.createImage()
+      img.onload = () => resolve(img)
+      img.onerror = reject
+      img.src = src
+    })
+  },
+
+  /** 朋友圈配图：开启原图时合成「效果+原图」对照图 */
+  async buildMomentsShareImage() {
+    const results = (this.data.job && this.data.job.results) || []
+    const originals = (this.data.job && this.data.job.originals) || []
+    const resultUrl = results[0] && (results[0].url || results[0].thumbUrl)
+    if (!resultUrl) throw new Error('暂无作品图')
+    const resultPath = await this.download(resultUrl)
+    const showOriginals = Boolean(this.data.shareShowOriginals)
+    const originalUrl = showOriginals && originals[0] && (originals[0].url || originals[0].thumbUrl)
+    if (!originalUrl || typeof wx.createOffscreenCanvas !== 'function') {
+      return resultPath
+    }
+
+    let originalPath = ''
+    try {
+      originalPath = await this.download(originalUrl)
+    } catch (error) {
+      return resultPath
+    }
+
+    const width = 750
+    const resultH = 900
+    const gap = 24
+    const thumb = 220
+    const labelH = 40
+    const height = resultH + gap + thumb + labelH + 28
+    const canvas = wx.createOffscreenCanvas({ type: '2d', width, height })
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#fff9f8'
+    ctx.fillRect(0, 0, width, height)
+
+    const resultImg = await this.loadImageForCanvas(canvas, resultPath)
+    const originalImg = await this.loadImageForCanvas(canvas, originalPath)
+
+    const rw = resultImg.width || 1
+    const rh = resultImg.height || 1
+    const resultScale = Math.min(width / rw, resultH / rh)
+    const drawW = rw * resultScale
+    const drawH = rh * resultScale
+    ctx.drawImage(resultImg, (width - drawW) / 2, (resultH - drawH) / 2, drawW, drawH)
+
+    const oy = resultH + gap
+    ctx.fillStyle = '#5a4f53'
+    ctx.font = 'bold 28px sans-serif'
+    ctx.fillText('原图参照', 28, oy + 30)
+
+    const ox = 28
+    const oyImg = oy + labelH
+    ctx.fillStyle = '#efe8ea'
+    ctx.fillRect(ox, oyImg, thumb, thumb)
+    const ow = originalImg.width || 1
+    const oh = originalImg.height || 1
+    const oScale = Math.max(thumb / ow, thumb / oh)
+    const sw = thumb / oScale
+    const sh = thumb / oScale
+    const sx = (ow - sw) / 2
+    const sy = (oh - sh) / 2
+    ctx.drawImage(originalImg, sx, sy, sw, sh, ox, oyImg, thumb, thumb)
+
+    const temp = await new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas,
+        destWidth: width,
+        destHeight: height,
+        fileType: 'jpg',
+        quality: 0.92,
+        success: res => resolve(res.tempFilePath),
+        fail: reject
+      })
+    })
+    return temp
   },
 
   async claimShareReward(channel) {
@@ -761,26 +871,37 @@ Page({
     }
   },
 
-  async shareImage(event) {
+  async shareImage() {
+    if (this.data.sharingTimeline) return
+    this.setData({ sharingTimeline: true })
     wx.showLoading({ title: '正在准备', mask: true })
     try {
-      const url = event.currentTarget.dataset.url || this.data.job.results[0].url
-      const tempFilePath = await this.download(url)
+      // 朋友圈打开的是分享页：先把「展示原图」写入分享记录
+      const showOriginals = Boolean(this.data.shareShowOriginals)
+      await this.ensureShare({ showOriginals })
+      const share = this.data.share
+      if (!share || !share.token) throw new Error('分享未就绪')
+
+      const tempFilePath = await this.buildMomentsShareImage()
       wx.hideLoading()
-      if (wx.showShareImageMenu) {
+
+      const entrancePath = `/pages/share/index?token=${encodeURIComponent(share.token)}`
+      if (typeof wx.showShareImageMenu === 'function') {
         wx.showShareImageMenu({
           path: tempFilePath,
+          needShowEntrance: true,
+          entrancePath,
           success: () => this.claimShareReward('timeline'),
-          fail: () => {}
+          fail: () => this.guideShareTimeline()
         })
       } else {
-        // Fallback: menu share to timeline still available via top-right; count as timeline intent
-        this.claimShareReward('timeline')
-        wx.previewImage({ current: url, urls: [url] })
+        this.guideShareTimeline()
       }
     } catch (error) {
       wx.hideLoading()
-      wx.showToast({ title: '图片准备失败', icon: 'none' })
+      wx.showToast({ title: error.message || '图片准备失败', icon: 'none' })
+    } finally {
+      this.setData({ sharingTimeline: false })
     }
   },
 

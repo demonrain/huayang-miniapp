@@ -215,6 +215,20 @@ textarea { resize: vertical; line-height: 1.55; }
   min-height: 36px;
   padding: 6px 8px;
 }
+.pager-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.pager-jump input {
+  width: 64px;
+  min-height: 36px;
+  padding: 6px 8px;
+  text-align: center;
+}
 .pager-actions .button:disabled {
   opacity: 0.45;
   cursor: not-allowed;

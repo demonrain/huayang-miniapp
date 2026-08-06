@@ -150,7 +150,7 @@
             </button>
           </view>
           <view class="share-action-cell">
-            <view class="share-action" data-url="{{job.results[0].url}}" bindtap="shareImage">
+            <view class="share-action" bindtap="shareImage">
               <image class="share-action__icon" src="/assets/icons/moments.png" mode="aspectFit"></image>
               <text class="share-action__label">朋友圈</text>
             </view>

@@ -61,18 +61,24 @@ const elements = {
   userPrevPage: document.querySelector('#userPrevPage'),
   userNextPage: document.querySelector('#userNextPage'),
   userPageSize: document.querySelector('#userPageSize'),
+  userJumpPage: document.querySelector('#userJumpPage'),
+  userJumpBtn: document.querySelector('#userJumpBtn'),
   transactionRows: document.querySelector('#transactionRows'),
   transactionFilterForm: document.querySelector('#transactionFilterForm'),
   transactionPagerInfo: document.querySelector('#transactionPagerInfo'),
   transactionPrevPage: document.querySelector('#transactionPrevPage'),
   transactionNextPage: document.querySelector('#transactionNextPage'),
   transactionPageSize: document.querySelector('#transactionPageSize'),
+  transactionJumpPage: document.querySelector('#transactionJumpPage'),
+  transactionJumpBtn: document.querySelector('#transactionJumpBtn'),
   jobRows: document.querySelector('#jobRows'),
   jobFilterForm: document.querySelector('#jobFilterForm'),
   jobPagerInfo: document.querySelector('#jobPagerInfo'),
   jobPrevPage: document.querySelector('#jobPrevPage'),
   jobNextPage: document.querySelector('#jobNextPage'),
   jobPageSize: document.querySelector('#jobPageSize'),
+  jobJumpPage: document.querySelector('#jobJumpPage'),
+  jobJumpBtn: document.querySelector('#jobJumpBtn'),
   jobShareSelect: document.querySelector('#jobShareSelect'),
   jobShareChips: document.querySelector('#jobShareChips'),
   jobFilterPublic: document.querySelector('#jobFilterPublic'),
@@ -83,10 +89,14 @@ const elements = {
   feedbackPrevPage: document.querySelector('#feedbackPrevPage'),
   feedbackNextPage: document.querySelector('#feedbackNextPage'),
   feedbackPageSize: document.querySelector('#feedbackPageSize'),
+  feedbackJumpPage: document.querySelector('#feedbackJumpPage'),
+  feedbackJumpBtn: document.querySelector('#feedbackJumpBtn'),
   cdkPagerInfo: document.querySelector('#cdkPagerInfo'),
   cdkPrevPage: document.querySelector('#cdkPrevPage'),
   cdkNextPage: document.querySelector('#cdkNextPage'),
   cdkPageSize: document.querySelector('#cdkPageSize'),
+  cdkJumpPage: document.querySelector('#cdkJumpPage'),
+  cdkJumpBtn: document.querySelector('#cdkJumpBtn'),
   feedbackReplyDialog: document.querySelector('#feedbackReplyDialog'),
   feedbackReplyForm: document.querySelector('#feedbackReplyForm'),
   feedbackReplyTitle: document.querySelector('#feedbackReplyTitle'),
@@ -103,6 +113,8 @@ const elements = {
   templatePrevPage: document.querySelector('#templatePrevPage'),
   templateNextPage: document.querySelector('#templateNextPage'),
   templatePageSize: document.querySelector('#templatePageSize'),
+  templateJumpPage: document.querySelector('#templateJumpPage'),
+  templateJumpBtn: document.querySelector('#templateJumpBtn'),
   categoryRows: document.querySelector('#categoryRows'),
   packageList: document.querySelector('#packageList'),
   templateDialog: document.querySelector('#templateDialog'),
@@ -260,7 +272,18 @@ function applyPageResult(query, result) {
   if (query.page < 1) query.page = 1
 }
 
-function renderListPager({ infoEl, prevEl, nextEl, sizeEl, query }) {
+function listPagerUi(prefix) {
+  return {
+    infoEl: elements[`${prefix}PagerInfo`],
+    prevEl: elements[`${prefix}PrevPage`],
+    nextEl: elements[`${prefix}NextPage`],
+    sizeEl: elements[`${prefix}PageSize`],
+    jumpInputEl: elements[`${prefix}JumpPage`],
+    jumpBtnEl: elements[`${prefix}JumpBtn`]
+  }
+}
+
+function renderListPager({ infoEl, prevEl, nextEl, sizeEl, jumpInputEl, jumpBtnEl, query }) {
   if (infoEl) {
     if (!query.total) {
       infoEl.textContent = query.loading ? '加载中…' : '共 0 条'
@@ -275,9 +298,20 @@ function renderListPager({ infoEl, prevEl, nextEl, sizeEl, query }) {
   if (sizeEl && String(sizeEl.value) !== String(query.pageSize)) {
     sizeEl.value = String(query.pageSize)
   }
+  if (jumpInputEl) {
+    const maxPage = Math.max(1, Number(query.pages) || 1)
+    jumpInputEl.min = '1'
+    jumpInputEl.max = String(maxPage)
+    jumpInputEl.placeholder = String(query.page || 1)
+    jumpInputEl.disabled = Boolean(query.loading) || maxPage <= 1
+    if (document.activeElement !== jumpInputEl) jumpInputEl.value = ''
+  }
+  if (jumpBtnEl) {
+    jumpBtnEl.disabled = Boolean(query.loading) || !query.total || Number(query.pages) <= 1
+  }
 }
 
-function wireListPager({ prevEl, nextEl, sizeEl, getQuery, loadFn }) {
+function wireListPager({ prevEl, nextEl, sizeEl, jumpInputEl, jumpBtnEl, getQuery, loadFn }) {
   prevEl?.addEventListener('click', async () => {
     const q = getQuery()
     if (q.page <= 1 || q.loading) return
@@ -296,6 +330,33 @@ function wireListPager({ prevEl, nextEl, sizeEl, getQuery, loadFn }) {
     q.page = 1
     await loadFn()
   })
+
+  const jumpToPage = async () => {
+    const q = getQuery()
+    if (q.loading) return
+    const raw = Number(jumpInputEl?.value)
+    if (!Number.isFinite(raw) || String(jumpInputEl?.value || '').trim() === '') {
+      showToast('请输入要跳转的页码', true)
+      jumpInputEl?.focus()
+      return
+    }
+    const maxPage = Math.max(1, Number(q.pages) || 1)
+    const page = Math.min(Math.max(1, Math.floor(raw)), maxPage)
+    if (page === q.page) {
+      if (jumpInputEl) jumpInputEl.value = ''
+      return
+    }
+    q.page = page
+    if (jumpInputEl) jumpInputEl.value = ''
+    await loadFn()
+  }
+  jumpBtnEl?.addEventListener('click', jumpToPage)
+  jumpInputEl?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      jumpToPage()
+    }
+  })
 }
 
 async function loadTemplates({ resetPage = false } = {}) {
@@ -313,10 +374,7 @@ async function loadTemplates({ resetPage = false } = {}) {
   q.loading = true
   elements.templateRows.innerHTML = emptyRow(8, '加载中...')
   renderListPager({
-    infoEl: elements.templatePagerInfo,
-    prevEl: elements.templatePrevPage,
-    nextEl: elements.templateNextPage,
-    sizeEl: elements.templatePageSize,
+    ...listPagerUi('template'),
     query: q
   })
   try {
@@ -338,12 +396,9 @@ async function loadTemplates({ resetPage = false } = {}) {
   } finally {
     q.loading = false
     renderListPager({
-      infoEl: elements.templatePagerInfo,
-      prevEl: elements.templatePrevPage,
-      nextEl: elements.templateNextPage,
-      sizeEl: elements.templatePageSize,
-      query: q
-    })
+    ...listPagerUi('template'),
+    query: q
+  })
   }
 }
 
@@ -685,10 +740,7 @@ async function loadUsers({ resetPage = false } = {}) {
   q.loading = true
   elements.userRows.innerHTML = emptyRow(9, '加载中...')
   renderListPager({
-    infoEl: elements.userPagerInfo,
-    prevEl: elements.userPrevPage,
-    nextEl: elements.userNextPage,
-    sizeEl: elements.userPageSize,
+    ...listPagerUi('user'),
     query: q
   })
   try {
@@ -736,12 +788,9 @@ async function loadUsers({ resetPage = false } = {}) {
   } finally {
     q.loading = false
     renderListPager({
-      infoEl: elements.userPagerInfo,
-      prevEl: elements.userPrevPage,
-      nextEl: elements.userNextPage,
-      sizeEl: elements.userPageSize,
-      query: q
-    })
+    ...listPagerUi('user'),
+    query: q
+  })
   }
 }
 
@@ -757,10 +806,7 @@ async function loadTransactions({ resetPage = false } = {}) {
   q.loading = true
   elements.transactionRows.innerHTML = emptyRow(8, '加载中...')
   renderListPager({
-    infoEl: elements.transactionPagerInfo,
-    prevEl: elements.transactionPrevPage,
-    nextEl: elements.transactionNextPage,
-    sizeEl: elements.transactionPageSize,
+    ...listPagerUi('transaction'),
     query: q
   })
   try {
@@ -793,12 +839,9 @@ async function loadTransactions({ resetPage = false } = {}) {
   } finally {
     q.loading = false
     renderListPager({
-      infoEl: elements.transactionPagerInfo,
-      prevEl: elements.transactionPrevPage,
-      nextEl: elements.transactionNextPage,
-      sizeEl: elements.transactionPageSize,
-      query: q
-    })
+    ...listPagerUi('transaction'),
+    query: q
+  })
   }
 }
 
@@ -835,10 +878,7 @@ async function loadJobs({ resetPage = false } = {}) {
   q.loading = true
   elements.jobRows.innerHTML = emptyRow(9, '加载中...')
   renderListPager({
-    infoEl: elements.jobPagerInfo,
-    prevEl: elements.jobPrevPage,
-    nextEl: elements.jobNextPage,
-    sizeEl: elements.jobPageSize,
+    ...listPagerUi('job'),
     query: q
   })
   try {
@@ -909,12 +949,9 @@ async function loadJobs({ resetPage = false } = {}) {
   } finally {
     q.loading = false
     renderListPager({
-      infoEl: elements.jobPagerInfo,
-      prevEl: elements.jobPrevPage,
-      nextEl: elements.jobNextPage,
-      sizeEl: elements.jobPageSize,
-      query: q
-    })
+    ...listPagerUi('job'),
+    query: q
+  })
   }
 }
 
@@ -931,10 +968,7 @@ async function loadFeedbacks({ resetPage = false } = {}) {
   q.loading = true
   elements.feedbackRows.innerHTML = emptyRow(8, '加载中...')
   renderListPager({
-    infoEl: elements.feedbackPagerInfo,
-    prevEl: elements.feedbackPrevPage,
-    nextEl: elements.feedbackNextPage,
-    sizeEl: elements.feedbackPageSize,
+    ...listPagerUi('feedback'),
     query: q
   })
   try {
@@ -970,12 +1004,9 @@ async function loadFeedbacks({ resetPage = false } = {}) {
   } finally {
     q.loading = false
     renderListPager({
-      infoEl: elements.feedbackPagerInfo,
-      prevEl: elements.feedbackPrevPage,
-      nextEl: elements.feedbackNextPage,
-      sizeEl: elements.feedbackPageSize,
-      query: q
-    })
+    ...listPagerUi('feedback'),
+    query: q
+  })
   }
 }
 
@@ -1074,10 +1105,7 @@ async function loadCdks({ resetPage = false } = {}) {
   q.loading = true
   elements.cdkRows.innerHTML = emptyRow(8, '加载中...')
   renderListPager({
-    infoEl: elements.cdkPagerInfo,
-    prevEl: elements.cdkPrevPage,
-    nextEl: elements.cdkNextPage,
-    sizeEl: elements.cdkPageSize,
+    ...listPagerUi('cdk'),
     query: q
   })
   try {
@@ -1131,12 +1159,9 @@ async function loadCdks({ resetPage = false } = {}) {
   } finally {
     q.loading = false
     renderListPager({
-      infoEl: elements.cdkPagerInfo,
-      prevEl: elements.cdkPrevPage,
-      nextEl: elements.cdkNextPage,
-      sizeEl: elements.cdkPageSize,
-      query: q
-    })
+    ...listPagerUi('cdk'),
+    query: q
+  })
   }
 }
 
@@ -1924,44 +1949,32 @@ elements.jobShareChips?.addEventListener('click', event => {
 })
 
 wireListPager({
-  prevEl: elements.userPrevPage,
-  nextEl: elements.userNextPage,
-  sizeEl: elements.userPageSize,
+  ...listPagerUi('user'),
   getQuery: () => state.userQuery,
   loadFn: () => loadUsers()
 })
 wireListPager({
-  prevEl: elements.transactionPrevPage,
-  nextEl: elements.transactionNextPage,
-  sizeEl: elements.transactionPageSize,
+  ...listPagerUi('transaction'),
   getQuery: () => state.transactionQuery,
   loadFn: () => loadTransactions()
 })
 wireListPager({
-  prevEl: elements.jobPrevPage,
-  nextEl: elements.jobNextPage,
-  sizeEl: elements.jobPageSize,
+  ...listPagerUi('job'),
   getQuery: () => state.jobQuery,
   loadFn: () => loadJobs()
 })
 wireListPager({
-  prevEl: elements.feedbackPrevPage,
-  nextEl: elements.feedbackNextPage,
-  sizeEl: elements.feedbackPageSize,
+  ...listPagerUi('feedback'),
   getQuery: () => state.feedbackQuery,
   loadFn: () => loadFeedbacks()
 })
 wireListPager({
-  prevEl: elements.cdkPrevPage,
-  nextEl: elements.cdkNextPage,
-  sizeEl: elements.cdkPageSize,
+  ...listPagerUi('cdk'),
   getQuery: () => state.cdkQuery,
   loadFn: () => loadCdks()
 })
 wireListPager({
-  prevEl: elements.templatePrevPage,
-  nextEl: elements.templateNextPage,
-  sizeEl: elements.templatePageSize,
+  ...listPagerUi('template'),
   getQuery: () => state.templateQuery,
   loadFn: () => loadTemplates()
 })
