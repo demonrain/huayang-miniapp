@@ -144,10 +144,10 @@
         </view>
         <view class="share-actions">
           <view class="share-action-cell">
-            <button class="share-action share-action--primary" open-type="share" disabled="{{!share}}">
+            <view class="share-action share-action--primary" bindtap="prepareFriendShare">
               <image class="share-action__icon" src="/assets/icons/share.png" mode="aspectFit"></image>
               <text class="share-action__label">微信好友</text>
-            </button>
+            </view>
           </view>
           <view class="share-action-cell">
             <view class="share-action" bindtap="shareImage">
@@ -228,16 +228,12 @@
         </scroll-view>
       </view>
 
-      <!-- Showcase 页底部固定 dock 已有「用同款风格创作」，此处隐藏避免重复 -->
-      <view wx:if="{{!showcase}}" class="job-row-actions {{!demo && job.results.length > 1 ? '' : 'job-row-actions--single'}}">
-        <view wx:if="{{!demo && job.results.length > 1}}" class="job-row-actions__cell">
-          <button class="primary-button job-row-btn" loading="{{saving}}" disabled="{{saving}}" bindtap="saveAll">保存全部作品</button>
-        </view>
+      <!-- 练习模式保留再练一次；正式作品的保存/分享放到底部 dock -->
+      <view wx:if="{{demo && !showcase}}" class="job-row-actions job-row-actions--single">
         <view class="job-row-actions__cell">
-          <button class="{{!demo && job.results.length > 1 ? 'ghost-button' : 'primary-button'}} job-row-btn" bindtap="createAgain">{{demo ? '再练一次' : '继续创作'}}</button>
+          <button class="primary-button job-row-btn" bindtap="createAgain">再练一次</button>
         </view>
       </view>
-      <view wx:elif="{{demo}}" class="demo-banner" style="margin-top: 20rpx">演示结果使用风格封面示意。返回首页后可对真实模板正式生成。</view>
     </view>
 
     <!-- Failed: only retry + home on one row -->
@@ -282,12 +278,53 @@
       </view>
     </view>
     <view wx:elif="{{!demo && !showcase && (job.status === 'succeeded' || job.status === 'partial')}}" class="owner-share-dock">
-      <button class="owner-share-dock__share" open-type="share" disabled="{{!share}}">发给好友</button>
-      <button class="owner-share-dock__again" bindtap="createAgain">继续创作</button>
+      <button class="owner-share-dock__share" bindtap="prepareFriendShare">发给好友</button>
+      <button
+        wx:if="{{job.results.length > 1}}"
+        class="owner-share-dock__save"
+        loading="{{saving}}"
+        disabled="{{saving}}"
+        bindtap="saveAll"
+      >保存全部</button>
+      <button class="owner-share-dock__home" bindtap="goHome">返回首页</button>
     </view>
     <view wx:elif="{{job.status === 'succeeded' || job.status === 'partial'}}" class="job-footer-actions job-row-actions job-row-actions--single">
       <view class="job-row-actions__cell">
         <button class="primary-button job-row-btn" bindtap="goHome">{{demo ? '结束练习，去首页正式创作' : '返回首页'}}</button>
+      </view>
+    </view>
+
+    <view wx:if="{{showFriendShareConfirm}}" class="friend-share-confirm-mask" catchtouchmove="noop" bindtap="hideFriendShareConfirm">
+      <view class="friend-share-confirm" catchtap="noop">
+        <view class="friend-share-confirm__title">发给好友</view>
+        <block wx:if="{{friendShareDirect}}">
+          <view class="friend-share-confirm__desc">将分享生成效果给微信好友</view>
+          <button
+            class="friend-share-confirm__send"
+            open-type="share"
+            data-originals="0"
+            bindtap="onFriendShareChoice"
+            disabled="{{!share}}"
+          >发给好友</button>
+        </block>
+        <block wx:else>
+          <view class="friend-share-confirm__desc">点选后将直接调起微信转发</view>
+          <button
+            class="friend-share-confirm__send"
+            open-type="share"
+            data-originals="1"
+            bindtap="onFriendShareChoice"
+            disabled="{{!share}}"
+          >附带原图对照</button>
+          <button
+            class="friend-share-confirm__send friend-share-confirm__send--ghost"
+            open-type="share"
+            data-originals="0"
+            bindtap="onFriendShareChoice"
+            disabled="{{!share}}"
+          >仅分享效果图</button>
+        </block>
+        <button class="friend-share-confirm__cancel" bindtap="hideFriendShareConfirm">取消</button>
       </view>
     </view>
 

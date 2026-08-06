@@ -76,7 +76,7 @@
   <view wx:if="{{share && !loading}}" class="share-dock">
     <button class="share-dock__save" loading="{{saving}}" disabled="{{saving}}" bindtap="saveAll">保存全部</button>
     <button class="share-dock__create" loading="{{creating}}" disabled="{{creating}}" bindtap="goCreate">
-      {{welcomeCredits > 0 ? '领积分去创作' : '我也来试试'}}
+      {{welcomeCredits > 0 ? '免费去创作' : '我也来试试'}}
     </button>
   </view>
 </view>

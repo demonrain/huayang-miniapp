@@ -70,6 +70,9 @@ Page({
     shareShowOriginals: false,
     shareOriginalsSaving: false,
     sharingTimeline: false,
+    showFriendShareConfirm: false,
+    friendShareWithOriginals: false,
+    friendShareDirect: false,
     navSpacer: 176,
     demo: false,
     showcase: false,
@@ -433,9 +436,7 @@ Page({
           clearTimeout(this.pollTimer)
           this.pollTimer = null
         }
-        if (job.status === 'succeeded' || job.status === 'partial') {
-          this.ensureShare().then(() => this.maybePromptShare(job.id))
-        }
+        if (job.status === 'succeeded' || job.status === 'partial') this.ensureShare()
       }
     } catch (error) {
       wx.showToast({ title: error.message, icon: 'none' })
@@ -585,13 +586,79 @@ Page({
   },
 
   onShareAppMessage() {
+    // 延后关闭，避免同步销毁 open-type="share" 节点影响系统转发面板
+    setTimeout(() => {
+      this.setData({ showFriendShareConfirm: false, friendShareDirect: false })
+    }, 200)
     this.claimShareReward('friend')
-    const share = this.data.share
-    return {
-      title: (share && share.title) || '来看看我用花漾相绘制作的作品',
-      path: (share && share.path) || '/pages/home/index',
-      imageUrl: (this.data.job && this.data.job.results && this.data.job.results[0] && this.data.job.results[0].url) || ''
+    const withOriginals = Object.prototype.hasOwnProperty.call(this, '_friendShareOriginals')
+      ? Boolean(this._friendShareOriginals)
+      : Boolean(this.data.shareShowOriginals)
+    this._friendShareOriginals = withOriginals
+    // 以 Promise 返回，确保分享记录的 showOriginals 先写好
+    return Promise.resolve()
+      .then(() => this.ensureShare({ showOriginals: withOriginals }))
+      .then(share => {
+        this.setData({ shareShowOriginals: withOriginals, share: share || this.data.share })
+        return {
+          title: (share && share.title) || '来看看我用花漾相绘制作的作品',
+          path: (share && share.path) || `/pages/share/index?token=${encodeURIComponent((share && share.token) || '')}`,
+          imageUrl: (this.data.job && this.data.job.results && this.data.job.results[0] && this.data.job.results[0].url) || ''
+        }
+      })
+      .catch(() => {
+        const share = this.data.share
+        return {
+          title: (share && share.title) || '来看看我用花漾相绘制作的作品',
+          path: (share && share.path) || '/pages/home/index',
+          imageUrl: (this.data.job && this.data.job.results && this.data.job.results[0] && this.data.job.results[0].url) || ''
+        }
+      })
+  },
+
+  hideFriendShareConfirm() {
+    this.setData({ showFriendShareConfirm: false, friendShareDirect: false })
+  },
+
+  /** 发给好友：弹出原图选项，点选项即直接分享（不再二次确认） */
+  async prepareFriendShare() {
+    if (this.data.demo || this.data.showcase || this.data.shareOriginalsSaving) return
+    try {
+      if (!this.data.share) {
+        wx.showLoading({ title: '准备分享', mask: true })
+        await this.ensureShare()
+        wx.hideLoading()
+      }
+      const hasOriginals = ((this.data.job && this.data.job.originals) || []).length > 0
+      if (!hasOriginals) {
+        // 无原图：直接进入系统分享（用一个隐藏的 open-type 按钮不优雅，这里仍用面板单按钮）
+        this._friendShareOriginals = false
+        this.setData({
+          friendShareWithOriginals: false,
+          shareShowOriginals: false,
+          showFriendShareConfirm: true,
+          friendShareDirect: true
+        })
+        return
+      }
+      this.setData({
+        showFriendShareConfirm: true,
+        friendShareDirect: false
+      })
+    } catch (error) {
+      wx.hideLoading()
+      wx.showToast({ title: error.message || '准备失败', icon: 'none' })
     }
+  },
+
+  onFriendShareChoice(event) {
+    const withOriginals = String(event.currentTarget.dataset.originals || '') === '1'
+    this._friendShareOriginals = withOriginals
+    // 不在此处关面板，避免销毁 open-type="share" 按钮导致转发失败；由 onShareAppMessage 关闭
+    this.setData({
+      friendShareWithOriginals: withOriginals,
+      shareShowOriginals: withOriginals
+    })
   },
 
   onShareTimeline() {
@@ -627,64 +694,179 @@ Page({
     })
   },
 
-  /** 朋友圈配图：开启原图时合成「效果+原图」对照图 */
-  async buildMomentsShareImage() {
-    const results = (this.data.job && this.data.job.results) || []
-    const originals = (this.data.job && this.data.job.originals) || []
+  roundRectPath(ctx, x, y, w, h, r) {
+    const radius = Math.max(0, Math.min(r, w / 2, h / 2))
+    ctx.beginPath()
+    ctx.moveTo(x + radius, y)
+    ctx.arcTo(x + w, y, x + w, y + h, radius)
+    ctx.arcTo(x + w, y + h, x, y + h, radius)
+    ctx.arcTo(x, y + h, x, y, radius)
+    ctx.arcTo(x, y, x + w, y, radius)
+    ctx.closePath()
+  },
+
+  drawCoverImage(ctx, img, x, y, w, h) {
+    const iw = img.width || 1
+    const ih = img.height || 1
+    const scale = Math.max(w / iw, h / ih)
+    const dw = iw * scale
+    const dh = ih * scale
+    const dx = x + (w - dw) / 2
+    const dy = y + (h - dh) / 2
+    ctx.drawImage(img, dx, dy, dw, dh)
+  },
+
+  /**
+   * 朋友圈海报：产品风边框 + 作品图 +（可选）原图参照 + 小程序码
+   * 微信朋友圈支持小程序码（普通二维码不行）
+   */
+  async buildMomentsShareImage(qrLocalPath) {
+    if (typeof wx.createOffscreenCanvas !== 'function') {
+      throw new Error('当前微信版本过低，请升级后重试')
+    }
+    const job = this.data.job || {}
+    const results = job.results || []
+    const originals = job.originals || []
     const resultUrl = results[0] && (results[0].url || results[0].thumbUrl)
     if (!resultUrl) throw new Error('暂无作品图')
-    const resultPath = await this.download(resultUrl)
+    if (!qrLocalPath) throw new Error('小程序码未就绪')
+
     const showOriginals = Boolean(this.data.shareShowOriginals)
     const originalUrl = showOriginals && originals[0] && (originals[0].url || originals[0].thumbUrl)
-    if (!originalUrl || typeof wx.createOffscreenCanvas !== 'function') {
-      return resultPath
-    }
-
-    let originalPath = ''
-    try {
-      originalPath = await this.download(originalUrl)
-    } catch (error) {
-      return resultPath
-    }
+    const [resultPath, originalPath] = await Promise.all([
+      this.download(resultUrl),
+      originalUrl ? this.download(originalUrl).catch(() => '') : Promise.resolve('')
+    ])
 
     const width = 750
-    const resultH = 900
-    const gap = 24
-    const thumb = 220
-    const labelH = 40
-    const height = resultH + gap + thumb + labelH + 28
+    const pad = 36
+    const headerH = 118
+    const framePad = 18
+    const photoH = 720
+    const compareH = originalPath ? 168 : 0
+    const footerH = 210
+    const height = pad + headerH + framePad * 2 + photoH + (compareH ? compareH + 20 : 0) + footerH + pad
+
     const canvas = wx.createOffscreenCanvas({ type: '2d', width, height })
     const ctx = canvas.getContext('2d')
-    ctx.fillStyle = '#fff9f8'
+
+    // 背景氛围
+    const bg = ctx.createLinearGradient(0, 0, width, height)
+    bg.addColorStop(0, '#fff7f4')
+    bg.addColorStop(0.55, '#fff9f8')
+    bg.addColorStop(1, '#f3faf6')
+    ctx.fillStyle = bg
     ctx.fillRect(0, 0, width, height)
 
+    // 轻装饰圆
+    ctx.fillStyle = 'rgba(231, 109, 130, 0.08)'
+    ctx.beginPath()
+    ctx.arc(80, 70, 90, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = 'rgba(94, 166, 143, 0.08)'
+    ctx.beginPath()
+    ctx.arc(width - 60, height - 80, 110, 0, Math.PI * 2)
+    ctx.fill()
+
+    // 主卡片
+    const cardX = pad
+    const cardY = pad
+    const cardW = width - pad * 2
+    const cardH = height - pad * 2
+    this.roundRectPath(ctx, cardX, cardY, cardW, cardH, 28)
+    ctx.fillStyle = 'rgba(255,255,255,0.92)'
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(234, 223, 216, 0.95)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    // 顶栏品牌
+    ctx.fillStyle = '#E76D82'
+    ctx.font = '600 22px sans-serif'
+    ctx.fillText('XIANGHUI  ·  花漾相绘', cardX + 32, cardY + 48)
+    ctx.fillStyle = '#3d3438'
+    ctx.font = 'bold 36px sans-serif'
+    const title = String(job.templateName || '花漾作品').slice(0, 16)
+    ctx.fillText(title, cardX + 32, cardY + 96)
+
+    // 作品外框
+    const frameX = cardX + 28
+    const frameY = cardY + headerH
+    const frameW = cardW - 56
+    const frameH = photoH + framePad * 2
+    this.roundRectPath(ctx, frameX, frameY, frameW, frameH, 22)
+    ctx.fillStyle = '#fff'
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(231, 109, 130, 0.28)'
+    ctx.lineWidth = 3
+    ctx.stroke()
+
+    // 内边装饰线
+    this.roundRectPath(ctx, frameX + 8, frameY + 8, frameW - 16, frameH - 16, 16)
+    ctx.strokeStyle = 'rgba(234, 223, 216, 0.9)'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+
+    const photoX = frameX + framePad
+    const photoY = frameY + framePad
+    const photoW = frameW - framePad * 2
     const resultImg = await this.loadImageForCanvas(canvas, resultPath)
-    const originalImg = await this.loadImageForCanvas(canvas, originalPath)
+    ctx.save()
+    this.roundRectPath(ctx, photoX, photoY, photoW, photoH, 14)
+    ctx.clip()
+    this.drawCoverImage(ctx, resultImg, photoX, photoY, photoW, photoH)
+    ctx.restore()
 
-    const rw = resultImg.width || 1
-    const rh = resultImg.height || 1
-    const resultScale = Math.min(width / rw, resultH / rh)
-    const drawW = rw * resultScale
-    const drawH = rh * resultScale
-    ctx.drawImage(resultImg, (width - drawW) / 2, (resultH - drawH) / 2, drawW, drawH)
+    let cursorY = frameY + frameH + 24
+    if (originalPath) {
+      const originalImg = await this.loadImageForCanvas(canvas, originalPath)
+      const thumb = 120
+      const labelX = frameX
+      ctx.fillStyle = '#8a7a7e'
+      ctx.font = '600 22px sans-serif'
+      ctx.fillText('原图参照', labelX, cursorY + 22)
 
-    const oy = resultH + gap
-    ctx.fillStyle = '#5a4f53'
+      const ox = labelX
+      const oy = cursorY + 36
+      this.roundRectPath(ctx, ox, oy, thumb, thumb, 14)
+      ctx.fillStyle = '#efe8ea'
+      ctx.fill()
+      ctx.save()
+      this.roundRectPath(ctx, ox, oy, thumb, thumb, 14)
+      ctx.clip()
+      this.drawCoverImage(ctx, originalImg, ox, oy, thumb, thumb)
+      ctx.restore()
+
+      ctx.fillStyle = '#a8989c'
+      ctx.font = '20px sans-serif'
+      ctx.fillText('长按小程序码可查看完整对照', ox + thumb + 20, oy + 68)
+      cursorY = oy + thumb + 28
+    }
+
+    // 底栏：小程序码 + 文案
+    const qrSize = 148
+    const qrX = frameX
+    const qrY = height - pad - 28 - qrSize
+    const qrImg = await this.loadImageForCanvas(canvas, qrLocalPath)
+
+    this.roundRectPath(ctx, qrX - 6, qrY - 6, qrSize + 12, qrSize + 12, 16)
+    ctx.fillStyle = '#fff'
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(234, 223, 216, 0.95)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize)
+
+    const textX = qrX + qrSize + 24
+    ctx.fillStyle = '#3d3438'
     ctx.font = 'bold 28px sans-serif'
-    ctx.fillText('原图参照', 28, oy + 30)
-
-    const ox = 28
-    const oyImg = oy + labelH
-    ctx.fillStyle = '#efe8ea'
-    ctx.fillRect(ox, oyImg, thumb, thumb)
-    const ow = originalImg.width || 1
-    const oh = originalImg.height || 1
-    const oScale = Math.max(thumb / ow, thumb / oh)
-    const sw = thumb / oScale
-    const sh = thumb / oScale
-    const sx = (ow - sw) / 2
-    const sy = (oh - sh) / 2
-    ctx.drawImage(originalImg, sx, sy, sw, sh, ox, oyImg, thumb, thumb)
+    ctx.fillText('长按识别小程序码', textX, qrY + 52)
+    ctx.fillStyle = '#8a7a7e'
+    ctx.font = '22px sans-serif'
+    ctx.fillText('查看完整作品 · 同款风格创作', textX, qrY + 92)
+    ctx.fillStyle = '#E76D82'
+    ctx.font = '600 20px sans-serif'
+    ctx.fillText('花漾相绘', textX, qrY + 128)
 
     const temp = await new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
@@ -874,15 +1056,20 @@ Page({
   async shareImage() {
     if (this.data.sharingTimeline) return
     this.setData({ sharingTimeline: true })
-    wx.showLoading({ title: '正在准备', mask: true })
+    wx.showLoading({ title: '正在生成海报', mask: true })
     try {
-      // 朋友圈打开的是分享页：先把「展示原图」写入分享记录
       const showOriginals = Boolean(this.data.shareShowOriginals)
-      await this.ensureShare({ showOriginals })
-      const share = this.data.share
+      // 确保分享记录 + 小程序码就绪（朋友圈海报需要码）
+      const { share } = await api.post(`/api/jobs/${this.data.id}/share/qrcode`, { showOriginals })
+      this.setData({
+        share,
+        shareShowOriginals: Boolean(share && share.showOriginals)
+      })
       if (!share || !share.token) throw new Error('分享未就绪')
+      if (!share.qrcodeUrl) throw new Error('小程序码生成失败')
 
-      const tempFilePath = await this.buildMomentsShareImage()
+      const qrLocalPath = await this.download(share.qrcodeUrl)
+      const tempFilePath = await this.buildMomentsShareImage(qrLocalPath)
       wx.hideLoading()
 
       const entrancePath = `/pages/share/index?token=${encodeURIComponent(share.token)}`
@@ -899,7 +1086,7 @@ Page({
       }
     } catch (error) {
       wx.hideLoading()
-      wx.showToast({ title: error.message || '图片准备失败', icon: 'none' })
+      wx.showToast({ title: error.message || '海报准备失败', icon: 'none' })
     } finally {
       this.setData({ sharingTimeline: false })
     }
@@ -1044,29 +1231,6 @@ Page({
     if (!id) return
     const demoQ = this.data.demo ? '&demo=1' : ''
     wx.redirectTo({ url: `/pages/template/index?id=${encodeURIComponent(id)}${demoQ}` })
-  },
-
-  /** 出图成功后轻提示一次，推动分享转化 */
-  maybePromptShare(jobId) {
-    if (this.data.demo || this.data.showcase || !jobId) return
-    const key = `huayang_share_nudge_${jobId}`
-    try {
-      if (wx.getStorageSync(key)) return
-      wx.setStorageSync(key, '1')
-    } catch (error) {
-      return
-    }
-    setTimeout(() => {
-      if (this.data.demo || this.data.showcase) return
-      wx.showModal({
-        title: '作品已完成',
-        content: this.data.shareRewardEnabled
-          ? '发给好友看看吧。对方打开、登录或首次创作，你都可能获得积分。'
-          : '发给好友看看这组花漾效果吧。',
-        confirmText: '知道了',
-        showCancel: false
-      })
-    }, 600)
   },
 
   async submitResultFeedback(event) {
